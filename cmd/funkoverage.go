@@ -24,7 +24,7 @@ func printHelp() {
       Generate coverage reports from log files.
       <logdir>           Directory containing .log files (all will be used)
       log1.txt,log2.txt  Comma-separated list of log files
-      --format           Comma-separated list: html,xml,txt (at least one required)
+      --format           Comma-separated list: html,xml,txt [default: ALL]
       --outdir DIR       Output directory for reports (default: current directory)
 
   help
