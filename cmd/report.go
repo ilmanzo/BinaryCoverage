@@ -254,17 +254,12 @@ type Row struct {
 	CoveragePct float64
 }
 type AggregateData struct {
-	Rows       []Row
+	Rows        []Row
 	GeneratedAt string
 }
 
 func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir string) error {
-	type Row struct {
-		ImageName   string
-		TotalCount  int
-		CalledCount int
-		CoveragePct float64
-	}
+
 	rows := []Row{}
 	for image, data := range coverage {
 		total := len(data.TotalFunctions)
@@ -280,13 +275,14 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 			CoveragePct: coveragePct,
 		})
 	}
+	_ = aggregateHTMLTemplate_circles // to avoid the unused variable error
 
 	aggData := AggregateData{
-		Rows: rows,
+		Rows:        rows,
 		GeneratedAt: time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 
-	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate)
+	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate_bars)
 	if err != nil {
 		return err
 	}
