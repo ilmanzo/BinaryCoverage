@@ -4,3 +4,4 @@ example/cov_sample
 obj-intel64/
 env
 funkoverage
+cmd/cmd
