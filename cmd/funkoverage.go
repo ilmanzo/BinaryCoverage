@@ -20,11 +20,11 @@ func printHelp() {
   unwrap /path/to/binary
       Restore the original binary previously wrapped.
 
-  report <logdir|log1.txt,log2.txt> <formats> [--outdir DIR]
+  report <logdir|log1.txt,log2.txt> --format <formats> [--outdir DIR]
       Generate coverage reports from log files.
       <logdir>           Directory containing .log files (all will be used)
       log1.txt,log2.txt  Comma-separated list of log files
-      <formats>          Comma-separated list: html,xml,txt (at least one required)
+      --format           Comma-separated list: html,xml,txt (at least one required)
       --outdir DIR       Output directory for reports (default: current directory)
 
   help
@@ -41,7 +41,7 @@ Environment variables:
 }
 
 func printVersion() {
-	fmt.Println("binarycoverage version", versionString)
+	fmt.Println("funkoverage version", versionString)
 }
 
 func main() {
@@ -54,6 +54,7 @@ func main() {
 	wrapCmd := flag.NewFlagSet("wrap", flag.ExitOnError)
 	unwrapCmd := flag.NewFlagSet("unwrap", flag.ExitOnError)
 	reportCmd := flag.NewFlagSet("report", flag.ExitOnError)
+	reportFormat := reportCmd.String("format", "", "Comma-separated list: html,xml,txt [default: ALL]")
 	reportOutdir := reportCmd.String("outdir", ".", "Output directory for reports")
 
 	switch os.Args[1] {
@@ -85,12 +86,15 @@ func main() {
 		}
 	case "report":
 		reportCmd.Parse(os.Args[2:])
-		if reportCmd.NArg() < 2 {
-			fmt.Println("report: missing arguments. Usage: report <logdir|log1.txt,log2.txt> <formats> [--outdir DIR]")
+		if reportCmd.NArg() < 1 {
+			fmt.Println("report: missing arguments. Usage: report <logdir|log1.txt,log2.txt> [--format <formats>] [--outdir DIR]")
 			os.Exit(1)
 		}
+		if *reportFormat == "" {
+			*reportFormat = "html,xml,txt"
+		}
 		logsArg := reportCmd.Arg(0)
-		formats := strings.Split(reportCmd.Arg(1), ",")
+		formats := strings.Split(*reportFormat, ",")
 		outdir := *reportOutdir
 
 		if len(formats) == 0 {
