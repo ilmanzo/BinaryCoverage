@@ -20,12 +20,12 @@ func printHelp() {
   unwrap /path/to/binary
       Restore the original binary previously wrapped.
 
-  report <logdir|log1.txt,log2.txt> --format <formats> [--outdir DIR]
+  report <inputdir|log1.txt,log2.txt> <outputdir> [--formats <formats>]
       Generate coverage reports from log files.
-      <logdir>           Directory containing .log files (all will be used)
+      <inputdir>         Directory containing .log files (all will be used)
       log1.txt,log2.txt  Comma-separated list of log files
-      --format           Comma-separated list: html,xml,txt [default: ALL]
-      --outdir DIR       Output directory for reports (default: current directory)
+      <outputdir>        Output directory for reports (mandatory)
+      --formats          Comma-separated list: html,xml,txt (default: html,txt,xml)
 
   help
       Show this help message.
@@ -54,8 +54,7 @@ func main() {
 	wrapCmd := flag.NewFlagSet("wrap", flag.ExitOnError)
 	unwrapCmd := flag.NewFlagSet("unwrap", flag.ExitOnError)
 	reportCmd := flag.NewFlagSet("report", flag.ExitOnError)
-	reportFormat := reportCmd.String("format", "", "Comma-separated list: html,xml,txt [default: ALL]")
-	reportOutdir := reportCmd.String("outdir", ".", "Output directory for reports")
+	reportFormats := reportCmd.String("formats", "html,txt,xml", "Comma-separated list: html,xml,txt (default: html,txt,xml)")
 
 	switch os.Args[1] {
 	case "help", "--help", "-h":
@@ -64,7 +63,7 @@ func main() {
 	case "version", "--version", "-v":
 		printVersion()
 		return
-	case "wrap":
+	case "wrap","-w":
 		wrapCmd.Parse(os.Args[2:])
 		if wrapCmd.NArg() < 1 {
 			fmt.Println("wrap: missing binary path")
@@ -74,7 +73,7 @@ func main() {
 			fmt.Println("wrap error:", err)
 			os.Exit(1)
 		}
-	case "unwrap":
+	case "unwrap","-u":
 		unwrapCmd.Parse(os.Args[2:])
 		if unwrapCmd.NArg() < 1 {
 			fmt.Println("unwrap: missing binary path")
@@ -84,18 +83,15 @@ func main() {
 			fmt.Println("unwrap error:", err)
 			os.Exit(1)
 		}
-	case "report":
+	case "report","-r":
 		reportCmd.Parse(os.Args[2:])
-		if reportCmd.NArg() < 1 {
-			fmt.Println("report: missing arguments. Usage: report <logdir|log1.txt,log2.txt> [--format <formats>] [--outdir DIR]")
+		if reportCmd.NArg() < 2 {
+			fmt.Println("report: missing arguments. Usage: report <inputdir|log1.txt,log2.txt> <outputdir> [--formats <formats>]")
 			os.Exit(1)
 		}
-		if *reportFormat == "" {
-			*reportFormat = "html,xml,txt"
-		}
-		logsArg := reportCmd.Arg(0)
-		formats := strings.Split(*reportFormat, ",")
-		outdir := *reportOutdir
+		inputArg := reportCmd.Arg(0)
+		outputDir := reportCmd.Arg(1)
+		formats := strings.Split(*reportFormats, ",")
 
 		if len(formats) == 0 {
 			fmt.Println("report: must specify at least one of html, xml, txt")
@@ -103,24 +99,24 @@ func main() {
 		}
 
 		logFiles := []string{}
-		info, err := os.Stat(logsArg)
+		info, err := os.Stat(inputArg)
 		if err == nil && info.IsDir() {
-			entries, err := os.ReadDir(logsArg)
+			entries, err := os.ReadDir(inputArg)
 			if err != nil {
-				fmt.Printf("report: failed to read directory %s: %v\n", logsArg, err)
+				fmt.Printf("report: failed to read directory %s: %v\n", inputArg, err)
 				os.Exit(1)
 			}
 			for _, entry := range entries {
 				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".log") {
-					logFiles = append(logFiles, filepath.Join(logsArg, entry.Name()))
+					logFiles = append(logFiles, filepath.Join(inputArg, entry.Name()))
 				}
 			}
 			if len(logFiles) == 0 {
-				fmt.Printf("report: no .log files found in directory %s\n", logsArg)
+				fmt.Printf("report: no .log files found in directory %s\n", inputArg)
 				os.Exit(1)
 			}
 		} else {
-			logFiles = strings.Split(logsArg, ",")
+			logFiles = strings.Split(inputArg, ",")
 		}
 		coverage, err := analyzeLogs(logFiles)
 		if err != nil {
@@ -132,17 +128,17 @@ func main() {
 			case "txt":
 				printTxtReport(coverage)
 			case "html":
-				_ = os.MkdirAll(outdir, 0755)
+				_ = os.MkdirAll(outputDir, 0755)
 				for image, data := range coverage {
-					if err := generateHTMLReport(image, data, outdir); err != nil {
+					if err := generateHTMLReport(image, data, outputDir); err != nil {
 						fmt.Println("HTML report error:", err)
 					}
 				}
-				_ = generateAggregateHTMLReport(coverage, outdir)
+				_ = generateAggregateHTMLReport(coverage, outputDir)
 			case "xml":
-				_ = os.MkdirAll(outdir, 0755)
+				_ = os.MkdirAll(outputDir, 0755)
 				for image, data := range coverage {
-					if err := generateXUnitReport(image, data, outdir); err != nil {
+					if err := generateXUnitReport(image, data, outputDir); err != nil {
 						fmt.Println("XUnit report error:", err)
 					}
 				}
