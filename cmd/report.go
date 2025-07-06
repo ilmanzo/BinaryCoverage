@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
-
 
 type CoverageData struct {
 	TotalFunctions  map[string]struct{}
@@ -29,6 +29,7 @@ type HTMLReportData struct {
 	UncalledCount      int
 	CoveragePercentage float64
 	Functions          []FunctionEntry
+	GeneratedAt        string // Add this field
 }
 
 // --- Coverage Analysis ---
@@ -131,12 +132,13 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 		functions = append(functions, FunctionEntry{Name: fn, Status: status})
 	}
 	reportData := HTMLReportData{
-		ImageName:          image,
+		ImageName:          filepath.Base(image),
 		TotalCount:         totalCount,
 		CalledCount:        calledCount,
 		UncalledCount:      uncalledCount,
 		CoveragePercentage: coveragePct,
 		Functions:          functions,
+		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 	tmpl, err := template.New("report").Parse(detailedHTMLTemplateStr)
 	if err != nil {
@@ -156,6 +158,7 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 
 type TestSuites struct {
 	XMLName   xml.Name    `xml:"testsuites"`
+	Generated string      `xml:"generated,attr"`
 	TestSuite []TestSuite `xml:"testsuite"`
 }
 type TestSuite struct {
@@ -213,6 +216,7 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 		}
 	}
 	ts := TestSuites{
+		Generated: time.Now().Format("2006-01-02 15:04:05 MST"),
 		TestSuite: []TestSuite{
 			{
 				Errors:   0,
@@ -243,6 +247,17 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 	return enc.Encode(ts)
 }
 
+type Row struct {
+	ImageName   string
+	TotalCount  int
+	CalledCount int
+	CoveragePct float64
+}
+type AggregateData struct {
+	Rows       []Row
+	GeneratedAt string
+}
+
 func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir string) error {
 	type Row struct {
 		ImageName   string
@@ -259,11 +274,16 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 			coveragePct = float64(called) / float64(total) * 100
 		}
 		rows = append(rows, Row{
-			ImageName:   image,
+			ImageName:   filepath.Base(image),
 			TotalCount:  total,
 			CalledCount: called,
 			CoveragePct: coveragePct,
 		})
+	}
+
+	aggData := AggregateData{
+		Rows: rows,
+		GeneratedAt: time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 
 	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate)
@@ -276,5 +296,5 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 		return err
 	}
 	defer f.Close()
-	return tmpl.Execute(f, rows)
+	return tmpl.Execute(f, aggData)
 }

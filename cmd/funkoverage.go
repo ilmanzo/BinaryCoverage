@@ -63,7 +63,7 @@ func main() {
 	case "version", "--version", "-v":
 		printVersion()
 		return
-	case "wrap","-w":
+	case "wrap", "-w":
 		wrapCmd.Parse(os.Args[2:])
 		if wrapCmd.NArg() < 1 {
 			fmt.Println("wrap: missing binary path")
@@ -73,7 +73,7 @@ func main() {
 			fmt.Println("wrap error:", err)
 			os.Exit(1)
 		}
-	case "unwrap","-u":
+	case "unwrap", "-u":
 		unwrapCmd.Parse(os.Args[2:])
 		if unwrapCmd.NArg() < 1 {
 			fmt.Println("unwrap: missing binary path")
@@ -83,7 +83,7 @@ func main() {
 			fmt.Println("unwrap error:", err)
 			os.Exit(1)
 		}
-	case "report","-r":
+	case "report", "-r":
 		reportCmd.Parse(os.Args[2:])
 		if reportCmd.NArg() < 2 {
 			fmt.Println("report: missing arguments. Usage: report <inputdir|log1.txt,log2.txt> <outputdir> [--formats <formats>]")
