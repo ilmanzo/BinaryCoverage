@@ -27,7 +27,7 @@ const detailedHTMLTemplateStr = `<!DOCTYPE html>
         <p><strong>Total Functions:</strong> {{.TotalCount}}</p>
         <p><strong>Called Functions:</strong> {{.CalledCount}}</p>
         <p><strong>Uncalled Functions:</strong> {{.UncalledCount}}</p>
-        <p class="percentage">Coverage: {{printf "%.2f" .CoveragePercentage}}%</p>
+        <p class="percentage">Coverage: {{printf "%.1f" .CoveragePercentage}}%</p>
         <div class="progress-bar">
             <div class="progress-bar-inner" style="width: {{.CoveragePercentage}}%">{{printf "%.2f" .CoveragePercentage}}%</div>
         </div>
@@ -61,14 +61,13 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
         tr:hover { background: #f1f7ff; }
         .bar { height: 18px; background: #e9ecef; border-radius: 9px; overflow: hidden; }
         .bar-inner {
-            background: #28a745;
+            background: #30cf30;
             height: 100%;
-            color: #222; /* Changed from white to dark for readability */
+            color: #111; 
             text-align: center;
             font-size: 0.9em;
             font-weight: bold;
             line-height: 18px;
-            text-shadow: 0 1px 2px #fff, 0 -1px 2px #fff;
         }
     </style>
 </head>
@@ -90,8 +89,8 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
             <td>{{.CalledCount}}</td>
             <td>
                 <div class="bar">
-                    <div class="bar-inner" style="width: {{printf "%.2f" .CoveragePct}}%">
-                        {{printf "%.2f" .CoveragePct}}%
+                    <div class="bar-inner" style="width: {{printf "%.1f" .CoveragePct}}%">
+                        {{printf "%.1f" .CoveragePct}}%
                     </div>
                 </div>
             </td>
