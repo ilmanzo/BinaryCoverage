@@ -34,11 +34,15 @@ VOID log_function_call(const char* img_name, const char* func_name)
 // An image is either an executable or a shared library.
 VOID image_load(IMG img, VOID *v)
 {
+    const std::string &image_name = IMG_Name(img);
+    if (!image_is_relevant(image_name)) // Check if the image is relevant for our analysis
+    {
+        LOG("[Image:" + image_name + "] is not relevant, skipping...\n");
+        return; // Skip irrelevant images
+    }
     // We iterate through all the sections of the image.
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
     {
-        const std::string &image_name = IMG_Name(img);
-
         LOG("[Image:" + image_name + "] [Section:" + SEC_Name(sec) + "]\n");
         // We iterate through all the routines (functions) in the image.
         if (SEC_Type(sec) != SEC_TYPE_EXEC)

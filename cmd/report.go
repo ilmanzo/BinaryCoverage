@@ -275,14 +275,13 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 			CoveragePct: coveragePct,
 		})
 	}
-	_ = aggregateHTMLTemplate_circles // to avoid the unused variable error
 
 	aggData := AggregateData{
 		Rows:        rows,
 		GeneratedAt: time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 
-	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate_bars)
+	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate)
 	if err != nil {
 		return err
 	}

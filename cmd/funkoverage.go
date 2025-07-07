@@ -8,45 +8,13 @@ import (
 	"strings"
 )
 
-const versionString = "0.3.3"
+const versionString = "0.3.4"
 
 // --- CLI ---
 
-func printHelp() {
-	fmt.Println(`Usage:
-  wrap /path/to/binary
-      Wrap the given ELF binary with the Pin coverage wrapper.
-
-  unwrap /path/to/binary
-      Restore the original binary previously wrapped.
-
-  report <inputdir|log1.txt,log2.txt> <outputdir> [--formats <formats>]
-      Generate coverage reports from log files.
-      <inputdir>         Directory containing .log files (all will be used)
-      log1.txt,log2.txt  Comma-separated list of log files
-      <outputdir>        Output directory for reports (mandatory)
-      --formats          Comma-separated list: html,xml,txt (default: html,txt,xml)
-
-  help
-      Show this help message.
-
-  version
-      Show program version.
-
-Environment variables:
-  PIN_ROOT            Path to Intel Pin root directory (default: autodetect or required)
-  PIN_TOOL_SEARCH_DIR Directory to search for FuncTracer.so (default: /usr/lib64/coverage-tools)
-  LOG_DIR             Directory for coverage logs (default: /var/coverage/data)
-  SAFE_BIN_DIR        Directory to store original binaries (default: /var/coverage/bin)`)
-}
-
-func printVersion() {
-	fmt.Println("funkoverage version", versionString)
-}
-
 func main() {
 	if len(os.Args) < 2 {
-		printHelp()
+		fmt.Println(helpText)
 		os.Exit(1)
 	}
 
@@ -58,10 +26,10 @@ func main() {
 
 	switch os.Args[1] {
 	case "help", "--help", "-h":
-		printHelp()
+		fmt.Println(helpText)
 		return
 	case "version", "--version", "-v":
-		printVersion()
+		fmt.Println("funkoverage version", versionString)
 		return
 	case "wrap", "-w":
 		wrapCmd.Parse(os.Args[2:])
@@ -146,7 +114,7 @@ func main() {
 		}
 	default:
 		fmt.Println("Unknown command:", os.Args[1])
-		printHelp()
+		fmt.Println(helpText)
 		os.Exit(1)
 	}
 }
