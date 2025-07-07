@@ -26,7 +26,7 @@ bool image_is_relevant(const std::string_view &image_name)
     static const std::set<std::string_view> blacklist = {
         "[vdso]"
     };
-    return (!blacklist.contains(image_name))
+    return !blacklist.contains(image_name);
 }
 
 #endif // FUNCTRACER_HPP
