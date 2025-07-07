@@ -100,6 +100,34 @@ func TestAnalyzeLogs(t *testing.T) {
 	}
 }
 
+func TestAnalyzeLogsEmpty(t *testing.T) {
+	coverage, err := analyzeLogs([]string{})
+	if err != nil {
+		t.Fatalf("analyzeLogs should not error on empty input: %v", err)
+	}
+	if len(coverage) != 0 {
+		t.Errorf("expected empty coverage map, got %v", coverage)
+	}
+}
+
+func TestAnalyzeLogsMalformed(t *testing.T) {
+	tmp := t.TempDir()
+	logFile := filepath.Join(tmp, "bad.log")
+	// Write a malformed log
+	content := `not a real log line`
+	if err := os.WriteFile(logFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	coverage, err := analyzeLogs([]string{logFile})
+	if err != nil {
+		t.Fatalf("analyzeLogs should not error on malformed log: %v", err)
+	}
+	// Should be empty, as no valid lines
+	if len(coverage) != 0 {
+		t.Errorf("expected empty coverage map for malformed log, got %v", coverage)
+	}
+}
+
 // --- wrap/unwrap logic (integration) ---
 
 func TestWrapUnwrapLogic(t *testing.T) {
@@ -142,5 +170,30 @@ func TestWrapUnwrapLogic(t *testing.T) {
 	}
 	if !isELF(orig) {
 		t.Error("unwrap did not restore ELF binary")
+	}
+}
+
+func TestGenerateHTMLReportBaseName(t *testing.T) {
+	tmp := t.TempDir()
+	data := &CoverageData{
+		TotalFunctions:  map[string]struct{}{"foo": {}, "bar": {}},
+		CalledFunctions: map[string]struct{}{"foo": {}},
+	}
+	imagePath := "/some/long/path/mybinary"
+	err := generateHTMLReport(imagePath, data, tmp)
+	if err != nil {
+		t.Fatalf("generateHTMLReport failed: %v", err)
+	}
+	// Check that the HTML file exists and contains only the base name
+	htmlFile := filepath.Join(tmp, "coverage_mybinary.html")
+	content, err := os.ReadFile(htmlFile)
+	if err != nil {
+		t.Fatalf("failed to read generated HTML: %v", err)
+	}
+	if !strings.Contains(string(content), "mybinary") {
+		t.Errorf("expected HTML report to contain base name 'mybinary'")
+	}
+	if strings.Contains(string(content), "/some/long/path/mybinary") {
+		t.Errorf("HTML report should not contain full path")
 	}
 }

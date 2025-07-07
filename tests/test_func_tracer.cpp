@@ -29,3 +29,13 @@ TEST_CASE("func_is_relevant works as expected") {
     }
 }
 
+TEST_CASE("image_is_relevant works as expected") {
+    SECTION("Blacklisted images are not relevant") {
+        REQUIRE_FALSE(image_is_relevant("[vdso]"));
+    }
+    SECTION("Normal images are relevant") {
+        REQUIRE(image_is_relevant("/usr/bin/ls"));
+        REQUIRE(image_is_relevant("libc.so.6"));
+        REQUIRE(image_is_relevant("mybinary"));
+    }
+}

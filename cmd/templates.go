@@ -45,88 +45,9 @@ const detailedHTMLTemplateStr = `<!DOCTYPE html>
 </body>
 </html>`
 
-// Aggregate HTML template for the coverage report
-const aggregateHTMLTemplate_circles = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Aggregate Coverage Report</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 2em; background: #f9f9f9; color: #333; }
-        .container { max-width: 900px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);}
-        table { width: 100%; border-collapse: collapse; margin-top: 2em;}
-        th, td { padding: 0.7em 1em; border-bottom: 1px solid #ddd; text-align: left;}
-        th { background: #f4f4f4; }
-        tr:hover { background: #f1f7ff; }
-        .pie-chart {
-            width: 38px;
-            height: 38px;
-            display: inline-block;
-            vertical-align: middle;
-        }
-        .pie-label {
-            position: absolute;
-            width: 38px;
-            height: 38px;
-            top: 0;
-            left: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9em;
-            font-weight: bold;
-            color: #222;
-            pointer-events: none;
-        }
-        .pie-container {
-            position: relative;
-            width: 38px;
-            height: 38px;
-            display: inline-block;
-        }
-    </style>
-</head>
-<body>
-<div class="container">
-    <h1>Aggregate Coverage Report</h1>
-    <p><em>Generated at: {{.GeneratedAt}}</em></p>
-    <table>
-        <tr>
-            <th>Image</th>
-            <th>Total Functions</th>
-            <th>Called Functions</th>
-            <th>Coverage</th>
-        </tr>
-        {{range .Rows}}
-        <tr>
-            <td>{{.ImageName}}</td>
-            <td>{{.TotalCount}}</td>
-            <td>{{.CalledCount}}</td>
-            <td>
-                <span class="pie-container">
-                    <svg class="pie-chart" viewBox="0 0 36 36">
-                        <circle r="16" cx="18" cy="18" fill="#e9ecef"/>
-                        <circle r="16" cx="18" cy="18"
-                            fill="none"
-                            stroke="#28a745"
-                            stroke-width="6"
-                            stroke-dasharray="{{printf "%.2f" .CoveragePct}} 100"
-                            stroke-dashoffset="0"
-                            transform="rotate(-90 18 18)"/>
-                    </svg>
-                    <span class="pie-label">{{printf "%.0f" .CoveragePct}}%</span>
-                </span>
-            </td>
-        </tr>
-        {{end}}
-    </table>
-</div>
-</body>
-</html>`
-
 // aggregateHTMLTemplate_bars is a variant of the aggregate report with bar charts instead of pie charts.
 // It uses a simple horizontal bar to represent coverage percentage.
-const aggregateHTMLTemplate_bars = `<!DOCTYPE html>
+const aggregateHTMLTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -180,3 +101,29 @@ const aggregateHTMLTemplate_bars = `<!DOCTYPE html>
 </div>
 </body>
 </html>`
+
+const helpText = `Usage:
+  wrap /path/to/binary
+      Wrap the given ELF binary with the Pin coverage wrapper.
+
+  unwrap /path/to/binary
+      Restore the original binary previously wrapped.
+
+  report <inputdir|log1.txt,log2.txt> <outputdir> [--formats <formats>]
+      Generate coverage reports from log files.
+      <inputdir>         Directory containing .log files (all will be used)
+      log1.txt,log2.txt  Comma-separated list of log files
+      <outputdir>        Output directory for reports (mandatory)
+      --formats          Comma-separated list: html,xml,txt (default: html,txt,xml)
+
+  help
+      Show this help message.
+
+  version
+      Show program version.
+
+Environment variables:
+  PIN_ROOT            Path to Intel Pin root directory (default: autodetect or required)
+  PIN_TOOL_SEARCH_DIR Directory to search for FuncTracer.so (default: /usr/lib64/coverage-tools)
+  LOG_DIR             Directory for coverage logs (default: /var/coverage/data)
+  SAFE_BIN_DIR        Directory to store original binaries (default: /var/coverage/bin)`
