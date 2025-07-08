@@ -256,7 +256,7 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 		return err
 	}
 	safeName := regexp.MustCompile(`[^a-zA-Z0-9._-]`).ReplaceAllString(filepath.Base(image), "_")
-	outfile := filepath.Join(outputDir, fmt.Sprintf("coverage_%s.html", safeName))
+	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeName))
 	f, err := os.Create(outfile)
 	if err != nil {
 		return err
@@ -301,7 +301,7 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 	if err != nil {
 		return err
 	}
-	outfile := filepath.Join(outputDir, "aggregate_coverage.html")
+	outfile := filepath.Join(outputDir, "aggregate.html")
 	f, err := os.Create(outfile)
 	if err != nil {
 		return err

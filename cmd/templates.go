@@ -9,9 +9,9 @@ const detailedHTMLTemplateStr = `<!DOCTYPE html>
         body { font-family: Arial, sans-serif; margin: 2em; background: #f9f9f9; color: #333; }
         .container { max-width: 900px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);}
         .summary { background: #f4f4f4; padding: 1.5em; border-radius: 8px; margin-bottom: 2em; border: 1px solid #ddd;}
-        .summary .percentage { font-size: 1.8em; font-weight: bold; color: #0056b3;}
+        .summary .percentage { font-size: 1.8em; font-weight: bold; color: #0c322c;}
         .progress-bar { background: #e9ecef; border-radius: 50px; overflow: hidden; height: 30px; margin-top: 1em;}
-        .progress-bar-inner { background: #28a745; height: 100%; color: white, text-align: center; line-height: 30px; font-weight: bold; transition: width 0.5s;}
+        .progress-bar-inner { background: #30ba78; height: 100%; color: white, text-align: center; line-height: 30px; font-weight: bold; transition: width 0.5s;}
         .function-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1em; list-style-type: none; padding: 0;}
         .function-list li { padding: 0.6em; border-radius: 5px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: transform 0.2s;}
         .function-list li:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,0.08);}
@@ -59,11 +59,11 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
         th, td { padding: 0.7em 1em; border-bottom: 1px solid #ddd; text-align: left;}
         th { background: #f4f4f4; }
         tr:hover { background: #f1f7ff; }
-        .bar { height: 18px; background: #e9ecef; border-radius: 9px; overflow: hidden; }
+        .bar { height: 18px; background: #efefef; border-radius: 9px; overflow: hidden; }
         .bar-inner {
-            background: #30cf30;
+            background: #30ba78;
             height: 100%;
-            color: #111; 
+            color: #0c322c; 
             text-align: center;
             font-size: 0.9em;
             font-weight: bold;
