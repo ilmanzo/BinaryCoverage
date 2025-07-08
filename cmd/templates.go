@@ -72,6 +72,7 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
         tr:nth-child(even) { background-color: #f9f9f9; }
         th.sort-asc::after { content: " ▲"; }
         th.sort-desc::after { content: " ▼"; }
+        tfoot .summary-row { background-color: #e8f5e9; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -103,10 +104,20 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
             </tr>
             {{end}}
         </tbody>
+        <tfoot>
+            <tr class="summary-row">
+                <td><strong>Total</strong></td>
+                <td id="sum-total">–</td>
+                <td id="sum-called">–</td>
+                <td id="sum-coverage">–</td>
+            </tr>
+        </tfoot>
+
     </table>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Sorting logic (same as before)
     const getCellValue = (row, idx) => {
         const cell = row.children[idx];
         if (!cell) return '';
@@ -124,28 +135,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(v1).localeCompare(String(v2)) * (asc ? 1 : -1);
     };
 
-    const table = document.querySelector("table");
-    const tbody = table.querySelector("tbody");
-    const headers = table.querySelectorAll("th");
+    const tbody = document.querySelector("tbody");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
 
-    headers.forEach((th, idx) => {
+    document.querySelectorAll("th").forEach((th, idx) => {
         th.addEventListener("click", () => {
             const isAsc = !th.classList.contains("sort-asc");
-
-            headers.forEach(header => header.classList.remove("sort-asc", "sort-desc"));
+            document.querySelectorAll("th").forEach(header => {
+                header.classList.remove("sort-asc", "sort-desc");
+            });
             th.classList.add(isAsc ? "sort-asc" : "sort-desc");
-
-            const rows = Array.from(tbody.querySelectorAll("tr"));
-            rows.sort(comparer(idx, isAsc)).forEach(row => tbody.appendChild(row));
+            const sortedRows = rows.slice().sort(comparer(idx, isAsc));
+            sortedRows.forEach(row => tbody.appendChild(row));
         });
     });
 
-    // Default sort: Coverage column descending
-    const defaultSortIdx = 0; // 1st column: Coverage
-    const defaultHeader = headers[defaultSortIdx];
-    defaultHeader.classList.add("sort-desc");
-    const rows = Array.from(tbody.querySelectorAll("tr"));
-    rows.sort(comparer(defaultSortIdx, false)).forEach(row => tbody.appendChild(row));
+    // Footer: Calculate and fill summary values
+    let total = 0, called = 0;
+    rows.forEach(row => {
+        const totalCell = parseInt(row.children[1].innerText.trim());
+        const calledCell = parseInt(row.children[2].innerText.trim());
+        if (!isNaN(totalCell)) total += totalCell;
+        if (!isNaN(calledCell)) called += calledCell;
+    });
+
+    const coverage = total > 0 ? (called / total * 100).toFixed(1) : '0.0';
+
+    document.getElementById("sum-total").innerText = total;
+    document.getElementById("sum-called").innerText = called;
+    document.getElementById("sum-coverage").innerText = coverage + "%";
+
 });
 </script>
 </body>
