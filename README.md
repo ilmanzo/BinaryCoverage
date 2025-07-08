@@ -76,3 +76,21 @@ gcc -g -gdwarf-4 main.c
 ./tests/run_unit_tests.sh
 ```
 
+# I want to just try out and change the HTML output, should I rebuild everything ?
+
+No, all pages are in this [source file](https://github.com/ilmanzo/BinaryCoverage/blob/main/cmd/templates.go), it's sufficient to change them and see the result.
+to check them visually, you can copy-paste the content as html and see it in the browser
+
+As alternative, if you change the analyzer logic, you can run
+
+`go build` 
+
+from the cmd subdirectory to rebuild the generator. then run
+
+ `./cmd report ../example/sample_data --outdir /tmp`
+ 
+to generate some sample html with fake sample files and see what happens in your `/tmp` directory.
+
+
+
+
