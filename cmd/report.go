@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -39,6 +40,7 @@ var (
 	functionCallRe = regexp.MustCompile(`\[Image:(.*?)\] \[Called:(.*?)\]`)
 )
 
+// analyzeLogs processes the log files and extracts coverage data for each image.
 func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 	coverage := make(map[string]*CoverageData)
 	for _, logFile := range logFiles {
@@ -74,6 +76,8 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 	return coverage, nil
 }
 
+// --- Console Report ---
+// printTxtReport prints a text-based report to the console summarizing coverage for each image.
 func printTxtReport(coverage map[string]*CoverageData) {
 	for image, data := range coverage {
 		total := len(data.TotalFunctions)
@@ -110,50 +114,6 @@ func printTxtReport(coverage map[string]*CoverageData) {
 	fmt.Println("\n--- End of Console Report ---")
 }
 
-func generateHTMLReport(image string, data *CoverageData, outputDir string) error {
-	totalFns := make([]string, 0, len(data.TotalFunctions))
-	for fn := range data.TotalFunctions {
-		totalFns = append(totalFns, fn)
-	}
-	calledFns := data.CalledFunctions
-	totalCount := len(totalFns)
-	calledCount := len(calledFns)
-	uncalledCount := totalCount - calledCount
-	coveragePct := 0.0
-	if totalCount > 0 {
-		coveragePct = float64(calledCount) / float64(totalCount) * 100
-	}
-	functions := make([]FunctionEntry, 0, totalCount)
-	for _, fn := range totalFns {
-		status := "uncalled"
-		if _, ok := calledFns[fn]; ok {
-			status = "called"
-		}
-		functions = append(functions, FunctionEntry{Name: fn, Status: status})
-	}
-	reportData := HTMLReportData{
-		ImageName:          filepath.Base(image),
-		TotalCount:         totalCount,
-		CalledCount:        calledCount,
-		UncalledCount:      uncalledCount,
-		CoveragePercentage: coveragePct,
-		Functions:          functions,
-		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
-	}
-	tmpl, err := template.New("report").Parse(detailedHTMLTemplateStr)
-	if err != nil {
-		return err
-	}
-	safeName := regexp.MustCompile(`[^a-zA-Z0-9._-]`).ReplaceAllString(filepath.Base(image), "_")
-	outfile := filepath.Join(outputDir, fmt.Sprintf("coverage_%s.html", safeName))
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return tmpl.Execute(f, reportData)
-}
-
 // --- XUnit XML Report ---
 
 type TestSuites struct {
@@ -179,6 +139,7 @@ type Passed struct {
 	Text    string `xml:",chardata"`
 }
 
+// generateXUnitReport generates an XUnit XML report for a single image's coverage data.
 func generateXUnitReport(image string, data *CoverageData, outputDir string) error {
 	totalFns := make([]string, 0, len(data.TotalFunctions))
 	for fn := range data.TotalFunctions {
@@ -258,10 +219,65 @@ type AggregateData struct {
 	GeneratedAt string
 }
 
+// generateHTMLReport generates an HTML report for a single image's coverage data.
+// It creates a detailed report with the image name, total functions, called functions,
+func generateHTMLReport(image string, data *CoverageData, outputDir string) error {
+	totalFns := make([]string, 0, len(data.TotalFunctions))
+	for fn := range data.TotalFunctions {
+		totalFns = append(totalFns, fn)
+	}
+	calledFns := data.CalledFunctions
+	totalCount := len(totalFns)
+	calledCount := len(calledFns)
+	uncalledCount := totalCount - calledCount
+	coveragePct := 0.0
+	if totalCount > 0 {
+		coveragePct = float64(calledCount) / float64(totalCount) * 100
+	}
+	functions := make([]FunctionEntry, 0, totalCount)
+	for _, fn := range totalFns {
+		status := "uncalled"
+		if _, ok := calledFns[fn]; ok {
+			status = "called"
+		}
+		functions = append(functions, FunctionEntry{Name: fn, Status: status})
+	}
+	reportData := HTMLReportData{
+		ImageName:          filepath.Base(image),
+		TotalCount:         totalCount,
+		CalledCount:        calledCount,
+		UncalledCount:      uncalledCount,
+		CoveragePercentage: coveragePct,
+		Functions:          functions,
+		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
+	}
+	tmpl, err := template.New("report").Parse(detailedHTMLTemplateStr)
+	if err != nil {
+		return err
+	}
+	safeName := regexp.MustCompile(`[^a-zA-Z0-9._-]`).ReplaceAllString(filepath.Base(image), "_")
+	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeName))
+	f, err := os.Create(outfile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return tmpl.Execute(f, reportData)
+}
+
+// generateAggregateHTMLReport generates an HTML report summarizing coverage across all images.
+// It creates a table with the image name, total functions, called functions, and coverage percentage.
 func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir string) error {
+	// Collect and sort image names
+	imageNames := make([]string, 0, len(coverage))
+	for image := range coverage {
+		imageNames = append(imageNames, image)
+	}
+	sort.Strings(imageNames)
 
 	rows := []Row{}
-	for image, data := range coverage {
+	for _, image := range imageNames {
+		data := coverage[image]
 		total := len(data.TotalFunctions)
 		called := len(data.CalledFunctions)
 		coveragePct := 0.0
@@ -285,7 +301,7 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 	if err != nil {
 		return err
 	}
-	outfile := filepath.Join(outputDir, "aggregate_coverage.html")
+	outfile := filepath.Join(outputDir, "aggregate.html")
 	f, err := os.Create(outfile)
 	if err != nil {
 		return err

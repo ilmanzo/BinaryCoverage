@@ -185,7 +185,7 @@ func TestGenerateHTMLReportBaseName(t *testing.T) {
 		t.Fatalf("generateHTMLReport failed: %v", err)
 	}
 	// Check that the HTML file exists and contains only the base name
-	htmlFile := filepath.Join(tmp, "coverage_mybinary.html")
+	htmlFile := filepath.Join(tmp, "mybinary.html")
 	content, err := os.ReadFile(htmlFile)
 	if err != nil {
 		t.Fatalf("failed to read generated HTML: %v", err)
