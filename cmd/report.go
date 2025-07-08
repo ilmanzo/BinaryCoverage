@@ -113,6 +113,7 @@ func printTxtReport(coverage map[string]*CoverageData) {
 	}
 	fmt.Println("\n--- End of Console Report ---")
 }
+
 // --- XUnit XML Report ---
 
 type TestSuites struct {
@@ -267,44 +268,44 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 // generateAggregateHTMLReport generates an HTML report summarizing coverage across all images.
 // It creates a table with the image name, total functions, called functions, and coverage percentage.
 func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir string) error {
-    // Collect and sort image names
-    imageNames := make([]string, 0, len(coverage))
-    for image := range coverage {
-        imageNames = append(imageNames, image)
-    }
-    sort.Strings(imageNames)
+	// Collect and sort image names
+	imageNames := make([]string, 0, len(coverage))
+	for image := range coverage {
+		imageNames = append(imageNames, image)
+	}
+	sort.Strings(imageNames)
 
-    rows := []Row{}
-    for _, image := range imageNames {
-        data := coverage[image]
-        total := len(data.TotalFunctions)
-        called := len(data.CalledFunctions)
-        coveragePct := 0.0
-        if total > 0 {
-            coveragePct = float64(called) / float64(total) * 100
-        }
-        rows = append(rows, Row{
-            ImageName:   filepath.Base(image),
-            TotalCount:  total,
-            CalledCount: called,
-            CoveragePct: coveragePct,
-        })
-    }
+	rows := []Row{}
+	for _, image := range imageNames {
+		data := coverage[image]
+		total := len(data.TotalFunctions)
+		called := len(data.CalledFunctions)
+		coveragePct := 0.0
+		if total > 0 {
+			coveragePct = float64(called) / float64(total) * 100
+		}
+		rows = append(rows, Row{
+			ImageName:   filepath.Base(image),
+			TotalCount:  total,
+			CalledCount: called,
+			CoveragePct: coveragePct,
+		})
+	}
 
-    aggData := AggregateData{
-        Rows:        rows,
-        GeneratedAt: time.Now().Format("2006-01-02 15:04:05 MST"),
-    }
+	aggData := AggregateData{
+		Rows:        rows,
+		GeneratedAt: time.Now().Format("2006-01-02 15:04:05 MST"),
+	}
 
-    tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate)
-    if err != nil {
-        return err
-    }
-    outfile := filepath.Join(outputDir, "aggregate_coverage.html")
-    f, err := os.Create(outfile)
-    if err != nil {
-        return err
-    }
-    defer f.Close()
-    return tmpl.Execute(f, aggData)
+	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate)
+	if err != nil {
+		return err
+	}
+	outfile := filepath.Join(outputDir, "aggregate_coverage.html")
+	f, err := os.Create(outfile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return tmpl.Execute(f, aggData)
 }
