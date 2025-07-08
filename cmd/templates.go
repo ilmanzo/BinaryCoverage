@@ -69,6 +69,8 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
             font-weight: bold;
             line-height: 18px;
         }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        th { background: #f4f4f4; cursor: pointer; }
     </style>
 </head>
 <body>
