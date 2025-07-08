@@ -57,7 +57,7 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
         .container { max-width: 900px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);}
         table { width: 100%; border-collapse: collapse; margin-top: 2em;}
         th, td { padding: 0.7em 1em; border-bottom: 1px solid #ddd; text-align: left;}
-        th { background: #f4f4f4; }
+        th { background: #f4f4f4; cursor: pointer; user-select: none; }
         tr:hover { background: #f1f7ff; }
         .bar { height: 18px; background: #efefef; border-radius: 9px; overflow: hidden; }
         .bar-inner {
@@ -70,7 +70,8 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
             line-height: 18px;
         }
         tr:nth-child(even) { background-color: #f9f9f9; }
-        th { background: #f4f4f4; cursor: pointer; }
+        th.sort-asc::after { content: " ▲"; }
+        th.sort-desc::after { content: " ▼"; }
     </style>
 </head>
 <body>
@@ -78,28 +79,75 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
     <h1>Aggregate Coverage Report</h1>
     <p><em>Generated at: {{.GeneratedAt}}</em></p>
     <table>
-        <tr>
-            <th>Image</th>
-            <th>Total Functions</th>
-            <th>Called Functions</th>
-            <th>Coverage</th>
-        </tr>
-        {{range .Rows}}
-        <tr>
-            <td>{{.ImageName}}</td>
-            <td>{{.TotalCount}}</td>
-            <td>{{.CalledCount}}</td>
-            <td>
-                <div class="bar">
-                    <div class="bar-inner" style="width: {{printf "%.1f" .CoveragePct}}%">
-                        {{printf "%.1f" .CoveragePct}}%
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Total Functions</th>
+                <th>Called Functions</th>
+                <th>Coverage</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Rows}}
+            <tr>
+                <td>{{.ImageName}}</td>
+                <td>{{.TotalCount}}</td>
+                <td>{{.CalledCount}}</td>
+                <td>
+                    <div class="bar">
+                        <div class="bar-inner" style="width: {{printf "%.1f" .CoveragePct}}%">
+                            {{printf "%.1f" .CoveragePct}}%
+                        </div>
                     </div>
-                </div>
-            </td>
-        </tr>
-        {{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
     </table>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const getCellValue = (row, idx) => {
+        const cell = row.children[idx];
+        if (!cell) return '';
+        const val = cell.innerText.trim();
+        if (val.includes('%')) return parseFloat(val.replace('%', ''));
+        return isNaN(val) ? val : parseFloat(val);
+    };
+
+    const comparer = (idx, asc) => (a, b) => {
+        const v1 = getCellValue(a, idx);
+        const v2 = getCellValue(b, idx);
+        if (typeof v1 === 'number' && typeof v2 === 'number') {
+            return (v1 - v2) * (asc ? 1 : -1);
+        }
+        return String(v1).localeCompare(String(v2)) * (asc ? 1 : -1);
+    };
+
+    const table = document.querySelector("table");
+    const tbody = table.querySelector("tbody");
+    const headers = table.querySelectorAll("th");
+
+    headers.forEach((th, idx) => {
+        th.addEventListener("click", () => {
+            const isAsc = !th.classList.contains("sort-asc");
+
+            headers.forEach(header => header.classList.remove("sort-asc", "sort-desc"));
+            th.classList.add(isAsc ? "sort-asc" : "sort-desc");
+
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            rows.sort(comparer(idx, isAsc)).forEach(row => tbody.appendChild(row));
+        });
+    });
+
+    // Default sort: Coverage column descending
+    const defaultSortIdx = 0; // 1st column: Coverage
+    const defaultHeader = headers[defaultSortIdx];
+    defaultHeader.classList.add("sort-desc");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    rows.sort(comparer(defaultSortIdx, false)).forEach(row => tbody.appendChild(row));
+});
+</script>
 </body>
 </html>`
 
