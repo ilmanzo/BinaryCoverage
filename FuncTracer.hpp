@@ -8,8 +8,9 @@
 // Determine if function name is relevant to us and if it will be logged
 bool func_is_relevant(const std::string_view &func_name)
 {
+    // Ignore functions that are not relevant for coverage
     static const std::set<std::string_view> blacklist = {
-        "main", "_init", "_start", ".plt.got"
+        "main", "_init", "_start", ".plt.got", ".plt"
     };
     if (blacklist.contains(func_name))
         return false;

@@ -78,6 +78,14 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
 <div class="container">
     <h1>Aggregate Coverage Report</h1>
     <p><em>Generated at: {{.GeneratedAt}}</em></p>
+    <div class="summary">
+        <h2>Total Coverage</h2>
+        <ul>
+            <li><strong>Total Functions:</strong> {{.TotalFunctions}}</li>
+            <li><strong>Total Executed:</strong> {{.TotalCalled}}</li>
+            <li><strong>Average Coverage:</strong> {{printf "%.2f" .AverageCoverage}}%</li>
+        </ul>
+    </div>    
     <table>
         <thead>
             <tr>
@@ -140,12 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Default sort: Coverage column descending
-    const defaultSortIdx = 0; // 1st column: Coverage
+    // Default sort: Image Name ascending
+    const defaultSortIdx = 0; // 1st column: Name
     const defaultHeader = headers[defaultSortIdx];
-    defaultHeader.classList.add("sort-desc");
+    defaultHeader.classList.add("sort-asc");
     const rows = Array.from(tbody.querySelectorAll("tr"));
-    rows.sort(comparer(defaultSortIdx, false)).forEach(row => tbody.appendChild(row));
+    rows.sort(comparer(defaultSortIdx, true)).forEach(row => tbody.appendChild(row));
 });
 </script>
 </body>

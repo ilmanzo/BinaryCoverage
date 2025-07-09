@@ -164,7 +164,7 @@ func TestWrapUnwrapLogic(t *testing.T) {
 		t.Fatalf("unwrap failed: %v", err)
 	}
 	// The original ELF should be restored
-	content, err = os.ReadFile(orig)
+	_, err = os.ReadFile(orig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,5 +195,88 @@ func TestGenerateHTMLReportBaseName(t *testing.T) {
 	}
 	if strings.Contains(string(content), "/some/long/path/mybinary") {
 		t.Errorf("HTML report should not contain full path")
+	}
+}
+
+func TestSummarizeCoverage_Empty(t *testing.T) {
+	coverage := map[string]*CoverageData{}
+	summary := summarizeCoverage(coverage)
+	if len(summary.Rows) != 0 {
+		t.Errorf("expected 0 rows, got %d", len(summary.Rows))
+	}
+	if summary.TotalFunctions != 0 {
+		t.Errorf("expected 0 total functions, got %d", summary.TotalFunctions)
+	}
+	if summary.TotalCalled != 0 {
+		t.Errorf("expected 0 total called, got %d", summary.TotalCalled)
+	}
+	if summary.AverageCoverage != 0.0 {
+		t.Errorf("expected 0.0 average coverage, got %f", summary.AverageCoverage)
+	}
+}
+
+func TestSummarizeCoverage_SingleImage(t *testing.T) {
+	coverage := map[string]*CoverageData{
+		"foo": {
+			TotalFunctions:  map[string]struct{}{"a": {}, "b": {}, "c": {}},
+			CalledFunctions: map[string]struct{}{"a": {}, "b": {}},
+		},
+	}
+	summary := summarizeCoverage(coverage)
+	if len(summary.Rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(summary.Rows))
+	}
+	row := summary.Rows[0]
+	if row.ImageName != "foo" {
+		t.Errorf("expected image name 'foo', got %s", row.ImageName)
+	}
+	if row.TotalCount != 3 {
+		t.Errorf("expected 3 total, got %d", row.TotalCount)
+	}
+	if row.CalledCount != 2 {
+		t.Errorf("expected 2 called, got %d", row.CalledCount)
+	}
+	if row.CoveragePct != 66.66666666666666 && row.CoveragePct != 66.67 {
+		t.Errorf("expected coverage ~66.67, got %f", row.CoveragePct)
+	}
+	if summary.TotalFunctions != 3 {
+		t.Errorf("expected 3 total functions, got %d", summary.TotalFunctions)
+	}
+	if summary.TotalCalled != 2 {
+		t.Errorf("expected 2 total called, got %d", summary.TotalCalled)
+	}
+	if summary.AverageCoverage < 66.6 || summary.AverageCoverage > 66.7 {
+		t.Errorf("expected average coverage ~66.67, got %f", summary.AverageCoverage)
+	}
+}
+
+func TestSummarizeCoverage_MultipleImages(t *testing.T) {
+	coverage := map[string]*CoverageData{
+		"foo": {
+			TotalFunctions:  map[string]struct{}{"a": {}, "b": {}},
+			CalledFunctions: map[string]struct{}{"a": {}},
+		},
+		"bar": {
+			TotalFunctions:  map[string]struct{}{"x": {}, "y": {}, "z": {}},
+			CalledFunctions: map[string]struct{}{"x": {}, "y": {}, "z": {}},
+		},
+	}
+	summary := summarizeCoverage(coverage)
+	if len(summary.Rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(summary.Rows))
+	}
+	// Check totals
+	if summary.TotalFunctions != 5 {
+		t.Errorf("expected 5 total functions, got %d", summary.TotalFunctions)
+	}
+	if summary.TotalCalled != 4 {
+		t.Errorf("expected 4 total called, got %d", summary.TotalCalled)
+	}
+	if summary.AverageCoverage < 79.9 || summary.AverageCoverage > 80.1 {
+		t.Errorf("expected average coverage ~80.0, got %f", summary.AverageCoverage)
+	}
+	// Check sorting
+	if !(summary.Rows[0].ImageName < summary.Rows[1].ImageName) {
+		t.Errorf("expected rows sorted by image name, got: %v", []string{summary.Rows[0].ImageName, summary.Rows[1].ImageName})
 	}
 }
