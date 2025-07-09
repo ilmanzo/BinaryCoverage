@@ -78,6 +78,14 @@ const aggregateHTMLTemplate = `<!DOCTYPE html>
 <div class="container">
     <h1>Aggregate Coverage Report</h1>
     <p><em>Generated at: {{.GeneratedAt}}</em></p>
+    <div class="summary">
+        <h2>Total Coverage</h2>
+        <ul>
+            <li><strong>Total Functions:</strong> {{.TotalFunctions}}</li>
+            <li><strong>Total Executed:</strong> {{.TotalCalled}}</li>
+            <li><strong>Average Coverage:</strong> {{printf "%.2f" .AverageCoverage}}%</li>
+        </ul>
+    </div>    
     <table>
         <thead>
             <tr>
