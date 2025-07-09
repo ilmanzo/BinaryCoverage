@@ -162,8 +162,17 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 	safeName := regexp.MustCompile(`[^a-zA-Z0-9._-]`).ReplaceAllString(filepath.Base(image), "_")
 	outfile := filepath.Join(outputDir, fmt.Sprintf("coverage_%s.xml", safeName))
 
-	summary := fmt.Sprintf("Coverage Summary for %s | Total Functions: %d | Called Functions: %d | Uncalled Functions: %d | Coverage: %.2f%%",
-		safeName, totalCount, len(calledFns), skippedCount, float64(len(calledFns))/float64(totalCount)*100)
+	// Use summarizeCoverage for totals
+	coverage := map[string]*CoverageData{image: data}
+	summary := summarizeCoverage(coverage)
+
+	summaryText := fmt.Sprintf(
+		"Coverage Summary for %s | Total Functions: %d | Called Functions: %d | Uncalled Functions: %d | Coverage: %.2f%%\n"+
+			"Totals: Total Functions: %d | Total Called: %d | Average Coverage: %.2f%%",
+		safeName, totalCount, len(calledFns), skippedCount, float64(len(calledFns))/float64(totalCount)*100,
+		summary.TotalFunctions, summary.TotalCalled, summary.AverageCoverage,
+	)
+
 	var details strings.Builder
 	if len(calledList) > 0 {
 		details.WriteString("CALLED FUNCTIONS:\n")
@@ -178,6 +187,13 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 			details.WriteString(fmt.Sprintf("  ✗ %s\n", fn))
 		}
 	}
+
+	// Add totals section to details
+	details.WriteString(fmt.Sprintf(
+		"\nTOTALS:\n  Total Functions: %d\n  Total Called: %d\n  Average Coverage: %.2f%%\n",
+		summary.TotalFunctions, summary.TotalCalled, summary.AverageCoverage,
+	))
+
 	ts := TestSuites{
 		Generated: time.Now().Format("2006-01-02 15:04:05 MST"),
 		TestSuite: []TestSuite{
@@ -192,7 +208,7 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 						ClassName: "binary_coverage_" + safeName,
 						Name:      "Result",
 						Passed: &Passed{
-							Message: summary,
+							Message: summaryText,
 							Text:    details.String(),
 						},
 					},
