@@ -1,5 +1,4 @@
 tests/test_func_tracer
-__pycache__/
 example/cov_sample
 obj-intel64/
 env

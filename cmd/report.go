@@ -337,6 +337,12 @@ type CoverageTotals struct {
 	AverageCoverage float64
 }
 
+// summarizeCoverage aggregates coverage data across all images and calculates totals.
+// It returns a CoverageTotals struct containing the summary.
+// Each row contains the image name, total functions, called functions, and coverage percentage.
+// The coverage percentage is calculated as (called functions / total functions) * 100.
+// The average coverage is calculated as (total called functions / total functions across all images) * 100.
+// The function sorts the images alphabetically by name before summarizing.
 func summarizeCoverage(coverage map[string]*CoverageData) CoverageTotals {
 	imageNames := make([]string, 0, len(coverage))
 	for image := range coverage {

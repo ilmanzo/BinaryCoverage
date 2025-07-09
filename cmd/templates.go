@@ -148,12 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Default sort: Coverage column descending
-    const defaultSortIdx = 0; // 1st column: Coverage
+    // Default sort: Image Name ascending
+    const defaultSortIdx = 0; // 1st column: Name
     const defaultHeader = headers[defaultSortIdx];
-    defaultHeader.classList.add("sort-desc");
+    defaultHeader.classList.add("sort-asc");
     const rows = Array.from(tbody.querySelectorAll("tr"));
-    rows.sort(comparer(defaultSortIdx, false)).forEach(row => tbody.appendChild(row));
+    rows.sort(comparer(defaultSortIdx, true)).forEach(row => tbody.appendChild(row));
 });
 </script>
 </body>
