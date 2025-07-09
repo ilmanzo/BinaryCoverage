@@ -164,7 +164,7 @@ func TestWrapUnwrapLogic(t *testing.T) {
 		t.Fatalf("unwrap failed: %v", err)
 	}
 	// The original ELF should be restored
-	content, err = os.ReadFile(orig)
+	_, err = os.ReadFile(orig)
 	if err != nil {
 		t.Fatal(err)
 	}
