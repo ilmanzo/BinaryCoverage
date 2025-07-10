@@ -110,6 +110,11 @@ func wrap(targetBinary string) error {
 	if err != nil {
 		return err
 	}
+	// change tmpdir permissions to allow execution from all users 
+	if err := os.Chmod(tmpDir, 0755); err != nil {
+		return fmt.Errorf("could not set permissions on temp dir: %w", err)
+	}
+	// Move the original binary to a safe location
 	binaryName := filepath.Base(targetBinary)
 	movedBinaryPath := filepath.Join(tmpDir, binaryName)
 	if err := move(targetBinary, movedBinaryPath); err != nil {
