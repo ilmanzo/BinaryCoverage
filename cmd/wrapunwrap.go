@@ -124,7 +124,7 @@ PIN_TOOL="%s"
 LOG_DIR="%s"
 ORIGINAL_BINARY="%s"
 
-mkdir -p "$LOG_DIR"
+mkdir -m 0777 -p "$LOG_DIR"
 
 binary_name=$(basename "$0")
 timestamp=$(date "+%%Y%%m%%d-%%H%%M%%S")
