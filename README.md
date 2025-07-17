@@ -1,96 +1,107 @@
+# BinaryCoverage
 
-# What is this ?
-This repository is a code coverage tool that utilizes [Pin](https://www.intel.com/content/www/us/en/developer/articles/tool/pin-a-dynamic-binary-instrumentation-tool.html), a Dynamic Binary Instrumentation (DBI) engine published by Intel. It operates as a Pin plugin.
+**BinaryCoverage** is a code coverage tool built as a plugin for
+[Intel Pin][pin], a dynamic binary instrumentation (DBI) framework.
+It analyzes binary executables to measure and report code coverage.
 
-# Supported Platforms
-- GNU/Linux
+[pin]: https://www.intel.com/content/www/us/en/developer/articles/tool/pin-a-dynamic-binary-instrumentation-tool.html
 
-# Prerequisites:
-- an x86_64 processor (doesn't work on other arch)
-- make
-- go language compiler
-- g++ 14 (15 doesn't work yet with Intel Pin)
-- Catch2 library if you want to run the c++ testsuite : `zypper install Catch2-2-devel` 
+## ✅ Supported Platforms
 
-# How to use (Quick Start)
-First, clone this repository.
-```
+- **GNU/Linux** (x86_64 only)
+
+
+## 📦 Prerequisites
+
+To build and run this tool, you'll need:
+
+- **x86_64 CPU** (other architectures are not supported)
+- `make`
+- **Go language compiler**
+- `g++` version **14** (Pin is not compatible with version 15)
+- **Catch2 v2** library (optional, only for running the C++ test suite)
+  - A copy is provided in `tests/catch2/catch.hpp`
+
+
+## 🛠️ Build & Run
+
+### 🔧 Build
+
+Clone the repository:
+
+```bash
 git clone git@github.com:ilmanzo/BinaryCoverage.git
-```
-
-Pin tool itself is required to run the code.
-You can download the Pin tool from the Intel Pin website.
-
-Scripts for downloading, building, and running examples are included in this repository.
-Please start by running `build.sh.`
-
-```
 cd BinaryCoverage/
+```
+
+Download and build the project:
+
+```bash
 ./build.sh
 ```
 
-In `build.sh`, Pin 3.31 is downloaded and extracted to the same directory as this repository. Then, the source code in this repository is built.
+`build.sh` will:
+- Download and extract Intel Pin locally
+- Build the coverage tool
+- Compile and instrument the example C program in the `example/` directory
 
-To use the latest version of the pin, download it from the site as needed.
+### ▶️ Run
 
-## Running the coverage tool
-After downloading and building, please run 01_run_example.sh.
+Before building, export the PIN_ROOT environment variable:
 
-In `build.sh`, a C program included in example/ is executed as a coverage measurement target for this coverage tool.
-
-After running, the coverage measurement results are output as a plain text file.
-
-# Build and Execution Commands
-## Build
-To build this tool, please execute:
-
+```bash
 export PIN_ROOT=../pin-external-3.31-98869-gfa6f126a8-gcc-linux
-
-```
-make
 ```
 
-The convention when building Pin tools is to specify the directory path of the PIN tool with PIN_ROOT.
+`PIN_ROOT` should point to the root directory where Intel Pin was extracted.
+This is a common convention when building Pin tools.
 
-# Execution
-To run this tool, execute the following command:
+To run the tool:
 
+```bash
+$PIN_ROOT/pin -t ./obj-intel64/FuncTracer.so -- <target_binary_path> <args...>
 ```
-$PIN_ROOT/pin -t ./obj-intel64/FuncTracer.so -- <target_module_path> <target_args...>
-```
 
-where <target_module_path> and <target_args...> are the path and any arguments for the target module you want to measure code coverage for.
+Replace ``<target_binary_path>`` and ``<args...>`` with your target program and
+its arguments.
 
-# Note
-This coverage tool uses DWARF debugging information to obtain line number information.
-Pin 3.31 supports DWARF4 as debugging information. When building the application for which you want to measure coverage, please build it with the `-g` and `-gdwarf-4` options.
+### 📎 Note on Debug Info
 
-```
+This tool relies on DWARF debugging information to determine line-level
+coverage. Please compile your target programs with:
+
+```bash
 gcc -g -gdwarf-4 main.c
 ```
 
+Pin 3.31 supports DWARF4. Debug info is essential for accurate line mapping.
 
-# Run unit tests
+## 🧪 Running Unit Tests
 
-```
+To run the unit tests:
+
+```bash
 ./tests/run_unit_tests.sh
 ```
 
-# I want to just try out and change the HTML output, should I rebuild everything ?
+Uses Catch2 v2 (already included in the repo in `tests/catch2/catch.hpp`).
 
-No, all pages are in this [source file](https://github.com/ilmanzo/BinaryCoverage/blob/main/cmd/templates.go), it's sufficient to change them and see the result.
-to check them visually, you can copy-paste the content as html and see it in the browser
+## 🖼️ Modifying the HTML Output
 
-As alternative, if you change the analyzer logic, you can run
+If you just want to modify the HTML report templates, you don't need to rebuild
+everything.
 
-`go build` 
+HTML templates are located in `cmd/templates.go`. You can modify them and
+preview the results by displaying the HTML in a browser.
 
-from the cmd subdirectory to rebuild the generator. then run
+### 🔄 Rebuilding Just the Report Generator
 
- `./cmd report ../example/sample_data --outdir /tmp`
- 
-to generate some sample html with fake sample files and see what happens in your `/tmp` directory.
+If you change the analyzer logic or Go code:
 
+```bash
+cd cmd
+go build
+./cmd report ../example/sample_data --outdir /tmp
+```
 
-
-
+This generates example HTML reports (with dummy data) under `/tmp`.
