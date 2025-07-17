@@ -9,26 +9,26 @@
 static std::set<std::string> logged_functions;
 static std::mutex log_mutex;
 
-VOID log_function_call(const char* img_name, const char* func_name)
+void log_function_call(const char* img_name, const char* func_name)
 {
-    // Check if the function is already logged to avoid duplicate logging
-    std::string key;
-    key.append(img_name).append(1, ':').append(func_name);
+    std::string log_key;
     {
         std::lock_guard<std::mutex> guard(log_mutex);
-        if (logged_functions.contains(key))
-            return; // Already logged, skip
-        logged_functions.insert(key);
+        log_key = std::string(img_name) + ":" + func_name;
+        if (logged_functions.contains(log_key))
+            return;
+        logged_functions.insert(log_key);
     }
 
-    std::stringstream ss;
+    pid_t pid;
     PIN_LockClient();
-    pid_t pid = PIN_GetPid();
+    pid = PIN_GetPid();
     PIN_UnlockClient();
-    ss << "[PID:" << pid << "] [Image:" << img_name << "] [Called:" << func_name << "]\n";
-    LOG(ss.str());
-}
 
+    std::ostringstream oss;
+    oss << "[PID:" << pid << "] [Image:" << img_name << "] [Called:" << func_name << "]\n";
+    LOG(oss.str());
+}
 
 // Pin calls this function for every image loaded into the process's address space.
 // An image is either an executable or a shared library.
