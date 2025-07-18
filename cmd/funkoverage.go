@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const versionString = "0.4.2"
+const versionString = "0.4.3"
 
 // --- CLI ---
 
@@ -34,20 +34,20 @@ func main() {
 	case "wrap", "-w":
 		wrapCmd.Parse(os.Args[2:])
 		if wrapCmd.NArg() < 1 {
-			fmt.Println("wrap: missing binary path")
+			fmt.Println("wrap: missing binary path(s)")
 			os.Exit(1)
 		}
-		if err := wrap(wrapCmd.Arg(0)); err != nil {
+		if err := wrapMany(wrapCmd.Args()); err != nil {
 			fmt.Println("wrap error:", err)
 			os.Exit(1)
 		}
 	case "unwrap", "-u":
 		unwrapCmd.Parse(os.Args[2:])
 		if unwrapCmd.NArg() < 1 {
-			fmt.Println("unwrap: missing binary path")
+			fmt.Println("unwrap: missing binary path(s)")
 			os.Exit(1)
 		}
-		if err := unwrap(unwrapCmd.Arg(0)); err != nil {
+		if err := unwrapMany(unwrapCmd.Args()); err != nil {
 			fmt.Println("unwrap error:", err)
 			os.Exit(1)
 		}
