@@ -91,7 +91,7 @@ Uses Catch2 v2 (already included in the repo in `tests/catch2/catch.hpp`).
 If you just want to modify the HTML report templates, you don't need to rebuild
 everything.
 
-HTML templates are located in `cmd/templates.go`. You can modify them and
+HTML templates are located in `cmd/templates/`. You can modify them and
 preview the results by displaying the HTML in a browser.
 
 ### 🔄 Rebuilding Just the Report Generator
@@ -101,7 +101,7 @@ If you change the analyzer logic or Go code:
 ```bash
 cd cmd
 go build
-./cmd report ../example/sample_data --outdir /tmp
+./cmd report ../example/sample_data /tmp
 ```
 
 This generates example HTML reports (with dummy data) under `/tmp`.
