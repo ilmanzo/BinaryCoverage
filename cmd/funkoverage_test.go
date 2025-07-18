@@ -173,6 +173,57 @@ func TestWrapUnwrapLogic(t *testing.T) {
 	}
 }
 
+func TestWrapManyAndUnwrapMany(t *testing.T) {
+	tmp := t.TempDir()
+	os.Setenv("PIN_ROOT", "/tmp/pin")
+	os.Setenv("PIN_TOOL_SEARCH_DIR", tmp)
+	os.Setenv("SAFE_BIN_DIR", tmp)
+	os.Setenv("LOG_DIR", tmp)
+	// Create dummy FuncTracer.so
+	funcTracer := filepath.Join(tmp, "FuncTracer.so")
+	if err := os.WriteFile(funcTracer, []byte("dummy"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create multiple fake ELF binaries
+	bin1 := filepath.Join(tmp, "bin1")
+	bin2 := filepath.Join(tmp, "bin2")
+	bin3 := filepath.Join(tmp, "bin3")
+	for _, bin := range []string{bin1, bin2, bin3} {
+		if err := os.WriteFile(bin, []byte("\x7fELFfoobar"), 0755); err != nil {
+			t.Fatalf("failed to create %s: %v", bin, err)
+		}
+	}
+
+	// Wrap all binaries
+	if err := wrapMany([]string{bin1, bin2, bin3}); err != nil {
+		t.Fatalf("wrapMany failed: %v", err)
+	}
+	for _, bin := range []string{bin1, bin2, bin3} {
+		content, err := os.ReadFile(bin)
+		if err != nil {
+			t.Fatalf("failed to read wrapped binary %s: %v", bin, err)
+		}
+		if !strings.Contains(string(content), wrapperIDComment) {
+			t.Errorf("binary %s was not wrapped", bin)
+		}
+	}
+
+	// Unwrap all binaries
+	if err := unwrapMany([]string{bin1, bin2, bin3}); err != nil {
+		t.Fatalf("unwrapMany failed: %v", err)
+	}
+	for _, bin := range []string{bin1, bin2, bin3} {
+		_, err := os.ReadFile(bin)
+		if err != nil {
+			t.Fatalf("failed to read unwrapped binary %s: %v", bin, err)
+		}
+		if !isELF(bin) {
+			t.Errorf("binary %s was not restored to ELF", bin)
+		}
+	}
+}
+
 func TestGenerateHTMLReportBaseName(t *testing.T) {
 	tmp := t.TempDir()
 	data := &CoverageData{
