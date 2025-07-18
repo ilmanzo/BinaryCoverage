@@ -2,21 +2,29 @@
 #define FUNCTRACER_HPP
 
 #include <string>
-#include <set>
-#include <mutex>
+#include <array>
+#include <algorithm>
+#include <string_view>
 
-// Determine if function name is relevant to us and if it will be logged
+// Implementation of starts_with and ends_with since we can't use c++20 features
+inline bool starts_with(std::string_view str, std::string_view prefix) {
+    return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
+}
+inline bool ends_with(std::string_view str, std::string_view suffix) {
+    return str.size() >= suffix.size() &&
+           str.substr(str.size() - suffix.size()) == suffix;
+}
+
 bool func_is_relevant(const std::string_view &func_name)
 {
-    // Ignore functions that are not relevant for coverage
-    static const std::set<std::string_view> blacklist = {
+    static constexpr std::array<std::string_view, 5> blacklist = {
         "main", "_init", "_start", ".plt.got", ".plt"
     };
-    if (blacklist.contains(func_name))
+
+    if (std::find(blacklist.begin(), blacklist.end(), func_name) != blacklist.end())
         return false;
 
-    // Ignore PLT functions and internal functions (usually prefixed with __)
-    if (func_name.ends_with("@plt") || func_name.starts_with("__"))
+    if (ends_with(func_name, "@plt") || starts_with(func_name, "__"))
         return false;
 
     return true;
@@ -24,10 +32,11 @@ bool func_is_relevant(const std::string_view &func_name)
 
 bool image_is_relevant(const std::string_view &image_name)
 {
-    static const std::set<std::string_view> blacklist = {
+    static constexpr std::array<std::string_view, 1> blacklist = {
         "[vdso]"
     };
-    return !blacklist.contains(image_name);
+
+    return std::find(blacklist.begin(), blacklist.end(), image_name) == blacklist.end();
 }
 
 #endif // FUNCTRACER_HPP
