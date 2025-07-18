@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Coverage Report for {{.ImageName}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2em;
+            background: #f9f9f9;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary {
+            background: #f4f4f4;
+            padding: 1.5em;
+            border-radius: 8px;
+            margin-bottom: 2em;
+            border: 1px solid #ddd;
+        }
+
+        .summary .percentage {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #0c322c;
+        }
+
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 50px;
+            overflow: hidden;
+            height: 30px;
+            margin-top: 1em;
+        }
+
+        .progress-bar-inner {
+            background: #30ba78;
+            height: 100%;
+            color: white, text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            transition: width 0.5s;
+        }
+
+        .function-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1em;
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .function-list li {
+            padding: 0.6em;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: transform 0.2s;
+        }
+
+        .function-list li:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .called {
+            background: #d4edda;
+            color: #155724;
+            border-left: 5px solid #28a745;
+        }
+
+        .uncalled {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 5px solid #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Coverage Report</h1>
+        <h2>Image: {{.ImageName}}</h2>
+        <div class="summary">
+            <p><strong>Total Functions:</strong> {{.TotalCount}}</p>
+            <p><strong>Called Functions:</strong> {{.CalledCount}}</p>
+            <p><strong>Uncalled Functions:</strong> {{.UncalledCount}}</p>
+            <p class="percentage">Coverage: {{printf "%.1f" .CoveragePercentage}}%</p>
+            <div class="progress-bar">
+                <div class="progress-bar-inner" style="width: {{.CoveragePercentage}}%">{{printf "%.2f"
+                    .CoveragePercentage}}%</div>
+            </div>
+        </div>
+        <details>
+            <summary>
+                <h2>Function Details</h2>
+            </summary>
+            <p><strong>Legend: </strong><span class="called"> Called Function </span><span class="uncalled"> Uncalled
+                    Function </span></p>
+            <ul class="function-list">
+                {{range .Functions}}
+                <li class="{{.Status}}" title="{{.Name}}">{{.Name}}</li>
+                {{end}}
+            </ul>
+        </details>
+    </div>
+</body>
+
+</html>
