@@ -4,4 +4,4 @@ obj-intel64/
 env
 funkoverage
 cmd/cmd
-dynamorio/buid
+dynamorio/build/
