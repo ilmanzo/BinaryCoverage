@@ -5,3 +5,4 @@ env
 funkoverage
 cmd/cmd
 dynamorio/build/
+sysdeps/

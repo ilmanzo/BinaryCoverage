@@ -1,0 +1,12 @@
+# notes on using drcov tool
+https://dynamorio.org/page_drcov.html
+
+# run the coverage tool:
+/home/andrea/dynamorio/bin64/drrun -t drcov -dump_text -- build/test_program a b c     
+
+# convert the tool output into lcov format
+/home/andrea/dynamorio/tools/bin64/drcov2lcov -input drcov.test_program.15819.0000.proc.log -src_filter /home/andrea/projects/binarycoverage/dynamorio/build
+
+
+# read the lcov format with https://lcov-viewer.netlify.app
+# or use genhtml https://linux.die.net/man/1/genhtml
