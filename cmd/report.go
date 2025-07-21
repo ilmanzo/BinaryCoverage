@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ianlancetaylor/demangle"
 )
 
 type CoverageData struct {
@@ -40,6 +42,12 @@ var (
 	functionCallRe = regexp.MustCompile(`\[Image:(.*?)\] \[Called:(.*?)\]`)
 )
 
+func extractImageAndFunction(m []string) (string, string) {
+	image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+	function = demangle.Filter(function) // Apply demangling for c++
+	return image, function
+}
+
 // analyzeLogs processes the log files and extracts coverage data for each image.
 func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 	coverage := make(map[string]*CoverageData)
@@ -52,7 +60,7 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 		for scanner.Scan() {
 			line := scanner.Text()
 			if m := functionDefRe.FindStringSubmatch(line); m != nil {
-				image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+				image, function := extractImageAndFunction(m)
 				if image == "" || function == "" {
 					continue
 				}
@@ -61,7 +69,7 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 				}
 				coverage[image].TotalFunctions[function] = struct{}{}
 			} else if m := functionCallRe.FindStringSubmatch(line); m != nil {
-				image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+				image, function := extractImageAndFunction(m)
 				if image == "" || function == "" {
 					continue
 				}
