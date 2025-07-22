@@ -72,6 +72,32 @@
         th.sort-desc::after {
             content: " ▼";
         }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #3e3e3e;
+                color: #efefef;
+            }
+            .container {
+                background: #1d1d1d;
+            }
+            .bar {
+                background: #525252;
+            }
+            .bar-inner {
+                background: #008657;
+                color: #efefef;
+            }
+            th {
+                background: #3e3e3e;
+            }
+            tr:nth-child(even) {
+                background-color: #2a2a2a;
+            }
+            tr:hover {
+                background: #3e3e3e;
+            }
+        }
     </style>
 </head>
 
