@@ -81,7 +81,7 @@ Pin 3.31 supports DWARF4. Debug info is essential for accurate line mapping.
 To run the unit tests:
 
 ```bash
-./tests/run_unit_tests.sh
+./run_unit_tests.sh
 ```
 
 Uses Catch2 v2 (already included in the repo in `tests/catch2/catch.hpp`).
