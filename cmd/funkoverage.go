@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const versionString = "0.4.4"
+const versionString = "0.4.5"
 
 // --- CLI ---
 
@@ -23,6 +23,21 @@ func main() {
 	unwrapCmd := flag.NewFlagSet("unwrap", flag.ExitOnError)
 	reportCmd := flag.NewFlagSet("report", flag.ExitOnError)
 	reportFormats := reportCmd.String("formats", "html,txt,xml", "Comma-separated list: html,xml,txt (default: html,txt,xml)")
+
+	wrapCmd.Usage = func() {
+		fmt.Println(wrapHelpText)
+		wrapCmd.PrintDefaults()
+	}
+
+	unwrapCmd.Usage = func() {
+		fmt.Println(unwrapHelpText)
+		unwrapCmd.PrintDefaults()
+	}
+
+	reportCmd.Usage = func() {
+		fmt.Println(reportHelpText)
+		reportCmd.PrintDefaults()
+	}
 
 	switch os.Args[1] {
 	case "help", "--help", "-h":
