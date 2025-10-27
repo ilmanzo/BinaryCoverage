@@ -14,7 +14,7 @@ const versionString = "0.4.5"
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println(helpText)
+		fmt.Print(helpText)
 		os.Exit(1)
 	}
 
@@ -25,23 +25,23 @@ func main() {
 	reportFormats := reportCmd.String("formats", "html,txt,xml", "Comma-separated list: html,xml,txt (default: html,txt,xml)")
 
 	wrapCmd.Usage = func() {
-		fmt.Println(wrapHelpText)
+		fmt.Print(wrapHelpText)
 		wrapCmd.PrintDefaults()
 	}
 
 	unwrapCmd.Usage = func() {
-		fmt.Println(unwrapHelpText)
+		fmt.Print(unwrapHelpText)
 		unwrapCmd.PrintDefaults()
 	}
 
 	reportCmd.Usage = func() {
-		fmt.Println(reportHelpText)
+		fmt.Print(reportHelpText)
 		reportCmd.PrintDefaults()
 	}
 
 	switch os.Args[1] {
 	case "help", "--help", "-h":
-		fmt.Println(helpText)
+		fmt.Print(helpText)
 		return
 	case "version", "--version", "-v":
 		fmt.Println("funkoverage version", versionString)
@@ -129,7 +129,7 @@ func main() {
 		}
 	default:
 		fmt.Println("Unknown command:", os.Args[1])
-		fmt.Println(helpText)
+		fmt.Print(helpText)
 		os.Exit(1)
 	}
 }
