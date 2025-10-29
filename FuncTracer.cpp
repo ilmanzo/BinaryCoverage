@@ -72,9 +72,6 @@ VOID image_load(IMG img, VOID *v)
 // Returning TRUE tells Pin to follow and instrument the child process.
 BOOL follow_child_process(CHILD_PROCESS childProcess, VOID *v)
 {
-    // LOG( "New PID: " + decstr(PIN_GetPid()) + "\n");
-    // TraceFile << "[PID: " << PIN_GetPid() << "] Forking a new process..." << std::endl;
-    // TraceFile.flush();
     return TRUE; // Follow the child
 }
 
@@ -94,7 +91,7 @@ int main(int argc, char *argv[])
     // Register the function to be called for every loaded image.
     IMG_AddInstrumentFunction(image_load, 0);
 
-    // TODO: check if childs are automatically followed or not
+    // install callback to follow the childs
     PIN_AddFollowChildProcessFunction(follow_child_process, 0);
 
     // Start the program, never returns
