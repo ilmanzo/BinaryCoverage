@@ -84,5 +84,6 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
 #
-TOOL_CXXFLAGS += -std=c++20 -Wl,-z,noexecstack
+TOOL_CXXFLAGS += -std=c++20
+TOOL_LDFLAGS += -Wl,-z,noexecstack
 
