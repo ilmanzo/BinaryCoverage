@@ -18,7 +18,7 @@ To build and run this tool, you'll need:
 - **x86_64 CPU** (other architectures are not supported)
 - `make`
 - **Go language compiler**
-- `g++` version **14** (Pin is not compatible with version 15)
+- `g++` version **15** (or any c++ 2017 )
 - **Catch2 v2** library (optional, only for running the C++ test suite)
   - A copy is provided in `tests/catch2/catch.hpp`
 
@@ -50,7 +50,7 @@ Download and build the project:
 Before building, export the PIN_ROOT environment variable:
 
 ```bash
-export PIN_ROOT=../pin-external-3.31-98869-gfa6f126a8-gcc-linux
+export PIN_ROOT=../pin-external-4.0-99633-g5ca9893f2-gcc-linux
 ```
 
 `PIN_ROOT` should point to the root directory where Intel Pin was extracted.
@@ -74,7 +74,7 @@ coverage. Please compile your target programs with:
 gcc -g -gdwarf-4 main.c
 ```
 
-Pin 3.31 supports DWARF4. Debug info is essential for accurate line mapping.
+Pin 3+ supports DWARF4. Debug info is essential for accurate line mapping.
 
 ## 🧪 Running Unit Tests
 
