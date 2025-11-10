@@ -141,7 +141,7 @@ timestamp=$(date "+%%Y%%m%%d-%%H%%M%%S")
 nano_seconds=$(date "+%%N")
 log_file="$LOG_DIR/${binary_name}_${timestamp}_${nano_seconds}.log"
 
-exec "$PIN_ROOT/pin" -t "$PIN_TOOL" -logfile "$log_file" -- "$ORIGINAL_BINARY" "$@"
+exec "$PIN_ROOT/pin" -follow_execv -t "$PIN_TOOL" -logfile "$log_file" -- "$ORIGINAL_BINARY" "$@"
 `, wrapperIDComment, time.Now().Format(time.RFC3339), movedBinaryPath, PIN_ROOT, pinTool, LOG_DIR, movedBinaryPath)
 	if err := os.WriteFile(targetBinary, []byte(wrapperScript), 0755); err != nil {
 		return err

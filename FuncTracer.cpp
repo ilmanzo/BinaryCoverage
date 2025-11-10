@@ -2,19 +2,22 @@
 #include "pin.H"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <unistd.h> // For getpid()
 #include "FuncTracer.hpp"
 
+using namespace std;
+
 // Global set and mutex to track logged functions
-static std::set<std::string> logged_functions;
-static std::mutex log_mutex;
+static set<string> logged_functions;
+static mutex log_mutex;
 
 void log_function_call(const char* img_name, const char* func_name)
 {
-    std::string log_key;
+    string log_key;
     {
-        std::lock_guard<std::mutex> guard(log_mutex);
-        log_key = std::string(img_name) + ":" + func_name;
+        lock_guard<mutex> guard(log_mutex);
+        log_key = string(img_name) + ":" + func_name;
         if (logged_functions.contains(log_key))
             return;
         logged_functions.insert(log_key);
@@ -25,7 +28,7 @@ void log_function_call(const char* img_name, const char* func_name)
     pid = PIN_GetPid();
     PIN_UnlockClient();
 
-    std::ostringstream oss;
+    ostringstream oss;
     oss << "[PID:" << pid << "] [Image:" << img_name << "] [Called:" << func_name << "]\n";
     LOG(oss.str());
 }
@@ -34,7 +37,7 @@ void log_function_call(const char* img_name, const char* func_name)
 // An image is either an executable or a shared library.
 VOID image_load(IMG img, VOID *v)
 {
-    const std::string &image_name = IMG_Name(img);
+    const string &image_name = IMG_Name(img);
     if (!image_is_relevant(image_name)) // Check if the image is relevant for our analysis
     {
         LOG("[Image:" + image_name + "] is not relevant, skipping...\n");
@@ -50,13 +53,13 @@ VOID image_load(IMG img, VOID *v)
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
         {
             RTN_Open(rtn);
-            const std::string &rtn_name = RTN_Name(rtn);
+            const string &rtn_name = RTN_Name(rtn);
             if (func_is_relevant(rtn_name)) // Check if the function is relevant for our analysis
             {
-                std::stringstream ss;
+                ostringstream oss;
                 // We log the image name and function name so we can see which function is being instrumented.
-                ss << "[Image:" << image_name << "] [Function:" << RTN_Name(rtn) << "]\n";
-                LOG(ss.str());
+                oss << "[Image:" << image_name << "] [Function:" << RTN_Name(rtn) << "]\n";
+                LOG(oss.str());
                 // For each routine, we insert a call to our analysis function `log_function_call`.
                 RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)log_function_call,
                                IARG_PTR, image_name.c_str(),
@@ -75,17 +78,16 @@ BOOL follow_child_process(CHILD_PROCESS childProcess, VOID *v)
     return TRUE; // Follow the child
 }
 
-// Pintool entry point
+// Pintool (shared library) entry point
 int main(int argc, char *argv[])
 {
-
     // Initialize PIN symbols. This is required for routine-level instrumentation.
     PIN_InitSymbols();
 
     // Initialize PIN. This must be the first function called.
     if (PIN_Init(argc, argv))
     {
-        std::cerr << "PIN_Init failed" << std::endl;
+        cerr << "PIN_Init failed" << endl;
         return 1;
     }
     // Register the function to be called for every loaded image.
@@ -96,6 +98,6 @@ int main(int argc, char *argv[])
 
     // Start the program, never returns
     PIN_StartProgram();
-
+    assert(false); // We should never reach here
     return 0;
 }
