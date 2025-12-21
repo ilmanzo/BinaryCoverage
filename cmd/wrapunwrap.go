@@ -8,6 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"bytes"
+	"debug/elf"
+	"encoding/binary"
+	"encoding/hex"
 )
 
 const (
@@ -17,8 +21,11 @@ const (
 	defaultSafeBinDir       = "/var/coverage/bin"
 )
 
+var globalDebugRoot = "/usr/lib/debug"
+
 // --- Wrapper Management ---
 
+// checks if a binary is actually an ELF executable (and not a script)
 func isELF(path string) bool {
 	f, err := os.Open(path)
 	if err != nil {
@@ -32,7 +39,87 @@ func isELF(path string) bool {
 	return string(magic) == "\x7fELF"
 }
 
-// move attempts to rename a file, falling back to copying if it fails due to cross-device link issues.
+// checks if a binary has embedded debug symbols OR
+// if it links to a valid, existing external debug file via Build ID.
+func hasDebugInfo(path string) (bool, error) {
+	f, err := elf.Open(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to open elf: %w", err)
+	}
+	defer f.Close()
+
+	// 1. Check for Embedded Symbols
+	// DWARF sections usually start with .debug_ or .zdebug_ (compressed)
+	for _, section := range f.Sections {
+		if strings.HasPrefix(section.Name, ".debug_") || strings.HasPrefix(section.Name, ".zdebug_") {
+			// Ensure it actually has data
+			if section.Size > 0 {
+				return true, nil // Found embedded symbols
+			}
+		}
+	}
+
+	// 2. Check for External Symbols via Build ID
+	// If we are here, it is likely "stripped". We need to find the Build ID note.
+	buildID, err := getBuildID(f)
+	if err != nil {
+		return false, nil // No Build ID found, so definitely no debug info
+	}
+
+	// 3. Verify the external file actually exists
+	// Standard path: /usr/lib/debug/.build-id/xx/xxxx.debug
+	if len(buildID) > 2 {
+		debugPath := fmt.Sprintf("%s/.build-id/%s/%s.debug", globalDebugRoot, buildID[:2], buildID[2:])
+		if _, err := os.Stat(debugPath); err == nil {
+			return true, nil // Found linked symbols
+		}
+	}
+
+	return false, nil
+}
+
+// Helper to parse the ELF Note and extract the raw Build ID bytes
+func getBuildID(f *elf.File) (string, error) {
+	// The Build ID is typically in a section named ".note.gnu.build-id"
+	sec := f.Section(".note.gnu.build-id")
+	if sec == nil {
+		return "", fmt.Errorf("no build-id section")
+	}
+
+	data, err := sec.Data()
+	if err != nil {
+		return "", err
+	}
+
+	// Parse ELF Note format:
+	// namesz (4 bytes) | descsz (4 bytes) | type (4 bytes) | name ... | desc ...
+	// We expect name to be "GNU\0" (4 bytes)
+	
+	if len(data) < 16 { // Minimum size for header + empty desc
+		return "", fmt.Errorf("malformed note")
+	}
+
+	var namesz, descsz, noteType uint32
+	reader := bytes.NewReader(data)
+	
+	binary.Read(reader, f.ByteOrder, &namesz)
+	binary.Read(reader, f.ByteOrder, &descsz)
+	binary.Read(reader, f.ByteOrder, &noteType)
+
+	// Verify it is a GNU Build ID
+	// namesz should be 4 ("GNU\0") and type should be 3 (NT_GNU_BUILD_ID)
+	if namesz != 4 || noteType != 3 {
+		return "", fmt.Errorf("not a gnu build id note")
+	}
+
+	// Skip the name ("GNU\0") to get to the description (the hash)
+	// namesz is 4 bytes, which is 4-byte aligned, so we just skip 4 bytes.
+	// Current offset is 12. 12 + 4 = 16.
+	return hex.EncodeToString(data[16 : 16+descsz]), nil
+}
+
+
+//  attempts to rename a file, falling back to copying if it fails due to cross-device link issues.
 func move(source, destination string) error {
 	err := os.Rename(source, destination)
 	if err != nil && strings.Contains(err.Error(), "invalid cross-device link") {
@@ -108,6 +195,11 @@ func wrap(targetBinary string) error {
 	if !isELF(targetBinary) {
 		return fmt.Errorf("'%s' is not an ELF executable (maybe a script?). Aborting", targetBinary)
 	}
+	// --- is debug information available --- ? 
+	if !hasDebugInfo(targetBinary) {
+		return fmt.Errorf("'%s' does not contain debug information. Aborting", targetBinary)
+	}
+
 	if err := os.MkdirAll(SAFE_BIN_DIR, 0755); err != nil {
 		return err
 	}
