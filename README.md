@@ -80,6 +80,8 @@ Pin 3+ supports DWARF4. Debug info is essential for accurate line mapping.
 
 To run the unit tests:
 
+Ensure to have `gcc` installed (required for running Go unit tests)
+
 ```bash
 ./run_unit_tests.sh
 ```

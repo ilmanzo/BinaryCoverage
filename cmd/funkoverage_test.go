@@ -1,7 +1,9 @@
 package main
 
 import (
+	"debug/elf"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -37,6 +39,106 @@ func TestIsELF(t *testing.T) {
 	}
 	if isELF(emptyFile) {
 		t.Errorf("isELF should return false for empty file")
+	}
+}
+
+// --- hasDebugInfo tests ---
+
+func TestHasDebugInfo(t *testing.T) {
+	// We need gcc to compile binaries with/without debug info
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found, skipping debug info test")
+	}
+
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Compile with debug info (-g)
+	binDebug := filepath.Join(tmp, "bin_debug")
+	if out, err := exec.Command("gcc", "-g", "-o", binDebug, src).CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile with debug info: %v\n%s", err, out)
+	}
+
+	if has, err := hasDebugInfo(binDebug); err != nil || !has {
+		t.Errorf("expected binary with -g to have debug info (err: %v, has: %v)", err, has)
+	}
+
+	// 2. Compile without debug info (-s strips symbols)
+	binStrip := filepath.Join(tmp, "bin_strip")
+	if out, err := exec.Command("gcc", "-s", "-o", binStrip, src).CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile stripped binary: %v\n%s", err, out)
+	}
+
+	// Stripped binary should not have embedded debug info, and we don't expect external debug info in /usr/lib/debug for this temp file
+	if has, err := hasDebugInfo(binStrip); err != nil || has {
+		t.Errorf("expected stripped binary to NOT have debug info (err: %v, has: %v)", err, has)
+	}
+}
+
+func TestHasDebugInfo_Linked(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	if _, err := exec.LookPath("strip"); err != nil {
+		t.Skip("strip not found")
+	}
+
+	tmp := t.TempDir()
+
+	// Override globalDebugRoot to point to our temp dir
+	orig := globalDebugRoot
+	globalDebugRoot = tmp
+	defer func() { globalDebugRoot = orig }()
+
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	bin := filepath.Join(tmp, "bin_linked")
+	// Compile with build-id and debug info
+	if out, err := exec.Command("gcc", "-g", "-Wl,--build-id", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile: %v\n%s", err, out)
+	}
+
+	// Extract Build ID
+	f, err := elf.Open(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildID, err := getBuildID(f)
+	f.Close()
+	if err != nil {
+		t.Fatalf("failed to get build ID: %v", err)
+	}
+
+	// Strip debug info
+	if out, err := exec.Command("strip", "--strip-debug", bin).CombinedOutput(); err != nil {
+		t.Fatalf("failed to strip: %v\n%s", err, out)
+	}
+
+	// Should NOT have debug info now (no embedded, no external yet)
+	if has, err := hasDebugInfo(bin); err != nil || has {
+		t.Fatalf("expected no debug info after strip")
+	}
+
+	// Create external debug file
+	// Structure: <root>/.build-id/xx/xxxx.debug
+	dir := filepath.Join(tmp, ".build-id", buildID[:2])
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	debugFile := filepath.Join(dir, buildID[2:]+".debug")
+	if err := os.WriteFile(debugFile, []byte("dummy debug info"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Should have debug info now (linked)
+	if has, err := hasDebugInfo(bin); err != nil || !has {
+		t.Errorf("expected linked debug info found")
 	}
 }
 
@@ -131,12 +233,22 @@ func TestAnalyzeLogsMalformed(t *testing.T) {
 // --- wrap/unwrap logic (integration) ---
 
 func TestWrapUnwrapLogic(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+
 	tmp := t.TempDir()
 	orig := filepath.Join(tmp, "origbin")
-	// Write a fake ELF binary
-	if err := os.WriteFile(orig, []byte("\x7fELFfoobar"), 0755); err != nil {
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
 		t.Fatal(err)
 	}
+
+	// Compile with debug info
+	if out, err := exec.Command("gcc", "-g", "-o", orig, src).CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile: %v\n%s", err, out)
+	}
+
 	// Set up dummy environment
 	os.Setenv("PIN_ROOT", "/tmp/pin")
 	os.Setenv("PIN_TOOL_SEARCH_DIR", tmp)
@@ -174,6 +286,10 @@ func TestWrapUnwrapLogic(t *testing.T) {
 }
 
 func TestWrapManyAndUnwrapMany(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+
 	tmp := t.TempDir()
 	os.Setenv("PIN_ROOT", "/tmp/pin")
 	os.Setenv("PIN_TOOL_SEARCH_DIR", tmp)
@@ -185,13 +301,18 @@ func TestWrapManyAndUnwrapMany(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	// Create multiple fake ELF binaries
 	bin1 := filepath.Join(tmp, "bin1")
 	bin2 := filepath.Join(tmp, "bin2")
 	bin3 := filepath.Join(tmp, "bin3")
 	for _, bin := range []string{bin1, bin2, bin3} {
-		if err := os.WriteFile(bin, []byte("\x7fELFfoobar"), 0755); err != nil {
-			t.Fatalf("failed to create %s: %v", bin, err)
+		if out, err := exec.Command("gcc", "-g", "-o", bin, src).CombinedOutput(); err != nil {
+			t.Fatalf("failed to compile %s: %v\n%s", bin, err, out)
 		}
 	}
 
