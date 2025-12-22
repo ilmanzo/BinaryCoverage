@@ -6,3 +6,4 @@ funkoverage
 cmd/cmd
 dynamorio/build/
 sysdeps/
+__pycache__/
