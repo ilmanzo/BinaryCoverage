@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"debug/elf"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -8,10 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"bytes"
-	"debug/elf"
-	"encoding/binary"
-	"encoding/hex"
 )
 
 const (
@@ -94,14 +94,14 @@ func getBuildID(f *elf.File) (string, error) {
 	// Parse ELF Note format:
 	// namesz (4 bytes) | descsz (4 bytes) | type (4 bytes) | name ... | desc ...
 	// We expect name to be "GNU\0" (4 bytes)
-	
+
 	if len(data) < 16 { // Minimum size for header + empty desc
 		return "", fmt.Errorf("malformed note")
 	}
 
 	var namesz, descsz, noteType uint32
 	reader := bytes.NewReader(data)
-	
+
 	binary.Read(reader, f.ByteOrder, &namesz)
 	binary.Read(reader, f.ByteOrder, &descsz)
 	binary.Read(reader, f.ByteOrder, &noteType)
@@ -118,8 +118,7 @@ func getBuildID(f *elf.File) (string, error) {
 	return hex.EncodeToString(data[16 : 16+descsz]), nil
 }
 
-
-//  attempts to rename a file, falling back to copying if it fails due to cross-device link issues.
+// attempts to rename a file, falling back to copying if it fails due to cross-device link issues.
 func move(source, destination string) error {
 	err := os.Rename(source, destination)
 	if err != nil && strings.Contains(err.Error(), "invalid cross-device link") {
@@ -195,8 +194,12 @@ func wrap(targetBinary string) error {
 	if !isELF(targetBinary) {
 		return fmt.Errorf("'%s' is not an ELF executable (maybe a script?). Aborting", targetBinary)
 	}
-	// --- is debug information available --- ? 
-	if !hasDebugInfo(targetBinary) {
+	// --- is debug information available --- ?
+	found, err := hasDebugInfo(targetBinary)
+	if err != nil {
+		return fmt.Errorf("could not determine debug information for '%s': %w", targetBinary, err)
+	}
+	if !found {
 		return fmt.Errorf("'%s' does not contain debug information. Aborting", targetBinary)
 	}
 

@@ -233,12 +233,22 @@ func TestAnalyzeLogsMalformed(t *testing.T) {
 // --- wrap/unwrap logic (integration) ---
 
 func TestWrapUnwrapLogic(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+
 	tmp := t.TempDir()
 	orig := filepath.Join(tmp, "origbin")
-	// Write a fake ELF binary
-	if err := os.WriteFile(orig, []byte("\x7fELFfoobar"), 0755); err != nil {
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
 		t.Fatal(err)
 	}
+
+	// Compile with debug info
+	if out, err := exec.Command("gcc", "-g", "-o", orig, src).CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile: %v\n%s", err, out)
+	}
+
 	// Set up dummy environment
 	os.Setenv("PIN_ROOT", "/tmp/pin")
 	os.Setenv("PIN_TOOL_SEARCH_DIR", tmp)
@@ -276,6 +286,10 @@ func TestWrapUnwrapLogic(t *testing.T) {
 }
 
 func TestWrapManyAndUnwrapMany(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+
 	tmp := t.TempDir()
 	os.Setenv("PIN_ROOT", "/tmp/pin")
 	os.Setenv("PIN_TOOL_SEARCH_DIR", tmp)
@@ -287,13 +301,18 @@ func TestWrapManyAndUnwrapMany(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	// Create multiple fake ELF binaries
 	bin1 := filepath.Join(tmp, "bin1")
 	bin2 := filepath.Join(tmp, "bin2")
 	bin3 := filepath.Join(tmp, "bin3")
 	for _, bin := range []string{bin1, bin2, bin3} {
-		if err := os.WriteFile(bin, []byte("\x7fELFfoobar"), 0755); err != nil {
-			t.Fatalf("failed to create %s: %v", bin, err)
+		if out, err := exec.Command("gcc", "-g", "-o", bin, src).CombinedOutput(); err != nil {
+			t.Fatalf("failed to compile %s: %v\n%s", bin, err, out)
 		}
 	}
 
