@@ -345,6 +345,129 @@ func TestWrapManyAndUnwrapMany(t *testing.T) {
 	}
 }
 
+func TestWrapUnwrapMulticall(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+
+	tmp := t.TempDir()
+	os.Setenv("PIN_ROOT", "/tmp/pin")
+	os.Setenv("PIN_TOOL_SEARCH_DIR", tmp)
+	os.Setenv("SAFE_BIN_DIR", tmp)
+	os.Setenv("LOG_DIR", tmp)
+	// Create dummy FuncTracer.so
+	funcTracer := filepath.Join(tmp, "FuncTracer.so")
+	if err := os.WriteFile(funcTracer, []byte("dummy"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create real binary
+	realBin := filepath.Join(tmp, "real_bin")
+	if out, err := exec.Command("gcc", "-g", "-o", realBin, src).CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile: %v\n%s", err, out)
+	}
+
+	// Create symlink: run0 -> real_bin
+	symlinkBin := filepath.Join(tmp, "run0")
+	if err := os.Symlink("real_bin", symlinkBin); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wrap the symlink
+	if err := wrap(symlinkBin); err != nil {
+		t.Fatalf("wrap failed: %v", err)
+	}
+
+	// 1. Check that real_bin is now a wrapper
+	// Note: wrap resolves symlink, so it wraps the target.
+	content, err := os.ReadFile(realBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), wrapperIDComment) {
+		t.Error("real binary was not wrapped")
+	}
+
+	// 2. Check that the wrapper points to the symlink in backup
+	// We expect ORIGINAL_BINARY=".../run0"
+	if !strings.Contains(string(content), "/run0\"") {
+		t.Errorf("wrapper does not point to multicall symlink name. Content:\n%s", content)
+	}
+
+	// 3. Unwrap (using the real binary path, as wrap resolves it)
+	if err := unwrap(realBin); err != nil {
+		t.Fatalf("unwrap failed: %v", err)
+	}
+
+	// 4. Verify restoration
+	if !isELF(realBin) {
+		t.Error("unwrap did not restore ELF binary")
+	}
+}
+
+func TestUnwrapViaSymlink(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+
+	tmp := t.TempDir()
+	os.Setenv("PIN_ROOT", "/tmp/pin")
+	os.Setenv("PIN_TOOL_SEARCH_DIR", tmp)
+	os.Setenv("SAFE_BIN_DIR", tmp)
+	os.Setenv("LOG_DIR", tmp)
+	// Create dummy FuncTracer.so
+	funcTracer := filepath.Join(tmp, "FuncTracer.so")
+	if err := os.WriteFile(funcTracer, []byte("dummy"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create real binary
+	realBin := filepath.Join(tmp, "real_bin")
+	if out, err := exec.Command("gcc", "-g", "-o", realBin, src).CombinedOutput(); err != nil {
+		t.Fatalf("failed to compile: %v\n%s", err, out)
+	}
+
+	// Create symlink: link_to_bin -> real_bin
+	symlinkBin := filepath.Join(tmp, "link_to_bin")
+	if err := os.Symlink("real_bin", symlinkBin); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wrap the real binary directly
+	if err := wrap(realBin); err != nil {
+		t.Fatalf("wrap failed: %v", err)
+	}
+
+	// Verify it is wrapped
+	content, err := os.ReadFile(realBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), wrapperIDComment) {
+		t.Error("real binary was not wrapped")
+	}
+
+	// Unwrap via the symlink
+	if err := unwrap(symlinkBin); err != nil {
+		t.Fatalf("unwrap via symlink failed: %v", err)
+	}
+
+	// Verify restoration
+	if !isELF(realBin) {
+		t.Error("unwrap did not restore ELF binary")
+	}
+}
+
 func TestGenerateHTMLReportBaseName(t *testing.T) {
 	tmp := t.TempDir()
 	data := &CoverageData{
