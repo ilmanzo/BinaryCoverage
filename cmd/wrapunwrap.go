@@ -178,6 +178,15 @@ func wrap(targetBinary string) error {
 	if err != nil {
 		return err
 	}
+
+	// Check if the target is a symlink to preserve the calling name for multicall binaries
+	fileInfo, err := os.Lstat(targetBinary)
+	if err != nil {
+		return fmt.Errorf("lstat failed for %s: %w", targetBinary, err)
+	}
+	isSymlink := (fileInfo.Mode() & os.ModeSymlink) != 0
+	originalName := filepath.Base(targetBinary)
+
 	realTarget, err := filepath.EvalSymlinks(targetBinary)
 	if err != nil {
 		return fmt.Errorf("could not resolve symlink: %w", err)
@@ -220,6 +229,17 @@ func wrap(targetBinary string) error {
 	if err := move(targetBinary, movedBinaryPath); err != nil {
 		return err
 	}
+
+	binaryToRun := movedBinaryPath
+	if isSymlink && originalName != binaryName {
+		symlinkPath := filepath.Join(tmpDir, originalName)
+		if err := os.Symlink(binaryName, symlinkPath); err != nil {
+			fmt.Printf("Warning: failed to create multicall symlink %s -> %s: %v\n", symlinkPath, binaryName, err)
+		} else {
+			binaryToRun = symlinkPath
+		}
+	}
+
 	wrapperScript := fmt.Sprintf(`#!/bin/bash
 %s on %s
 # Original Binary: %s
@@ -237,7 +257,7 @@ nano_seconds=$(date "+%%N")
 log_file="$LOG_DIR/${binary_name}_${timestamp}_${nano_seconds}.log"
 
 exec "$PIN_ROOT/pin" -follow_execv -t "$PIN_TOOL" -logfile "$log_file" -- "$ORIGINAL_BINARY" "$@"
-`, wrapperIDComment, time.Now().Format(time.RFC3339), movedBinaryPath, PIN_ROOT, pinTool, LOG_DIR, movedBinaryPath)
+`, wrapperIDComment, time.Now().Format(time.RFC3339), movedBinaryPath, PIN_ROOT, pinTool, LOG_DIR, binaryToRun)
 	if err := os.WriteFile(targetBinary, []byte(wrapperScript), 0755); err != nil {
 		return err
 	}
@@ -246,6 +266,13 @@ exec "$PIN_ROOT/pin" -follow_execv -t "$PIN_TOOL" -logfile "$log_file" -- "$ORIG
 }
 
 func unwrap(targetBinary string) error {
+	// Resolve symlinks to ensure we are operating on the actual wrapper file
+	realTarget, err := filepath.EvalSymlinks(targetBinary)
+	if err != nil {
+		return fmt.Errorf("could not resolve symlink: %w", err)
+	}
+	targetBinary = realTarget
+
 	content, err := os.ReadFile(targetBinary)
 	if err != nil {
 		return fmt.Errorf("could not read wrapper: %w", err)
@@ -263,14 +290,32 @@ func unwrap(targetBinary string) error {
 	if origPath == "" {
 		return errors.New("could not find original binary path in wrapper")
 	}
-	if _, err := os.Stat(origPath); err != nil {
-		return fmt.Errorf("original binary not found: %w", err)
+
+	// Check if the backup binary path is a symlink (multicall binary case)
+	fi, err := os.Lstat(origPath)
+	if err != nil {
+		return fmt.Errorf("original binary not found at %s: %w", origPath, err)
 	}
-	if err := move(origPath, targetBinary); err != nil {
+
+	sourcePath := origPath
+	if (fi.Mode() & os.ModeSymlink) != 0 {
+		// It's a symlink, resolve it to find the real binary
+		realPath, err := filepath.EvalSymlinks(origPath)
+		if err != nil {
+			return fmt.Errorf("failed to resolve symlink %s: %w", origPath, err)
+		}
+		// Remove the symlink so the directory can be empty after we move the binary
+		if err := os.Remove(origPath); err != nil {
+			fmt.Printf("Warning: failed to remove symlink %s: %v\n", origPath, err)
+		}
+		sourcePath = realPath
+	}
+
+	if err := move(sourcePath, targetBinary); err != nil {
 		return fmt.Errorf("could not restore original binary: %w", err)
 	}
-	_ = os.Remove(filepath.Dir(origPath))
-	fmt.Printf("Unwrapped %s (restored original from %s)\n", targetBinary, origPath)
+	_ = os.Remove(filepath.Dir(sourcePath))
+	fmt.Printf("Unwrapped %s (restored original from %s)\n", targetBinary, sourcePath)
 	return nil
 }
 
