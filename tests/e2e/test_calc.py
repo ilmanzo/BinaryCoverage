@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import sys
 import shutil
 import subprocess
 import tempfile
@@ -13,53 +12,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
 FUNKOVERAGE = PROJECT_ROOT / "funkoverage"
 FUNC_TRACER = PROJECT_ROOT / "obj-intel64" / "FuncTracer.so"
+ENV_FILE = PROJECT_ROOT / "env"
 
-class TestCalcE2E(unittest.TestCase):
-    def setUp(self):
-        # Verify environment
-        if not FUNKOVERAGE.exists():
-            self.fail(f"funkoverage tool not found at {FUNKOVERAGE}. Run build.sh first.")
-        if not FUNC_TRACER.exists():
-            self.fail(f"FuncTracer.so not found at {FUNC_TRACER}. Run build.sh first.")
-
-        # Create temporary directory
-        self.test_dir = Path(tempfile.mkdtemp(prefix="binarycoverage_e2e_"))
-        self.bin_name = "calc"
-        self.src_file = self.test_dir / f"{self.bin_name}.c"
-        self.bin_path = self.test_dir / self.bin_name
-        self.log_dir = self.test_dir / "logs"
-        self.report_dir = self.test_dir / "report"
-        self.xml_report = self.report_dir / f"coverage_{self.bin_name}.xml"
-
-        # Set environment variables for the tool
-        self.env = os.environ.copy()
-
-        # Load env file if exists (for PIN_ROOT)
-        env_file = PROJECT_ROOT / "env"
-        if env_file.exists():
-            with open(env_file, "r") as f:
-                for line in f:
-                    if line.strip().startswith("export PIN_ROOT="):
-                        # Extract value: export PIN_ROOT="/path/to/pin"
-                        parts = line.split("=", 1)
-                        if len(parts) == 2:
-                            val = parts[1].strip().strip('"').strip("'")
-                            self.env["PIN_ROOT"] = val
-
-        self.env["PIN_TOOL_SEARCH_DIR"] = str(FUNC_TRACER.parent)
-        self.env["LOG_DIR"] = str(self.log_dir)
-        self.env["SAFE_BIN_DIR"] = str(self.test_dir / "safe_bin")
-
-        # Create source file
-        self.create_source()
-
-    def tearDown(self):
-        # Cleanup
-        if self.test_dir.exists():
-            shutil.rmtree(self.test_dir)
-
-    def create_source(self):
-        src_content = """
+SOURCE_CODE = r"""
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,112 +26,175 @@ int div_op(int a, int b) { return a / b; }
 
 int main(int argc, char *argv[]) {
     if (argc < 4) {
-        printf("Usage: %s <num1> <num2> <op>\\n", argv[0]);
+        printf("Usage: %s <num1> <num2> <op>\n", argv[0]);
         return 1;
     }
     int a = atoi(argv[1]);
     int b = atoi(argv[2]);
     char *op = argv[3];
 
-    if (strcmp(op, "+") == 0) printf("%d\\n", sum(a, b));
-    else if (strcmp(op, "-") == 0) printf("%d\\n", sub(a, b));
-    else if (strcmp(op, "*") == 0) printf("%d\\n", mult(a, b));
-    else if (strcmp(op, "/") == 0) printf("%d\\n", div_op(a, b));
-    else printf("Unknown op\\n");
+    if (strcmp(op, "+") == 0) printf("%d\n", sum(a, b));
+    else if (strcmp(op, "-") == 0) printf("%d\n", sub(a, b));
+    else if (strcmp(op, "*") == 0) printf("%d\n", mult(a, b));
+    else if (strcmp(op, "/") == 0) printf("%d\n", div_op(a, b));
+    else printf("Unknown op\n");
     return 0;
 }
 """
-        with open(self.src_file, "w") as f:
-            f.write(src_content)
 
-    def run_command(self, cmd, check=True):
-        # Helper to run commands
+class TestCalcE2E(unittest.TestCase):
+    def setUp(self):
+        print(f"\n[SETUP] Starting E2E test in temporary env...")
+        self._check_prerequisites()
+
+        self.test_dir = Path(tempfile.mkdtemp(prefix="binarycoverage_e2e_"))
+        self.bin_name = "calc"
+        self.src_file = self.test_dir / f"{self.bin_name}.c"
+        self.bin_path = self.test_dir / self.bin_name
+        self.log_dir = self.test_dir / "logs"
+        self.report_dir = self.test_dir / "report"
+        self.xml_report = self.report_dir / f"coverage_{self.bin_name}.xml"
+
+        self.env = self._prepare_env()
+        self.src_file.write_text(SOURCE_CODE)
+        print(f"[SETUP] Created test directory: {self.test_dir}")
+
+    def tearDown(self):
+        if self.test_dir.exists():
+            shutil.rmtree(self.test_dir)
+        print(f"[TEARDOWN] Cleaned up {self.test_dir}")
+
+    def _check_prerequisites(self):
+        if not FUNKOVERAGE.exists():
+            self.fail(f"❌ Tool not found: {FUNKOVERAGE}. Run build.sh first.")
+        if not FUNC_TRACER.exists():
+            self.fail(f"❌ Tracer not found: {FUNC_TRACER}. Run build.sh first.")
+
+    def _prepare_env(self):
+        env = os.environ.copy()
+        if ENV_FILE.exists():
+            print(f"[ENV] Loading configuration from {ENV_FILE}")
+            with open(ENV_FILE, "r") as f:
+                for line in f:
+                    if line.strip().startswith("export PIN_ROOT="):
+                        val = line.split("=", 1)[1].strip().strip('"\'')
+                        env["PIN_ROOT"] = val
+
+        env.update({
+            "PIN_TOOL_SEARCH_DIR": str(FUNC_TRACER.parent),
+            "LOG_DIR": str(self.log_dir),
+            "SAFE_BIN_DIR": str(self.test_dir / "safe_bin"),
+        })
+        return env
+
+    def run_cmd(self, cmd, msg=None):
+        if msg:
+            print(f"👉 {msg}")
+
+        # Convert all args to string to allow Path objects
+        cmd_str = [str(c) for c in cmd]
+        print(f"   Running: {' '.join(cmd_str)}")
+
         result = subprocess.run(
-            cmd,
+            cmd_str,
             cwd=self.test_dir,
             env=self.env,
             capture_output=True,
             text=True
         )
-        if check and result.returncode != 0:
-            print(f"Command failed: {cmd}")
-            print("STDOUT:", result.stdout)
-            print("STDERR:", result.stderr)
+
+        if result.returncode != 0:
+            print(f"\n❌ COMMAND FAILED: {' '.join(cmd_str)}")
+            print(f"   STDOUT:\n{result.stdout}")
+            print(f"   STDERR:\n{result.stderr}")
             self.fail(f"Command failed with return code {result.returncode}")
+
         return result
 
-    def get_function_status(self, xml_path):
-        """Parses XML report and returns a dict of function_name -> status ('called' or 'uncalled')"""
-        if not xml_path.exists():
-            self.fail(f"XML Report not found at {xml_path}")
+    def get_coverage_status(self):
+        """Parses the XML report and returns a dictionary of function statuses."""
+        if not self.xml_report.exists():
+            self.fail(f"❌ Report missing: {self.xml_report}")
 
-        tree = ET.parse(xml_path)
-        root = tree.getroot()
+        try:
+            tree = ET.parse(self.xml_report)
+            # Find the text content inside <passed> tag which contains the ✓/✗ list
+            passed_node = tree.find(".//testcase/passed")
+            if passed_node is None or not passed_node.text:
+                self.fail("❌ Invalid XML report format: <passed> node missing or empty")
 
-        # Structure is <testsuite ...><testcase ...><passed message="..." ...>Text Content</passed></testcase>
-        # The text content contains "  ✓ funcName" or "  ✗ funcName"
-        # This parsing depends on the specific format generated by funkoverage's XML report.
-        # Based on report.go, the text content of <passed> has the details.
+            status_map = {}
+            for line in passed_node.text.splitlines():
+                line = line.strip()
+                if line.startswith("✓"):
+                    status_map[line[1:].strip()] = "called"
+                elif line.startswith("✗"):
+                    status_map[line[1:].strip()] = "uncalled"
+            return status_map
+        except ET.ParseError as e:
+            self.fail(f"❌ Failed to parse XML report: {e}")
 
-        passed_node = root.find(".//testcase/passed")
-        if passed_node is None:
-            self.fail("Could not find <passed> node in XML report")
+    def test_workflow(self):
+        """
+        Executes the full E2E workflow:
+        1. Compile target
+        2. Wrap binary
+        3. Run 'sum' -> check coverage (sum called, sub uncalled)
+        4. Run 'sub' -> check coverage (sub called)
+        5. Unwrap binary
+        """
 
-        content = passed_node.text
-        status_map = {}
-        for line in content.splitlines():
-            line = line.strip()
-            if line.startswith("✓"):
-                func_name = line[1:].strip()
-                status_map[func_name] = "called"
-            elif line.startswith("✗"):
-                func_name = line[1:].strip()
-                status_map[func_name] = "uncalled"
-        return status_map
+        # --- Step 1: Compile ---
+        self.run_cmd(
+            ["gcc", "-g", "-gdwarf-4", self.src_file, "-o", self.bin_path],
+            msg="Compiling target binary..."
+        )
 
-    def test_e2e_calc_coverage(self):
-        # 1. Compile
-        self.run_command(["gcc", "-g", "-gdwarf-4", str(self.src_file), "-o", str(self.bin_path)])
+        # --- Step 2: Wrap ---
+        self.run_cmd([FUNKOVERAGE, "wrap", self.bin_path], msg="Wrapping binary...")
 
-        # 2. Wrap
-        self.run_command([str(FUNKOVERAGE), "wrap", str(self.bin_path)])
+        # Verify wrapper content
+        content = self.bin_path.read_text(errors="ignore")
+        self.assertIn("Pin Wrapper generated by Go tool funkoverage", content,
+                      "❌ Binary was not correctly wrapped (wrapper signature missing)")
+        print("   ✅ Wrapper signature verified.")
 
-        # Verify wrap
-        with open(self.bin_path, "r", errors="ignore") as f:
-            content = f.read()
-            self.assertIn("Pin Wrapper generated by Go tool funkoverage", content)
+        # --- Step 3: Run Case 1 (Sum) ---
+        self.run_cmd([self.bin_path, "10", "20", "+"], msg="Executing: 10 + 20")
 
-        # 3. Run Test Case 1 (Sum)
-        self.run_command([str(self.bin_path), "10", "20", "+"])
+        # --- Step 4: Generate & Verify Report ---
+        self.report_dir.mkdir(exist_ok=True)
+        self.run_cmd(
+            [FUNKOVERAGE, "report", self.log_dir, self.report_dir, "--formats", "xml"],
+            msg="Generating coverage report..."
+        )
 
-        # 4. Generate Report
-        os.makedirs(self.report_dir, exist_ok=True)
-        self.run_command([str(FUNKOVERAGE), "report", str(self.log_dir), str(self.report_dir), "--formats", "xml"])
+        status = self.get_coverage_status()
+        self.assertEqual(status.get("sum"), "called", "❌ 'sum' should be marked as CALLED")
+        self.assertEqual(status.get("sub"), "uncalled", "❌ 'sub' should be marked as UNCALLED")
+        print("   ✅ Invariant Check Passed: sum=called, sub=uncalled")
 
-        # 5. Verify Invariants
-        status = self.get_function_status(self.xml_report)
-        self.assertIn("sum", status, "Function 'sum' missing from report")
-        self.assertEqual(status["sum"], "called", "Function 'sum' should be called")
-        self.assertIn("sub", status, "Function 'sub' missing from report")
-        self.assertEqual(status["sub"], "uncalled", "Function 'sub' should be uncalled")
+        # --- Step 5: Run Case 2 (Sub) ---
+        self.run_cmd([self.bin_path, "10", "20", "-"], msg="Executing: 10 - 20")
 
-        # 6. Run Test Case 2 (Sub)
-        self.run_command([str(self.bin_path), "10", "20", "-"])
+        # --- Step 6: Regenerate & Verify ---
+        self.run_cmd(
+            [FUNKOVERAGE, "report", self.log_dir, self.report_dir, "--formats", "xml"],
+            msg="Regenerating report..."
+        )
 
-        # 7. Regenerate Report
-        self.run_command([str(FUNKOVERAGE), "report", str(self.log_dir), str(self.report_dir), "--formats", "xml"])
+        status = self.get_coverage_status()
+        self.assertEqual(status.get("sub"), "called", "❌ 'sub' should now be marked as CALLED")
+        print("   ✅ Invariant Check Passed: sub=called")
 
-        # 8. Verify Updated Invariants
-        status = self.get_function_status(self.xml_report)
-        self.assertEqual(status["sub"], "called", "Function 'sub' should be called after second run")
+        # --- Step 7: Unwrap ---
+        self.run_cmd([FUNKOVERAGE, "unwrap", self.bin_path], msg="Unwrapping binary...")
 
-        # 9. Unwrap
-        self.run_command([str(FUNKOVERAGE), "unwrap", str(self.bin_path)])
-
-        # Verify unwrap
+        # Verify ELF header
         with open(self.bin_path, "rb") as f:
             header = f.read(4)
-            self.assertEqual(header, b"\x7fELF", "Binary should be restored to ELF format")
+        self.assertEqual(header, b"\x7fELF", "❌ Binary was not restored to ELF format")
+        print("   ✅ Unwrap verified: Binary is ELF.")
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(verbosity=2)
