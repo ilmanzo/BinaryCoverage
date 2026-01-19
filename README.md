@@ -8,7 +8,7 @@ It analyzes binary executables to measure and report code coverage.
 
 [![Build check](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml) [![Run unit tests](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml)
 
-
+The project started as a fork of https://github.com/simotin13/CodeCoverage. Thanks to [simotin13](https://github.com/simotin13) for the idea and first implementation!
 
 ## ✅ Supported Platforms
 
