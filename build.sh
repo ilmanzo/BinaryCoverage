@@ -1,23 +1,25 @@
 #!/bin/bash
 set -euo pipefail
-
-PIN_ARCHIVE="pin-external-4.0-99633-g5ca9893f2-gcc-linux"
-PIN_URL="https://software.intel.com/sites/landingpage/pintool/downloads/${PIN_ARCHIVE}.tar.gz"
+set -x 
+PIN_ARCHIVE="pin-external-4.1-99687-gd9b8f822c-gcc-linux.tar.gz"
+PIN_URL="https://software.intel.com/sites/landingpage/pintool/$PIN_ARCHIVE"
 
 pushd .. > /dev/null
 
-if [[ ! -d "$PIN_ARCHIVE" ]]; then
+if [[ ! -f "$PIN_ARCHIVE" ]]; then
     echo "Downloading Intel Pin..."
-    curl -fsSL "$PIN_URL" | tar -xzf -
+    wget $PIN_URL
+    tar xzf $PIN_ARCHIVE
 fi
 
-if [[ ! -d "$PIN_ARCHIVE" ]]; then
+PIN_DIR=$(basename $PIN_ARCHIVE .tar.gz)
+
+if [[ ! -d "$PIN_DIR" ]]; then
     echo "Error: Failed to download or extract Intel Pin archive." >&2
     exit 1
 fi
 
-PIN_ROOT=$(realpath `ls -d $PIN_ARCHIVE`)
-export PIN_ROOT
+export PIN_ROOT=$(realpath `ls -d $PIN_DIR`)
 popd > /dev/null
 make
 echo "export PIN_ROOT=\"$PIN_ROOT\"" > env
