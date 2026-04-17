@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 set -x 
-PIN_ARCHIVE="pin-external-4.1-99687-gd9b8f822c-gcc-linux.tar.gz"
+PIN_ARCHIVE="pin-external-4.2-99776-g21d818fa2-gcc-linux.tar.gz"
 PIN_URL="https://software.intel.com/sites/landingpage/pintool/downloads/$PIN_ARCHIVE"
 
 pushd .. > /dev/null
