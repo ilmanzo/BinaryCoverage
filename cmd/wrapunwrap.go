@@ -294,6 +294,14 @@ PIN_TOOL="%s"
 LOG_DIR="%s"
 ORIGINAL_BINARY="%s"
 
+# Avoid Pin-in-Pin recursion: when an instrumented process exec's another
+# wrapped binary (e.g. tar -> bzip2), -follow_execv already attached Pin to
+# the child. Re-launching pin here would cause an arch_prctl assertion.
+if [ -n "$BINARYCOVERAGE_PIN_ACTIVE" ]; then
+    exec "$ORIGINAL_BINARY" "$@"
+fi
+export BINARYCOVERAGE_PIN_ACTIVE=1
+
 mkdir -m 0777 -p "$LOG_DIR"
 
 binary_name=$(basename "$0")
