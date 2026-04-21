@@ -7,3 +7,4 @@ cmd/cmd
 dynamorio/build/
 sysdeps/
 __pycache__/
+pin.log
