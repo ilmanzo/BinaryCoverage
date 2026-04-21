@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const versionString = "0.5.9"
+const versionString = "0.6.2"
 
 // --- CLI ---
 

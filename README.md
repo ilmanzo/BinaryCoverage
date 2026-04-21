@@ -25,6 +25,18 @@ To build and run this tool, you'll need:
 - `g++` version **15** (or any c++ 2017 )
 - **Catch2 v2** library (optional, only for running the C++ test suite)
   - A copy is provided in `tests/catch2/catch.hpp`
+- **elfutils** (provides `eu-unstrip`)
+  - Required by the `wrap` command when targeting **stripped** binaries that
+    ship their debug symbols in a separate `.debug` file (the typical layout
+    on distros: binary in `/usr/bin/`, symbols in
+    `/usr/lib/debug/.build-id/xx/yyyy.debug`).
+  - Intel Pin's `RTN_*` API resolves function names from the binary's own
+    symbol table and **does not follow `.gnu_debuglink`**. When `wrap` moves
+    a stripped binary into the safe directory, the relative debuglink lookup
+    breaks and PIN would only see two pseudo-routines (`.text` and `.fini`).
+  - `eu-unstrip` merges the external debug info back into the relocated
+    binary, so PIN can discover real function names.
+  - Install on openSUSE: `zypper in elfutils`
 
 
 ## 🛠️ Build & Run

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -76,6 +77,47 @@ func hasDebugInfo(path string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// PIN does not follow .gnu_debuglink. If the binary is stripped but a build-id
+// debug file exists, merge the symbols back into the binary using eu-unstrip
+// so PIN's RTN_* API can discover real function names.
+func mergeDebugIfExternal(binPath string) error {
+	f, err := elf.Open(binPath)
+	if err != nil {
+		return fmt.Errorf("open elf: %w", err)
+	}
+	for _, s := range f.Sections {
+		if (strings.HasPrefix(s.Name, ".debug_") || strings.HasPrefix(s.Name, ".zdebug_")) && s.Size > 0 {
+			f.Close()
+			return nil
+		}
+	}
+	buildID, err := getBuildID(f)
+	f.Close()
+	if err != nil || len(buildID) <= 2 {
+		return nil
+	}
+	debugPath := fmt.Sprintf("%s/.build-id/%s/%s.debug", globalDebugRoot, buildID[:2], buildID[2:])
+	if _, err := os.Stat(debugPath); err != nil {
+		return nil
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(binPath), ".unstrip-*")
+	if err != nil {
+		return fmt.Errorf("create temp: %w", err)
+	}
+	out := tmp.Name()
+	tmp.Close()
+	os.Remove(out)
+	cmd := exec.Command("eu-unstrip", binPath, debugPath, "-o", out)
+	if combined, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("eu-unstrip failed: %w: %s", err, combined)
+	}
+	if err := os.Chmod(out, 0755); err != nil {
+		os.Remove(out)
+		return fmt.Errorf("chmod merged binary: %w", err)
+	}
+	return move(out, binPath)
 }
 
 // Helper to parse the ELF Note and extract the raw Build ID bytes
@@ -229,6 +271,9 @@ func wrap(targetBinary string) error {
 	if err := move(targetBinary, movedBinaryPath); err != nil {
 		return err
 	}
+	if err := mergeDebugIfExternal(movedBinaryPath); err != nil {
+		return fmt.Errorf("could not merge external debug symbols: %w", err)
+	}
 
 	binaryToRun := movedBinaryPath
 	if isSymlink && originalName != binaryName {
@@ -244,7 +289,7 @@ func wrap(targetBinary string) error {
 %s on %s
 # Original Binary: %s
 
-PIN_ROOT="${PIN_ROOT:-%s}"
+export PIN_ROOT="${PIN_ROOT:-%s}"
 PIN_TOOL="%s"
 LOG_DIR="%s"
 ORIGINAL_BINARY="%s"

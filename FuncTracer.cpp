@@ -81,15 +81,16 @@ BOOL follow_child_process(CHILD_PROCESS childProcess, VOID *v)
 // Pintool (shared library) entry point
 int main(int argc, char *argv[])
 {
-    // Initialize PIN symbols. This is required for routine-level instrumentation.
-    PIN_InitSymbols();
-
     // Initialize PIN. This must be the first function called.
     if (PIN_Init(argc, argv))
     {
         cerr << "PIN_Init failed" << endl;
         return 1;
     }
+
+    // Initialize PIN symbols. This is required for routine-level instrumentation.
+    PIN_InitSymbols();
+
     // Register the function to be called for every loaded image.
     IMG_AddInstrumentFunction(image_load, 0);
 
