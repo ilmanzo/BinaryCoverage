@@ -59,6 +59,24 @@ func ensureCoverage(coverage map[string]*CoverageData, image string) {
 	}
 }
 
+// splitCalledUncalled returns sorted slices of called and uncalled function
+// names. A function is "called" if it appears in CalledFunctions; everything
+// else in TotalFunctions is "uncalled".
+func splitCalledUncalled(data *CoverageData) (called, uncalled []string) {
+	called = make([]string, 0, len(data.CalledFunctions))
+	uncalled = make([]string, 0, len(data.TotalFunctions))
+	for fn := range data.TotalFunctions {
+		if _, ok := data.CalledFunctions[fn]; ok {
+			called = append(called, fn)
+		} else {
+			uncalled = append(uncalled, fn)
+		}
+	}
+	sort.Strings(called)
+	sort.Strings(uncalled)
+	return called, uncalled
+}
+
 // analyzeLogs processes _functions.log and _called.log files.
 // Files with unrecognized suffixes are skipped with a warning.
 func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
@@ -111,7 +129,8 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 func printTxtReport(coverage map[string]*CoverageData) {
 	summary := summarizeCoverage(coverage)
 	for _, row := range summary.Rows {
-		uncalled := row.TotalCount - row.CalledCount
+		data := coverage[row.ImageName]
+		called, uncalled := splitCalledUncalled(data)
 		fmt.Printf("\n==================================================\n")
 		fmt.Printf("Image: %s\n", row.ImageName)
 		fmt.Printf("==================================================\n")
@@ -119,21 +138,18 @@ func printTxtReport(coverage map[string]*CoverageData) {
 		fmt.Printf("  Functions Called:  %d\n", row.CalledCount)
 		fmt.Printf("  Coverage:          %.2f%%\n", row.CoveragePct)
 		fmt.Printf("--------------------------------------------------\n")
-		if row.CalledCount > 0 {
+		if len(called) > 0 {
 			fmt.Println("  Called Functions:")
-			// Print called functions (need to look up in coverage map)
-			for fn := range coverage[row.ImageName].CalledFunctions {
+			for _, fn := range called {
 				fmt.Printf("    - %s\n", fn)
 			}
 		} else {
 			fmt.Println("  No functions were called for this image.")
 		}
-		if uncalled > 0 {
+		if len(uncalled) > 0 {
 			fmt.Println("\n  Uncalled Functions:")
-			for fn := range coverage[row.ImageName].TotalFunctions {
-				if _, ok := coverage[row.ImageName].CalledFunctions[fn]; !ok {
-					fmt.Printf("    - %s\n", fn)
-				}
+			for _, fn := range uncalled {
+				fmt.Printf("    - %s\n", fn)
 			}
 		}
 	}
