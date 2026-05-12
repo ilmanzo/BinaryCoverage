@@ -219,15 +219,17 @@ func enumerateDWARF(dwarfData *dwarf.Data) ([]string, error) {
 			continue
 		}
 
-		name := demangleName(raw)
-		if !funcIsRelevant(name) {
+		// Keep the raw (mangled) name. uprobe attach resolves it against
+		// the ELF symbol table directly; demangling happens at output time
+		// (writeFunctionsLog, _called.log, cmdEnumerate stdout).
+		if !funcIsRelevant(demangleName(raw)) {
 			continue
 		}
-		if _, dup := seen[name]; dup {
+		if _, dup := seen[raw]; dup {
 			continue
 		}
-		seen[name] = struct{}{}
-		funcs = append(funcs, name)
+		seen[raw] = struct{}{}
+		funcs = append(funcs, raw)
 	}
 	return funcs, nil
 }
@@ -250,15 +252,21 @@ func enumerateSymtab(f *elf.File) ([]string, error) {
 		if sym.Value == 0 {
 			continue
 		}
-		name := demangleName(sym.Name)
-		if !funcIsRelevant(name) {
+		// uprobe attach requires offset < symbol size; skip the CRT helpers
+		// (deregister_tm_clones, frame_dummy, etc.) that the linker emits
+		// with size 0.
+		if sym.Size == 0 {
 			continue
 		}
-		if _, dup := seen[name]; dup {
+		// Keep raw mangled name for uprobe attach; demangle only at output.
+		if !funcIsRelevant(demangleName(sym.Name)) {
 			continue
 		}
-		seen[name] = struct{}{}
-		funcs = append(funcs, name)
+		if _, dup := seen[sym.Name]; dup {
+			continue
+		}
+		seen[sym.Name] = struct{}{}
+		funcs = append(funcs, sym.Name)
 	}
 	return funcs, nil
 }
@@ -328,7 +336,9 @@ func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string)
 	w := bufio.NewWriter(f)
 	for image, names := range funcs {
 		for _, n := range names {
-			fmt.Fprintf(w, "FUNC %s %s\n", image, n)
+			// Demangle for the report side; .funcs.json keeps the mangled
+			// form for uprobe attach.
+			fmt.Fprintf(w, "FUNC %s %s\n", image, demangleName(n))
 		}
 	}
 	return path, w.Flush()

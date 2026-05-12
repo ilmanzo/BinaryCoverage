@@ -23,7 +23,7 @@ type command struct {
 
 func commands() map[string]command {
 	cmds := []command{
-		{"setup", "grant bpftrace CAP_BPF", cmdSetup},
+		{"setup", "validate eBPF environment", cmdSetup},
 		{"install", "install shim for binary", cmdInstall},
 		{"uninstall", "restore original binary", cmdUninstall},
 		{"trace", "run binary under tracing without permanent install", cmdTrace},
@@ -81,7 +81,7 @@ func exitf(format string, args ...any) {
 
 func cmdHelp(args []string) error    { fmt.Print(helpText); return nil }
 func cmdVersion(args []string) error { fmt.Println("funkoverage version", versionString); return nil }
-func cmdSetup(args []string) error   { return setupBpftrace() }
+func cmdSetup(args []string) error   { return setupEnv() }
 
 func cmdInstall(args []string) error {
 	fs := flag.NewFlagSet("install", flag.ExitOnError)
@@ -127,7 +127,7 @@ func cmdEnumerate(args []string) error {
 	var entries []entry
 	for image, names := range funcs {
 		for _, name := range names {
-			entries = append(entries, entry{image, name})
+			entries = append(entries, entry{image, demangleName(name)})
 		}
 	}
 	slices.SortFunc(entries, func(a, b entry) int {

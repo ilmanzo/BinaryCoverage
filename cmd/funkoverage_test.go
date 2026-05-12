@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"funkoverage/internal/funkutil"
 )
 
 // --- isELF tests ---
@@ -400,12 +402,25 @@ func TestInstallUninstall(t *testing.T) {
 		t.Error("expected _functions.log in log dir")
 	}
 
+	// Funcs sidecar should exist next to the safe binary and round-trip.
+	funcsSidecar := funkutil.FuncListPath(safePath)
+	if _, err := os.Stat(funcsSidecar); err != nil {
+		t.Errorf("expected funcs sidecar at %s: %v", funcsSidecar, err)
+	}
+	if got := funkutil.ReadFuncList(safePath); len(got) == 0 {
+		t.Error("ReadFuncList: expected non-empty map after install")
+	}
+
 	if err := uninstall(bin); err != nil {
 		t.Fatalf("uninstall: %v", err)
 	}
 	// Safe path should be gone after uninstall
 	if _, err := os.Stat(safePath); err == nil {
 		t.Error("safe binary should be removed after uninstall")
+	}
+	// Funcs sidecar should be gone after uninstall
+	if _, err := os.Stat(funcsSidecar); err == nil {
+		t.Error("funcs sidecar should be removed after uninstall")
 	}
 	// Original ELF should be restored
 	if !isELF(bin) {

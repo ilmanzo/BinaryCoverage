@@ -7,6 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 
 	"funkoverage/internal/funkutil"
 )
@@ -86,11 +89,33 @@ func install(targetBinary string, noLibs bool) error {
 		}
 	}
 
+	if err := funkutil.WriteFuncList(safePath, funcs); err != nil {
+		return fmt.Errorf("write func list sidecar: %w", err)
+	}
+
 	if err := copyFile(shimBinary, realTarget, 0755); err != nil {
 		return fmt.Errorf("install shim binary: %w", err)
 	}
 
+	if err := setShimCaps(realTarget); err != nil {
+		// Soft-fail: caps only matter for non-root invocation of the shim.
+		// Root install + root invocation works without them.
+		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
+
 	fmt.Printf("Installed shim for %s (original at %s)\n", targetBinary, safePath)
+	return nil
+}
+
+// setShimCaps grants the eBPF tracing capabilities the shim needs at runtime.
+// File capabilities are an xattr and are NOT preserved by io.Copy, so they
+// must be (re)applied to each installed shim copy after the copy completes.
+func setShimCaps(shimPath string) error {
+	caps := "cap_bpf,cap_perfmon,cap_dac_read_search+ep"
+	out, err := exec.Command("setcap", caps, shimPath).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("setcap %s %s: %w\n%s", caps, shimPath, err, out)
+	}
 	return nil
 }
 
@@ -126,6 +151,7 @@ func uninstall(targetBinary string) error {
 		return fmt.Errorf("restore binary: %w", err)
 	}
 	_ = funkutil.WriteLibsSidecar(safePath, nil)
+	_ = funkutil.WriteFuncList(safePath, nil)
 
 	fmt.Printf("Uninstalled shim for %s (restored original)\n", targetBinary)
 	return nil
@@ -159,22 +185,64 @@ func uninstallMany(binaries []string) error {
 	return nil
 }
 
-// setupBpftrace grants CAP_BPF, CAP_DAC_READ_SEARCH, and CAP_PERFMON to the
-// bpftrace binary so non-root users can trace programs without sudo.
-// Must be run as root (once, after bpftrace is installed or upgraded).
-func setupBpftrace() error {
-	bpftracePath, err := exec.LookPath("bpftrace")
-	if err != nil {
-		return fmt.Errorf("bpftrace not found in PATH: %w", err)
+// setupEnv validates the host environment for the eBPF tracer:
+//   - kernel ≥6.6 (uprobe_multi support);
+//   - kernel BTF available at /sys/kernel/btf/vmlinux;
+//   - LOG_DIR and SAFE_BIN_DIR exist and are writable.
+//
+// It does not perform any installation — capabilities are applied per-shim
+// at install time (see setShimCaps).
+func setupEnv() error {
+	if err := checkKernelVersion(6, 6); err != nil {
+		return err
 	}
-	caps := "cap_bpf,cap_dac_read_search,cap_perfmon+ep"
-	out, err := exec.Command("setcap", caps, bpftracePath).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("setcap failed: %w\n%s\nTip: run 'funkoverage setup' as root", err, out)
+	if _, err := os.Stat("/sys/kernel/btf/vmlinux"); err != nil {
+		return fmt.Errorf("BTF unavailable at /sys/kernel/btf/vmlinux: %w "+
+			"(kernel must be built with CONFIG_DEBUG_INFO_BTF=y)", err)
 	}
-	fmt.Printf("Set capabilities on %s: %s\n", bpftracePath, caps)
-	fmt.Println("Non-root users can now run the shim without sudo.")
+	for _, dir := range []string{funkutil.LogDir(), funkutil.SafeBinDir()} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("create %s: %w", dir, err)
+		}
+	}
+	fmt.Println("Environment OK: kernel + BTF + log/bin directories ready.")
+	fmt.Println("Run 'funkoverage install <binary>' as root to install a shim.")
 	return nil
+}
+
+// checkKernelVersion parses `uname -r` and ensures the running kernel is
+// at least major.minor. Patch and suffix are ignored.
+func checkKernelVersion(wantMajor, wantMinor int) error {
+	var uts syscall.Utsname
+	if err := syscall.Uname(&uts); err != nil {
+		return fmt.Errorf("uname: %w", err)
+	}
+	release := utsString(uts.Release[:])
+	parts := strings.SplitN(release, ".", 3)
+	if len(parts) < 2 {
+		return fmt.Errorf("cannot parse kernel release %q", release)
+	}
+	maj, err1 := strconv.Atoi(parts[0])
+	min, err2 := strconv.Atoi(strings.SplitN(parts[1], "-", 2)[0])
+	if err1 != nil || err2 != nil {
+		return fmt.Errorf("cannot parse kernel release %q", release)
+	}
+	if maj < wantMajor || (maj == wantMajor && min < wantMinor) {
+		return fmt.Errorf("kernel %d.%d+ required (have %d.%d) for uprobe_multi support",
+			wantMajor, wantMinor, maj, min)
+	}
+	return nil
+}
+
+func utsString(b []int8) string {
+	out := make([]byte, 0, len(b))
+	for _, c := range b {
+		if c == 0 {
+			break
+		}
+		out = append(out, byte(c))
+	}
+	return string(out)
 }
 
 func findShimBinary() (string, error) {

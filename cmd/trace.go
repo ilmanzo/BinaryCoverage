@@ -60,12 +60,22 @@ func traceInline(binaryPath string, args []string, noLibs bool) error {
 		}
 	}
 
+	tempFuncs := false
+	if funcs != nil && len(funcs) > 0 {
+		if err := funkutil.WriteFuncList(safePath, funcs); err == nil {
+			tempFuncs = true
+		}
+	}
+
 	defer func() {
 		if tempSafe {
 			os.Remove(safePath)
 		}
 		if tempLibs {
 			_ = funkutil.WriteLibsSidecar(safePath, nil)
+		}
+		if tempFuncs {
+			_ = funkutil.WriteFuncList(safePath, nil)
 		}
 	}()
 
@@ -75,6 +85,7 @@ func traceInline(binaryPath string, args []string, noLibs bool) error {
 		"SAFE_BIN_DIR="+safeBinDir,
 		"LOG_DIR="+logDir,
 		"FUNKOVERAGE_ARG0="+binaryPath,
+		"FUNKOVERAGE_BINARY_NAME="+filepath.Base(realBin),
 	)
 
 	if err := cmd.Run(); err != nil {

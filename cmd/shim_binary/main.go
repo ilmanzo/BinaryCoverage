@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +11,6 @@ import (
 	"time"
 
 	"funkoverage/internal/funkutil"
-
-	"github.com/ianlancetaylor/demangle"
 )
 
 const (
@@ -25,6 +21,10 @@ const (
 )
 
 func realBinaryPath() string {
+	// If FUNKOVERAGE_BINARY_NAME is set (from trace command), use it directly.
+	if name := os.Getenv("FUNKOVERAGE_BINARY_NAME"); name != "" {
+		return filepath.Join(funkutil.SafeBinDir(), name)
+	}
 	exe, _ := os.Executable()
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
@@ -52,7 +52,7 @@ func main() {
 	exitCode, err := runWithTracing(realBin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "funkoverage-shim: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitCode)
 	}
 	os.Exit(exitCode)
 }
@@ -89,7 +89,17 @@ func childMain() {
 	}
 }
 
+// runWithTracing forks the real binary as a paused child, attaches the eBPF
+// tracer scoped to the child's TGID, then unblocks the child. The tracer
+// runs concurrently and writes CALLED entries to LOG_DIR until the child
+// exits. Returns the child's exit code (or 1 with err on tracer failure).
 func runWithTracing(realBin string) (exitCode int, err error) {
+	funcs := funkutil.ReadFuncList(realBin)
+	if len(funcs) == 0 {
+		return 1, fmt.Errorf("missing or empty %s — reinstall required",
+			funkutil.FuncListPath(realBin))
+	}
+
 	dir := funkutil.LogDir()
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return 1, fmt.Errorf("create log dir: %w", err)
@@ -128,34 +138,16 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 		}
 	})
 
-	scriptPath, err := writeBpftraceScript(realBin, childCmd.Process.Pid)
+	logPath := calledLogPath(dir, realBin)
+	tracer, err := NewTracer(funcs, logPath)
 	if err != nil {
 		return 1, err
 	}
-	cleanups = append(cleanups, func() { os.Remove(scriptPath) })
+	cleanups = append(cleanups, func() { _ = tracer.Stop() })
 
-	calledLog, err := openCalledLog(dir, realBin)
-	if err != nil {
-		return 1, err
+	if err := tracer.Start(uint32(childCmd.Process.Pid)); err != nil {
+		return 1, fmt.Errorf("tracer start: %w", err)
 	}
-	// calledLog is closed by the stdout-capture goroutine after bpftrace exits.
-
-	bpfCmd := exec.Command("bpftrace", scriptPath)
-	bpfPipe, _ := bpfCmd.StdoutPipe()
-	bpfStderr, _ := bpfCmd.StderrPipe()
-	if err := bpfCmd.Start(); err != nil {
-		calledLog.Close()
-		return 1, fmt.Errorf("start bpftrace: %w", err)
-	}
-	cleanups = append(cleanups, func() {
-		if bpfCmd.Process != nil && bpfCmd.ProcessState == nil {
-			_ = bpfCmd.Process.Signal(syscall.SIGINT)
-			_, _ = bpfCmd.Process.Wait()
-		}
-	})
-
-	go captureCalledLog(bpfPipe, calledLog)
-	waitForAttach(bpfStderr, attachTimeoutDuration())
 
 	if _, err := pipeW.Write([]byte{1}); err != nil {
 		return 1, fmt.Errorf("signal child: %w", err)
@@ -166,82 +158,15 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	if state != nil {
 		exitCode = state.ExitCode()
 	}
-
-	if bpfCmd.Process != nil {
-		_ = bpfCmd.Process.Signal(syscall.SIGINT)
-		_ = bpfCmd.Wait()
-	}
+	_ = tracer.Stop()
 	return exitCode, nil
 }
 
-// writeBpftraceScript renders the bpftrace script for realBin/childPID and
-// writes it to a temp file, returning the path.
-func writeBpftraceScript(realBin string, childPID int) (string, error) {
-	f, err := os.CreateTemp("", "funkoverage-*.bt")
-	if err != nil {
-		return "", fmt.Errorf("create script temp: %w", err)
-	}
-	defer f.Close()
-	if _, err := f.WriteString(generateBpftraceScript(realBin, childPID)); err != nil {
-		os.Remove(f.Name())
-		return "", fmt.Errorf("write script: %w", err)
-	}
-	return f.Name(), nil
-}
-
-// openCalledLog opens a freshly timestamped <basename>_*_called.log in dir.
-func openCalledLog(dir, realBin string) (*os.File, error) {
+func calledLogPath(dir, realBin string) string {
 	ts := time.Now()
 	name := fmt.Sprintf("%s_%s_%d_called.log",
 		filepath.Base(realBin), ts.Format("20060102-150405"), ts.UnixNano())
-	return os.Create(filepath.Join(dir, name))
-}
-
-// captureCalledLog reads bpftrace stdout, demangles each "CALLED" symbol, and
-// writes it to calledLog. Closes calledLog on EOF.
-func captureCalledLog(r io.Reader, calledLog *os.File) {
-	defer calledLog.Close()
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.HasPrefix(line, "CALLED ") {
-			continue
-		}
-		parts := strings.SplitN(line, " ", 3)
-		if len(parts) != 3 {
-			continue
-		}
-		demangled := demangle.Filter(funkutil.StripVersion(parts[2]))
-		fmt.Fprintf(calledLog, "CALLED %s %s\n", parts[1], demangled)
-	}
-}
-
-// waitForAttach blocks until bpftrace signals probe attachment on stderr or
-// the timeout fires. Either way, returns: the child must be unblocked even
-// if attachment is incomplete.
-//
-// bpftrace ≤0.24 prints "Attaching N probes..."; ≥0.25 prints "Attached N
-// probes". Match both prefixes so we don't always hit the timeout.
-func waitForAttach(r io.Reader, timeout time.Duration) {
-	ready := make(chan struct{}, 1)
-	go func() {
-		scanner := bufio.NewScanner(r)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if strings.HasPrefix(line, "Attaching") || strings.HasPrefix(line, "Attached") {
-				select {
-				case ready <- struct{}{}:
-				default:
-				}
-			}
-		}
-		close(ready)
-	}()
-	select {
-	case <-ready:
-	case <-time.After(timeout):
-		fmt.Fprintln(os.Stderr, "funkoverage-shim: warning: bpftrace attach timeout, proceeding untraced")
-	}
+	return filepath.Join(dir, name)
 }
 
 func buildChildEnv(realBin string) []string {
@@ -269,64 +194,4 @@ func cleanEnv() []string {
 		}
 	}
 	return env
-}
-
-func generateBpftraceScript(realBin string, childPID int) string {
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "BEGIN { @watched[%d] = 1; }\n\n", childPID)
-
-	writeUprobeBlock(&sb, realBin, "called")
-	for i, lib := range funkutil.ReadLibsSidecar(realBin) {
-		writeUprobeBlock(&sb, lib, fmt.Sprintf("lcalled%d", i))
-	}
-
-	sb.WriteString("tracepoint:sched:sched_process_fork {\n")
-	sb.WriteString("    if (@watched[args->parent_pid]) { @watched[args->child_pid] = 1; }\n")
-	sb.WriteString("}\n")
-	// No sched_process_exit cleanup: when a non-leader thread does execve(),
-	// the kernel's de_thread() kills the old leader. That fires
-	// sched_process_exit with args->pid == TGID, which would delete the
-	// @watched entry for our newly-execed process before any uprobe fires.
-	// bpftrace lives only as long as this shim invocation, so the map dies
-	// with it — no cleanup needed.
-
-	return sb.String()
-}
-
-// writeUprobeBlock emits one bpftrace uprobe block. The image path is passed
-// as a bpftrace string argument to printf so paths containing '%' do not act
-// as format directives.
-func writeUprobeBlock(sb *strings.Builder, imagePath, mapName string) {
-	fmt.Fprintf(sb, "uprobe:%s:* {\n", imagePath)
-	sb.WriteString("    if (!@watched[pid]) { return; }\n")
-	fmt.Fprintf(sb, "    if (@%s[func]) { return; }\n", mapName)
-	fmt.Fprintf(sb, "    @%s[func] = 1;\n", mapName)
-	fmt.Fprintf(sb, "    printf(\"CALLED %%s %%s\\n\", %s, func);\n", bpfQuote(imagePath))
-	sb.WriteString("}\n\n")
-}
-
-// bpfQuote returns a bpftrace string literal: surrounding quotes, with
-// backslashes and double-quotes escaped.
-func bpfQuote(s string) string {
-	var b strings.Builder
-	b.Grow(len(s) + 2)
-	b.WriteByte('"')
-	for _, r := range s {
-		switch r {
-		case '\\', '"':
-			b.WriteByte('\\')
-		}
-		b.WriteRune(r)
-	}
-	b.WriteByte('"')
-	return b.String()
-}
-
-func attachTimeoutDuration() time.Duration {
-	if v := os.Getenv("FUNKOVERAGE_ATTACH_TIMEOUT"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			return d
-		}
-	}
-	return 60 * time.Second
 }
