@@ -216,15 +216,19 @@ func captureCalledLog(r io.Reader, calledLog *os.File) {
 	}
 }
 
-// waitForAttach blocks until bpftrace prints "Attaching N probes..." on stderr
-// or the timeout fires. Either way, returns: the child must be unblocked even
+// waitForAttach blocks until bpftrace signals probe attachment on stderr or
+// the timeout fires. Either way, returns: the child must be unblocked even
 // if attachment is incomplete.
+//
+// bpftrace ≤0.24 prints "Attaching N probes..."; ≥0.25 prints "Attached N
+// probes". Match both prefixes so we don't always hit the timeout.
 func waitForAttach(r io.Reader, timeout time.Duration) {
 	ready := make(chan struct{}, 1)
 	go func() {
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
-			if strings.HasPrefix(scanner.Text(), "Attaching") {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "Attaching") || strings.HasPrefix(line, "Attached") {
 				select {
 				case ready <- struct{}{}:
 				default:
@@ -278,8 +282,13 @@ func generateBpftraceScript(realBin string, childPID int) string {
 
 	sb.WriteString("tracepoint:sched:sched_process_fork {\n")
 	sb.WriteString("    if (@watched[args->parent_pid]) { @watched[args->child_pid] = 1; }\n")
-	sb.WriteString("}\n\n")
-	sb.WriteString("tracepoint:sched:sched_process_exit { delete(@watched[pid]); }\n")
+	sb.WriteString("}\n")
+	// No sched_process_exit cleanup: when a non-leader thread does execve(),
+	// the kernel's de_thread() kills the old leader. That fires
+	// sched_process_exit with args->pid == TGID, which would delete the
+	// @watched entry for our newly-execed process before any uprobe fires.
+	// bpftrace lives only as long as this shim invocation, so the map dies
+	// with it — no cleanup needed.
 
 	return sb.String()
 }
