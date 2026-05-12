@@ -86,37 +86,55 @@ func EnumerateFunctions(binPath string, noLibs bool) (map[string][]string, error
 }
 
 // enumerateOne enumerates functions from a single ELF file (binary or library).
-// Tries DWARF first, falls back to symbol table.
+//
+// bpftrace's `uprobe:<path>:*` wildcard expands using the ELF symbol table,
+// not DWARF, so symtab is the source of truth for what we can actually trace.
+// We also dodge dwz-compressed DWARF (openSUSE/Fedora), where most
+// DW_TAG_subprogram entries reference abstract DIEs in a separate
+// .gnu_debugaltlink file that Go's debug/dwarf package cannot follow.
+//
+// Order: binary's .symtab → external .debug file's .symtab → DWARF.
 func enumerateOne(path string) ([]string, error) {
-	// Check for external debug file and open the richer one.
-	debugPath := externalDebugPath(path)
-	elfPath := path
-	if debugPath != "" {
-		elfPath = debugPath
+	if funcs := symtabFunctions(path); len(funcs) > 0 {
+		return funcs, nil
 	}
+	debugPath := externalDebugPath(path)
+	if debugPath != "" {
+		if funcs := symtabFunctions(debugPath); len(funcs) > 0 {
+			return funcs, nil
+		}
+	}
+	target := path
+	if debugPath != "" {
+		target = debugPath
+	}
+	return dwarfFunctions(target)
+}
 
-	f, err := elf.Open(elfPath)
+func symtabFunctions(path string) []string {
+	f, err := elf.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	funcs, err := enumerateSymtab(f)
+	if err != nil {
+		return nil
+	}
+	return funcs
+}
+
+func dwarfFunctions(path string) ([]string, error) {
+	f, err := elf.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open elf: %w", err)
 	}
 	defer f.Close()
-
-	// Try DWARF
-	dwarfData, err := f.DWARF()
-	if err == nil {
-		funcs, err := enumerateDWARF(dwarfData)
-		if err == nil && len(funcs) > 0 {
-			return funcs, nil
-		}
-	}
-
-	// Fall back to symbol table from original file (debug file may not have .symtab)
-	orig, err := elf.Open(path)
+	dw, err := f.DWARF()
 	if err != nil {
-		return nil, fmt.Errorf("open original elf: %w", err)
+		return nil, fmt.Errorf("dwarf: %w", err)
 	}
-	defer orig.Close()
-	return enumerateSymtab(orig)
+	return enumerateDWARF(dw)
 }
 
 // externalDebugPath returns the path to an external .debug file, or "".
