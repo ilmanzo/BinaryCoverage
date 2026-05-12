@@ -57,6 +57,21 @@ func hasDebugInfo(path string) (bool, error) {
 		return true, nil
 	}
 
+	// Last resort: scan all .dwz files (handles fully-stripped packages like openssh)
+	binName := filepath.Base(path)
+	dwzDir := "/usr/lib/debug/.dwz"
+	if entries, err := os.ReadDir(dwzDir); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				// Match by package name prefix, or by partial name matching for common patterns
+				name := e.Name()
+				if strings.HasPrefix(name, binName) || strings.Contains(name, binName) {
+					return true, nil
+				}
+			}
+		}
+	}
+
 	return false, nil
 }
 
@@ -66,6 +81,7 @@ func buildIDDebugPath(buildID string) string {
 
 // mergeDebugIfExternal merges external debug symbols into the binary using
 // eu-unstrip so DWARF traversal works even on stripped binaries.
+// Searches: .build-id paths, .gnu_debugaltlink (dwz), and .dwz/ directory.
 func mergeDebugIfExternal(binPath string) error {
 	f, err := elf.Open(binPath)
 	if err != nil {
@@ -77,15 +93,83 @@ func mergeDebugIfExternal(binPath string) error {
 			return nil
 		}
 	}
+
+	// Try .build-id path
 	buildID, err := getBuildID(f)
+	if err == nil && len(buildID) > 2 {
+		debugPath := buildIDDebugPath(buildID)
+		if _, err := os.Stat(debugPath); err == nil {
+			f.Close()
+			return unstrip(binPath, debugPath)
+		}
+	}
+
+	// Try .gnu_debugaltlink (dwz-compressed)
+	if altPath := readGnuDebugAltLink(f); altPath != "" {
+		debugPath := findDebugFile(altPath)
+		if debugPath != "" {
+			f.Close()
+			return unstrip(binPath, debugPath)
+		}
+	}
+
+	// Brute-force: scan .dwz dir for package matching binary name
+	binName := filepath.Base(binPath)
+	dwzDir := "/usr/lib/debug/.dwz"
+	entries, err := os.ReadDir(dwzDir)
+	if err == nil {
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasPrefix(e.Name(), binName) {
+				f.Close()
+				return unstrip(binPath, filepath.Join(dwzDir, e.Name()))
+			}
+		}
+	}
+
 	f.Close()
-	if err != nil || len(buildID) <= 2 {
-		return nil
+	return nil
+}
+
+// readGnuDebugAltLink extracts the alt file path from .gnu_debugaltlink section.
+func readGnuDebugAltLink(f *elf.File) string {
+	sec := f.Section(".gnu_debugaltlink")
+	if sec == nil {
+		return ""
 	}
-	debugPath := buildIDDebugPath(buildID)
-	if _, err := os.Stat(debugPath); err != nil {
-		return nil
+	data, err := sec.Data()
+	if err != nil || len(data) == 0 {
+		return ""
 	}
+	// .gnu_debugaltlink contains: null-terminated filename + build-id bytes
+	if i := bytes.IndexByte(data, 0); i > 0 {
+		return string(data[:i])
+	}
+	return ""
+}
+
+// findDebugFile locates a debug file given an alt-link path.
+func findDebugFile(altPath string) string {
+	// Try direct path
+	if _, err := os.Stat(altPath); err == nil {
+		return altPath
+	}
+	// Try relative to /usr/lib/debug
+	relPath := filepath.Join("/usr/lib/debug", altPath)
+	if _, err := os.Stat(relPath); err == nil {
+		return relPath
+	}
+	// Try /usr/lib/debug/.dwz/<basename>
+	if base := filepath.Base(altPath); base != altPath {
+		dwzPath := filepath.Join("/usr/lib/debug/.dwz", base)
+		if _, err := os.Stat(dwzPath); err == nil {
+			return dwzPath
+		}
+	}
+	return ""
+}
+
+// unstrip merges debugPath into binPath using eu-unstrip.
+func unstrip(binPath, debugPath string) error {
 	tmp, err := os.CreateTemp(filepath.Dir(binPath), ".unstrip-*")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)

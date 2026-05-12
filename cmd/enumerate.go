@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"debug/dwarf"
 	"debug/elf"
 	"fmt"
@@ -189,24 +188,6 @@ func externalDebugPath(binPath string) string {
 		}
 	}
 
-	return ""
-}
-
-// readGnuDebugAltLink extracts the alt file path from .gnu_debugaltlink section.
-func readGnuDebugAltLink(f *elf.File) string {
-	sec := f.Section(".gnu_debugaltlink")
-	if sec == nil {
-		return ""
-	}
-	data, err := sec.Data()
-	if err != nil || len(data) == 0 {
-		return ""
-	}
-	// .gnu_debugaltlink contains: null-terminated filename + build-id bytes
-	// Extract the filename (everything before first null byte)
-	if i := bytes.IndexByte(data, 0); i > 0 {
-		return string(data[:i])
-	}
 	return ""
 }
 
