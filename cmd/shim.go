@@ -72,6 +72,7 @@ func install(targetBinary string, noLibs bool) error {
 		}
 	}
 
+	// Enumerate functions after merging debug info so all symbols are available
 	funcs, err := EnumerateFunctions(safePath, noLibs)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: function enumeration: %v\n", err)
