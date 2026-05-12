@@ -182,7 +182,7 @@ func externalDebugPath(binPath string) string {
 	entries, err := os.ReadDir(dwzDir)
 	if err == nil {
 		for _, e := range entries {
-			if !e.IsDir() && strings.HasPrefix(e.Name(), binName) {
+			if !e.IsDir() && (strings.HasPrefix(e.Name(), binName) || strings.Contains(e.Name(), binName)) {
 				return filepath.Join(dwzDir, e.Name())
 			}
 		}
