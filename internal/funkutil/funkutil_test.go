@@ -23,11 +23,11 @@ func TestEnvOr(t *testing.T) {
 
 func TestStripVersion(t *testing.T) {
 	cases := map[string]string{
-		"memcpy":             "memcpy",
-		"memcpy@GLIBC_2.14":  "memcpy",
-		"foo@@bar":           "foo",
-		"":                   "",
-		"@only_version":      "",
+		"memcpy":            "memcpy",
+		"memcpy@GLIBC_2.14": "memcpy",
+		"foo@@bar":          "foo",
+		"":                  "",
+		"@only_version":     "",
 	}
 	for in, want := range cases {
 		if got := StripVersion(in); got != want {

@@ -321,4 +321,3 @@ func attachTimeoutDuration() time.Duration {
 	}
 	return 60 * time.Second
 }
-
