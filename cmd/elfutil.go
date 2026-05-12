@@ -169,6 +169,7 @@ func findDebugFile(altPath string) string {
 }
 
 // unstrip merges debugPath into binPath using eu-unstrip.
+// Uses --force to handle ELF type mismatches (PIE binary + relocatable debug).
 func unstrip(binPath, debugPath string) error {
 	tmp, err := os.CreateTemp(filepath.Dir(binPath), ".unstrip-*")
 	if err != nil {
@@ -177,7 +178,7 @@ func unstrip(binPath, debugPath string) error {
 	out := tmp.Name()
 	tmp.Close()
 	os.Remove(out)
-	cmd := exec.Command("eu-unstrip", binPath, debugPath, "-o", out)
+	cmd := exec.Command("eu-unstrip", "--force", binPath, debugPath, "-o", out)
 	if combined, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("eu-unstrip failed: %w: %s", err, combined)
 	}
