@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"debug/dwarf"
 	"debug/elf"
 	"fmt"
@@ -138,21 +139,75 @@ func dwarfFunctions(path string) ([]string, error) {
 }
 
 // externalDebugPath returns the path to an external .debug file, or "".
+// Tries: .build-id layout, then .gnu_debugaltlink (dwz-compressed), then
+// brute-force search in /usr/lib/debug/.dwz/ by package name.
 func externalDebugPath(binPath string) string {
 	f, err := elf.Open(binPath)
 	if err != nil {
 		return ""
 	}
+	defer f.Close()
+
+	// Try .build-id path
 	buildID, err := getBuildID(f)
-	f.Close()
-	if err != nil || len(buildID) <= 2 {
+	if err == nil && len(buildID) > 2 {
+		p := buildIDDebugPath(buildID)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+
+	// Try .gnu_debugaltlink (dwz-compressed debug)
+	if altPath := readGnuDebugAltLink(f); altPath != "" {
+		// Try direct path from section
+		if _, err := os.Stat(altPath); err == nil {
+			return altPath
+		}
+		// Try relative to /usr/lib/debug
+		relPath := filepath.Join("/usr/lib/debug", altPath)
+		if _, err := os.Stat(relPath); err == nil {
+			return relPath
+		}
+		// Try /usr/lib/debug/.dwz/<basename>
+		if base := filepath.Base(altPath); base != altPath {
+			dwzPath := filepath.Join("/usr/lib/debug/.dwz", base)
+			if _, err := os.Stat(dwzPath); err == nil {
+				return dwzPath
+			}
+		}
+	}
+
+	// Brute-force: scan .dwz dir for package matching binary name
+	binName := filepath.Base(binPath)
+	dwzDir := "/usr/lib/debug/.dwz"
+	entries, err := os.ReadDir(dwzDir)
+	if err == nil {
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasPrefix(e.Name(), binName) {
+				return filepath.Join(dwzDir, e.Name())
+			}
+		}
+	}
+
+	return ""
+}
+
+// readGnuDebugAltLink extracts the alt file path from .gnu_debugaltlink section.
+func readGnuDebugAltLink(f *elf.File) string {
+	sec := f.Section(".gnu_debugaltlink")
+	if sec == nil {
 		return ""
 	}
-	p := buildIDDebugPath(buildID)
-	if _, err := os.Stat(p); err != nil {
+	data, err := sec.Data()
+	if err != nil || len(data) == 0 {
 		return ""
 	}
-	return p
+	// .gnu_debugaltlink contains: null-terminated filename + build-id bytes
+	// Extract the filename (everything before first null byte)
+	if i := bytes.IndexByte(data, 0); i > 0 {
+		return string(data[:i])
+	}
+	return ""
 }
 
 func enumerateDWARF(dwarfData *dwarf.Data) ([]string, error) {

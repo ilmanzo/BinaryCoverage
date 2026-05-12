@@ -28,8 +28,8 @@ func isELF(path string) bool {
 	return string(magic) == "\x7fELF"
 }
 
-// hasDebugInfo checks for embedded .debug_* sections or an external
-// .build-id debug file.
+// hasDebugInfo checks for embedded .debug_* sections or an external debug file
+// (.build-id or .dwz-compressed layout).
 func hasDebugInfo(path string) (bool, error) {
 	f, err := elf.Open(path)
 	if err != nil {
@@ -46,15 +46,17 @@ func hasDebugInfo(path string) (bool, error) {
 	}
 
 	buildID, err := getBuildID(f)
-	if err != nil {
-		return false, nil
-	}
-	if len(buildID) > 2 {
+	if err == nil && len(buildID) > 2 {
 		debugPath := buildIDDebugPath(buildID)
 		if _, err := os.Stat(debugPath); err == nil {
 			return true, nil
 		}
 	}
+
+	if debugPath := externalDebugPath(path); debugPath != "" {
+		return true, nil
+	}
+
 	return false, nil
 }
 
