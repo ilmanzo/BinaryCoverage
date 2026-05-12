@@ -121,11 +121,16 @@ func getBuildID(f *elf.File) (string, error) {
 	}
 	var namesz, descsz, noteType uint32
 	reader := bytes.NewReader(data)
-	binary.Read(reader, f.ByteOrder, &namesz)
-	binary.Read(reader, f.ByteOrder, &descsz)
-	binary.Read(reader, f.ByteOrder, &noteType)
+	for _, p := range []*uint32{&namesz, &descsz, &noteType} {
+		if err := binary.Read(reader, f.ByteOrder, p); err != nil {
+			return "", fmt.Errorf("read note header: %w", err)
+		}
+	}
 	if namesz != 4 || noteType != 3 {
 		return "", fmt.Errorf("not a gnu build id note")
+	}
+	if int(16+descsz) > len(data) {
+		return "", fmt.Errorf("note descsz overflows section")
 	}
 	return hex.EncodeToString(data[16 : 16+descsz]), nil
 }

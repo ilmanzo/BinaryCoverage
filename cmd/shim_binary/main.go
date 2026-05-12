@@ -82,7 +82,10 @@ func childMain() {
 	}
 	waitFile := os.NewFile(uintptr(fd), "wait-pipe")
 	buf := make([]byte, 1)
-	waitFile.Read(buf)
+	if _, err := waitFile.Read(buf); err != nil {
+		fmt.Fprintf(os.Stderr, "funkoverage-shim child: wait-pipe read: %v\n", err)
+		os.Exit(1)
+	}
 	waitFile.Close()
 
 	realBin := realBinaryPath()
