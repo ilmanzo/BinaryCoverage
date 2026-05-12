@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -266,20 +267,14 @@ func generateBpftraceScript(realBin string, childPID int) string {
 	sb.WriteString("}\n\n")
 
 	// Per-library blocks (from sibling .libs.json)
-	libsPath := realBin + ".libs.json"
-	if data, err := os.ReadFile(libsPath); err == nil {
-		var libs []string
-		if parseLibs(data, &libs) == nil {
-			for i, lib := range libs {
-				mapName := fmt.Sprintf("lcalled%d", i)
-				fmt.Fprintf(&sb, "uprobe:%s:* {\n", lib)
-				sb.WriteString("    if (!@watched[pid]) { return; }\n")
-				fmt.Fprintf(&sb, "    if (@%s[func]) { return; }\n", mapName)
-				fmt.Fprintf(&sb, "    @%s[func] = 1;\n", mapName)
-				fmt.Fprintf(&sb, "    printf(\"CALLED %s %%s\\n\", func);\n", lib)
-				sb.WriteString("}\n\n")
-			}
-		}
+	for i, lib := range readLibsSidecar(realBin + ".libs.json") {
+		mapName := fmt.Sprintf("lcalled%d", i)
+		fmt.Fprintf(&sb, "uprobe:%s:* {\n", lib)
+		sb.WriteString("    if (!@watched[pid]) { return; }\n")
+		fmt.Fprintf(&sb, "    if (@%s[func]) { return; }\n", mapName)
+		fmt.Fprintf(&sb, "    @%s[func] = 1;\n", mapName)
+		fmt.Fprintf(&sb, "    printf(\"CALLED %s %%s\\n\", func);\n", lib)
+		sb.WriteString("}\n\n")
 	}
 
 	sb.WriteString("tracepoint:sched:sched_process_fork {\n")
@@ -306,32 +301,14 @@ func stripVersionSuffix(name string) string {
 	return name
 }
 
-// parseLibs is a minimal JSON array parser to avoid importing encoding/json
-// in the shim binary (keeps it small). Falls back to empty on error.
-func parseLibs(data []byte, out *[]string) error {
-	// encoding/json is fine — shim size is not a concern
-	import_shim_json := string(data)
-	_ = import_shim_json
-	// use standard approach
-	var result []string
-	// Simple: unmarshal via json package imported at top
-	return unmarshalStringSlice(data, &result, out)
-}
-
-func unmarshalStringSlice(data []byte, _ *[]string, out *[]string) error {
-	// Parse a JSON string array manually to avoid the json import cycle issue
-	s := strings.TrimSpace(string(data))
-	if s == "" || s == "[]" || s == "null" {
+func readLibsSidecar(path string) []string {
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return nil
 	}
-	// Strip surrounding brackets
-	s = strings.TrimPrefix(strings.TrimSuffix(s, "]"), "[")
-	for _, part := range strings.Split(s, ",") {
-		part = strings.TrimSpace(part)
-		part = strings.Trim(part, `"`)
-		if part != "" {
-			*out = append(*out, part)
-		}
+	var libs []string
+	if err := json.Unmarshal(data, &libs); err != nil {
+		return nil
 	}
-	return nil
+	return libs
 }
