@@ -69,10 +69,6 @@ func EnumerateFunctions(binPath string, noLibs bool) (map[string][]string, error
 		if !imageIsRelevant(filepath.Base(lib)) {
 			continue
 		}
-		ok, _ := hasDebugInfo(lib)
-		if !ok {
-			continue
-		}
 		libFuncs, err := enumerateOne(lib)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "enumerate: skipping %s: %v\n", lib, err)
