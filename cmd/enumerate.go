@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -219,6 +220,14 @@ func enumerateSymtab(f *elf.File) ([]string, error) {
 	return funcs, nil
 }
 
+// lddLineRe matches both forms of ldd output:
+//
+//	libfoo.so.1 => /lib64/libfoo.so.1 (0x...)
+//	/lib64/ld-linux-x86-64.so.2 (0x...)
+//
+// Capture group 1 is the absolute library path.
+var lddLineRe = regexp.MustCompile(`(?:=>\s*)?(/\S+)\s+\(0x[0-9a-fA-F]+\)`)
+
 // ParseLddLibraries runs ldd on binPath and returns absolute paths of
 // shared libraries (skips vdso, ld-linux, and "not found" entries).
 func ParseLddLibraries(binPath string) ([]string, error) {
@@ -229,36 +238,19 @@ func ParseLddLibraries(binPath string) ([]string, error) {
 	var libs []string
 	scanner := bufio.NewScanner(strings.NewReader(string(out)))
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		// Typical ldd output:
-		//   libfoo.so.1 => /lib64/libfoo.so.1 (0x...)
-		//   /lib64/ld-linux-x86-64.so.2 (0x...)
-		//   linux-vdso.so.1 (0x...)
+		line := scanner.Text()
 		if strings.Contains(line, "linux-vdso") || strings.Contains(line, "not found") {
 			continue
 		}
-		var libPath string
-		if strings.Contains(line, "=>") {
-			parts := strings.SplitN(line, "=>", 2)
-			rhs := strings.TrimSpace(parts[1])
-			// strip the (0x...) suffix
-			if i := strings.Index(rhs, " ("); i >= 0 {
-				rhs = strings.TrimSpace(rhs[:i])
-			}
-			if rhs == "" || rhs == "not found" {
-				continue
-			}
-			libPath = rhs
-		} else {
-			// direct path line like /lib64/ld-linux...
-			if i := strings.Index(line, " ("); i >= 0 {
-				libPath = strings.TrimSpace(line[:i])
-			}
-		}
-		if libPath == "" || strings.Contains(libPath, "ld-linux") {
+		m := lddLineRe.FindStringSubmatch(line)
+		if m == nil {
 			continue
 		}
-		libs = append(libs, libPath)
+		path := m[1]
+		if strings.Contains(path, "ld-linux") {
+			continue
+		}
+		libs = append(libs, path)
 	}
 	return libs, nil
 }
