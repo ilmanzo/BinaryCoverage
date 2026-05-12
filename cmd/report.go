@@ -38,7 +38,13 @@ type HTMLReportData struct {
 var (
 	funcLineRe   = regexp.MustCompile(`^FUNC (\S+) (.+)$`)
 	calledLineRe = regexp.MustCompile(`^CALLED (\S+) (.+)$`)
+	safeNameRe   = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
 )
+
+// safeImageName returns a filesystem-safe slug from an image path.
+func safeImageName(image string) string {
+	return safeNameRe.ReplaceAllString(filepath.Base(image), "_")
+}
 
 // detectLogType returns "functions" or "called" based on filename suffix.
 func detectLogType(path string) string {
@@ -189,33 +195,25 @@ type Passed struct {
 
 // generateXUnitReport generates an XUnit XML report for a single image's coverage data.
 func generateXUnitReport(image string, data *CoverageData, outputDir string) error {
-	totalFns := make([]string, 0, len(data.TotalFunctions))
-	for fn := range data.TotalFunctions {
-		totalFns = append(totalFns, fn)
-	}
-	calledFns := data.CalledFunctions
-	totalCount := len(totalFns)
-	skippedCount := totalCount - len(calledFns)
-	calledList := make([]string, 0, len(calledFns))
-	uncalledList := make([]string, 0, skippedCount)
-	for fn := range data.TotalFunctions {
-		if _, ok := calledFns[fn]; ok {
-			calledList = append(calledList, fn)
-		} else {
-			uncalledList = append(uncalledList, fn)
-		}
-	}
-	safeName := regexp.MustCompile(`[^a-zA-Z0-9._-]`).ReplaceAllString(filepath.Base(image), "_")
+	calledList, uncalledList := splitCalledUncalled(data)
+	totalCount := len(data.TotalFunctions)
+	skippedCount := len(uncalledList)
+	safeName := safeImageName(image)
 	outfile := filepath.Join(outputDir, fmt.Sprintf("coverage_%s.xml", safeName))
 
 	// Use summarizeCoverage for totals
 	coverage := map[string]*CoverageData{image: data}
 	summary := summarizeCoverage(coverage)
 
+	calledCount := len(calledList)
+	pct := 0.0
+	if totalCount > 0 {
+		pct = float64(calledCount) / float64(totalCount) * 100
+	}
 	summaryText := fmt.Sprintf(
 		"Coverage Summary for %s | Total Functions: %d | Called Functions: %d | Uncalled Functions: %d | Coverage: %.2f%%\n"+
 			"Totals: Total Functions: %d | Total Called: %d | Average Coverage: %.2f%%",
-		safeName, totalCount, len(calledFns), skippedCount, float64(len(calledFns))/float64(totalCount)*100,
+		safeName, totalCount, calledCount, skippedCount, pct,
 		summary.TotalFunctions, summary.TotalCalled, summary.AverageCoverage,
 	)
 
@@ -287,33 +285,25 @@ type AggregateData struct {
 }
 
 // generateHTMLReport generates an HTML report for a single image's coverage data.
-// It creates a detailed report with the image name, total functions, called functions,
 func generateHTMLReport(image string, data *CoverageData, outputDir string) error {
-	totalFns := make([]string, 0, len(data.TotalFunctions))
-	for fn := range data.TotalFunctions {
-		totalFns = append(totalFns, fn)
-	}
-	calledFns := data.CalledFunctions
-	totalCount := len(totalFns)
-	calledCount := len(calledFns)
-	uncalledCount := totalCount - calledCount
+	called, uncalled := splitCalledUncalled(data)
+	totalCount := len(called) + len(uncalled)
 	coveragePct := 0.0
 	if totalCount > 0 {
-		coveragePct = float64(calledCount) / float64(totalCount) * 100
+		coveragePct = float64(len(called)) / float64(totalCount) * 100
 	}
 	functions := make([]FunctionEntry, 0, totalCount)
-	for _, fn := range totalFns {
-		status := "uncalled"
-		if _, ok := calledFns[fn]; ok {
-			status = "called"
-		}
-		functions = append(functions, FunctionEntry{Name: fn, Status: status})
+	for _, fn := range called {
+		functions = append(functions, FunctionEntry{Name: fn, Status: "called"})
+	}
+	for _, fn := range uncalled {
+		functions = append(functions, FunctionEntry{Name: fn, Status: "uncalled"})
 	}
 	reportData := HTMLReportData{
 		ImageName:          filepath.Base(image),
 		TotalCount:         totalCount,
-		CalledCount:        calledCount,
-		UncalledCount:      uncalledCount,
+		CalledCount:        len(called),
+		UncalledCount:      len(uncalled),
 		CoveragePercentage: coveragePct,
 		Functions:          functions,
 		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
@@ -322,8 +312,7 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 	if err != nil {
 		return err
 	}
-	safeName := regexp.MustCompile(`[^a-zA-Z0-9._-]`).ReplaceAllString(filepath.Base(image), "_")
-	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeName))
+	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeImageName(image)))
 	f, err := os.Create(outfile)
 	if err != nil {
 		return err
