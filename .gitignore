@@ -2,8 +2,9 @@ funkoverage
 funkoverage-shim
 tests/sample/sample
 __pycache__/
-.claude/
+pin.log
+funkoverage-shim
+.claude/settings.local.json
 CLAUDE.md
-env
-sysdeps/
+tests/sample/sample
 *.o
