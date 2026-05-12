@@ -1,10 +1,8 @@
-tests/test_func_tracer
-example/cov_sample
-obj-intel64/
-env
 funkoverage
-cmd/cmd
-dynamorio/build/
-sysdeps/
+funkoverage-shim
+tests/sample/sample
 __pycache__/
-pin.log
+.claude/
+CLAUDE.md
+env
+sysdeps/

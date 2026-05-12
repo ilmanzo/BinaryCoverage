@@ -11,8 +11,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/ianlancetaylor/demangle"
 )
 
 type CoverageData struct {
@@ -38,44 +36,68 @@ type HTMLReportData struct {
 // --- Coverage Analysis ---
 
 var (
-	functionDefRe  = regexp.MustCompile(`\[Image:(.*?)\] \[Function:(.*?)\]`)
-	functionCallRe = regexp.MustCompile(`\[Image:(.*?)\] \[Called:(.*?)\]`)
+	funcLineRe   = regexp.MustCompile(`^FUNC (\S+) (.+)$`)
+	calledLineRe = regexp.MustCompile(`^CALLED (\S+) (.+)$`)
 )
 
-func extractImageAndFunction(m []string) (string, string) {
-	image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
-	function = demangle.Filter(function) // Apply demangling for c++
-	return image, function
+// detectLogType returns "functions" or "called" based on filename suffix.
+func detectLogType(path string) string {
+	base := filepath.Base(path)
+	switch {
+	case strings.HasSuffix(base, "_functions.log"):
+		return "functions"
+	case strings.HasSuffix(base, "_called.log"):
+		return "called"
+	default:
+		return ""
+	}
 }
 
-// analyzeLogs processes the log files and extracts coverage data for each image.
+func ensureCoverage(coverage map[string]*CoverageData, image string) {
+	if _, ok := coverage[image]; !ok {
+		coverage[image] = &CoverageData{make(map[string]struct{}), make(map[string]struct{})}
+	}
+}
+
+// analyzeLogs processes _functions.log and _called.log files.
+// Files with unrecognized suffixes are skipped with a warning.
 func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 	coverage := make(map[string]*CoverageData)
 	for _, logFile := range logFiles {
+		logType := detectLogType(logFile)
+		if logType == "" {
+			fmt.Fprintf(os.Stderr, "report: skipping unrecognized log file: %s\n", logFile)
+			continue
+		}
 		f, err := os.Open(logFile)
 		if err != nil {
 			return nil, fmt.Errorf("could not open log file %s: %w", logFile, err)
 		}
 		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
-			if m := functionDefRe.FindStringSubmatch(line); m != nil {
-				image, function := extractImageAndFunction(m)
-				if image == "" || function == "" {
-					continue
-				}
-				if _, ok := coverage[image]; !ok {
-					coverage[image] = &CoverageData{make(map[string]struct{}), make(map[string]struct{})}
-				}
+			if line == "" || line[0] == '#' {
+				continue
+			}
+			var re *regexp.Regexp
+			if logType == "functions" {
+				re = funcLineRe
+			} else {
+				re = calledLineRe
+			}
+			m := re.FindStringSubmatch(line)
+			if m == nil {
+				continue
+			}
+			image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+			if image == "" || function == "" {
+				continue
+			}
+			ensureCoverage(coverage, image)
+			if logType == "functions" {
 				coverage[image].TotalFunctions[function] = struct{}{}
-			} else if m := functionCallRe.FindStringSubmatch(line); m != nil {
-				image, function := extractImageAndFunction(m)
-				if image == "" || function == "" {
-					continue
-				}
-				if _, ok := coverage[image]; !ok {
-					coverage[image] = &CoverageData{make(map[string]struct{}), make(map[string]struct{})}
-				}
+			} else {
 				coverage[image].CalledFunctions[function] = struct{}{}
 			}
 		}
