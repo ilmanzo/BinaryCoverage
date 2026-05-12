@@ -1,11 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -90,7 +91,6 @@ func main() {
 			fmt.Fprintln(os.Stderr, "enumerate error:", err)
 			os.Exit(1)
 		}
-		// Sort and print
 		type entry struct{ image, name string }
 		var entries []entry
 		for image, names := range funcs {
@@ -98,11 +98,11 @@ func main() {
 				entries = append(entries, entry{image, name})
 			}
 		}
-		sort.Slice(entries, func(i, j int) bool {
-			if entries[i].image != entries[j].image {
-				return entries[i].image < entries[j].image
+		slices.SortFunc(entries, func(a, b entry) int {
+			if c := cmp.Compare(a.image, b.image); c != 0 {
+				return c
 			}
-			return entries[i].name < entries[j].name
+			return cmp.Compare(a.name, b.name)
 		})
 		for _, e := range entries {
 			fmt.Printf("%s %s\n", e.image, e.name)
