@@ -259,22 +259,9 @@ func generateBpftraceScript(realBin string, childPID int) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "BEGIN { @watched[%d] = 1; }\n\n", childPID)
 
-	fmt.Fprintf(&sb, "uprobe:%s:* {\n", realBin)
-	sb.WriteString("    if (!@watched[pid]) { return; }\n")
-	sb.WriteString("    if (@called[func]) { return; }\n")
-	sb.WriteString("    @called[func] = 1;\n")
-	fmt.Fprintf(&sb, "    printf(\"CALLED %s %%s\\n\", func);\n", realBin)
-	sb.WriteString("}\n\n")
-
-	// Per-library blocks (from sibling .libs.json)
+	writeUprobeBlock(&sb, realBin, "called")
 	for i, lib := range readLibsSidecar(realBin + ".libs.json") {
-		mapName := fmt.Sprintf("lcalled%d", i)
-		fmt.Fprintf(&sb, "uprobe:%s:* {\n", lib)
-		sb.WriteString("    if (!@watched[pid]) { return; }\n")
-		fmt.Fprintf(&sb, "    if (@%s[func]) { return; }\n", mapName)
-		fmt.Fprintf(&sb, "    @%s[func] = 1;\n", mapName)
-		fmt.Fprintf(&sb, "    printf(\"CALLED %s %%s\\n\", func);\n", lib)
-		sb.WriteString("}\n\n")
+		writeUprobeBlock(&sb, lib, fmt.Sprintf("lcalled%d", i))
 	}
 
 	sb.WriteString("tracepoint:sched:sched_process_fork {\n")
@@ -283,6 +270,35 @@ func generateBpftraceScript(realBin string, childPID int) string {
 	sb.WriteString("tracepoint:sched:sched_process_exit { delete(@watched[pid]); }\n")
 
 	return sb.String()
+}
+
+// writeUprobeBlock emits one bpftrace uprobe block. The image path is passed
+// as a bpftrace string argument to printf so paths containing '%' do not act
+// as format directives.
+func writeUprobeBlock(sb *strings.Builder, imagePath, mapName string) {
+	fmt.Fprintf(sb, "uprobe:%s:* {\n", imagePath)
+	sb.WriteString("    if (!@watched[pid]) { return; }\n")
+	fmt.Fprintf(sb, "    if (@%s[func]) { return; }\n", mapName)
+	fmt.Fprintf(sb, "    @%s[func] = 1;\n", mapName)
+	fmt.Fprintf(sb, "    printf(\"CALLED %%s %%s\\n\", %s, func);\n", bpfQuote(imagePath))
+	sb.WriteString("}\n\n")
+}
+
+// bpfQuote returns a bpftrace string literal: surrounding quotes, with
+// backslashes and double-quotes escaped.
+func bpfQuote(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	b.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '\\', '"':
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	b.WriteByte('"')
+	return b.String()
 }
 
 func attachTimeoutDuration() time.Duration {
