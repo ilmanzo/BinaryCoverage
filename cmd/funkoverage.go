@@ -12,157 +12,179 @@ import (
 
 const versionString = "0.7.0"
 
+// command is one funkoverage subcommand. run receives the args after the
+// subcommand name (so for "funkoverage install -no-libs foo", run sees
+// ["-no-libs", "foo"]). It returns an error to signal a non-zero exit.
+type command struct {
+	name string
+	help string
+	run  func(args []string) error
+}
+
+func commands() map[string]command {
+	cmds := []command{
+		{"setup", "grant bpftrace CAP_BPF", cmdSetup},
+		{"install", "install shim for binary", cmdInstall},
+		{"uninstall", "restore original binary", cmdUninstall},
+		{"trace", "run binary under tracing without permanent install", cmdTrace},
+		{"enumerate", "list discoverable functions", cmdEnumerate},
+		{"report", "generate coverage reports", cmdReport},
+		{"version", "print version", cmdVersion},
+		{"help", "print help", cmdHelp},
+	}
+	m := make(map[string]command, len(cmds)+4)
+	for _, c := range cmds {
+		m[c.name] = c
+	}
+	// Aliases
+	m["--help"] = m["help"]
+	m["-h"] = m["help"]
+	m["--version"] = m["version"]
+	m["-v"] = m["version"]
+	m["-r"] = m["report"]
+	return m
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Print(helpText)
 		os.Exit(1)
 	}
+	name := os.Args[1]
+	cmds := commands()
 
-	installCmd := flag.NewFlagSet("install", flag.ExitOnError)
-	installNoLibs := installCmd.Bool("no-libs", false, "Skip library tracing")
+	if name == "wrap" || name == "-w" {
+		exitf("wrap is renamed to 'install'. Use: funkoverage install <binary>")
+	}
+	if name == "unwrap" || name == "-u" {
+		exitf("unwrap is renamed to 'uninstall'. Use: funkoverage uninstall <binary>")
+	}
 
-	uninstallCmd := flag.NewFlagSet("uninstall", flag.ExitOnError)
-
-	traceCmd := flag.NewFlagSet("trace", flag.ExitOnError)
-	traceNoLibs := traceCmd.Bool("no-libs", false, "Skip library tracing")
-
-	enumerateCmd := flag.NewFlagSet("enumerate", flag.ExitOnError)
-	enumerateNoLibs := enumerateCmd.Bool("no-libs", false, "Skip library enumeration")
-
-	reportCmd := flag.NewFlagSet("report", flag.ExitOnError)
-	reportFormats := reportCmd.String("formats", "html,txt,xml", "Comma-separated list: html,xml,txt")
-
-	switch os.Args[1] {
-	case "help", "--help", "-h":
-		fmt.Print(helpText)
-
-	case "version", "--version", "-v":
-		fmt.Println("funkoverage version", versionString)
-
-	case "setup":
-		if err := setupBpftrace(); err != nil {
-			fmt.Fprintln(os.Stderr, "setup error:", err)
-			os.Exit(1)
-		}
-
-	case "install":
-		installCmd.Parse(os.Args[2:])
-		if installCmd.NArg() < 1 {
-			fmt.Fprintln(os.Stderr, "install: missing binary path(s)")
-			os.Exit(1)
-		}
-		if err := installMany(installCmd.Args(), *installNoLibs); err != nil {
-			fmt.Fprintln(os.Stderr, "install error:", err)
-			os.Exit(1)
-		}
-
-	case "uninstall":
-		uninstallCmd.Parse(os.Args[2:])
-		if uninstallCmd.NArg() < 1 {
-			fmt.Fprintln(os.Stderr, "uninstall: missing binary path(s)")
-			os.Exit(1)
-		}
-		if err := uninstallMany(uninstallCmd.Args()); err != nil {
-			fmt.Fprintln(os.Stderr, "uninstall error:", err)
-			os.Exit(1)
-		}
-
-	case "trace":
-		traceCmd.Parse(os.Args[2:])
-		if traceCmd.NArg() < 1 {
-			fmt.Fprintln(os.Stderr, "trace: missing binary path")
-			os.Exit(1)
-		}
-		binaryPath := traceCmd.Arg(0)
-		args := traceCmd.Args()[1:]
-		if err := traceInline(binaryPath, args, *traceNoLibs); err != nil {
-			fmt.Fprintln(os.Stderr, "trace error:", err)
-			os.Exit(1)
-		}
-
-	case "enumerate":
-		enumerateCmd.Parse(os.Args[2:])
-		if enumerateCmd.NArg() < 1 {
-			fmt.Fprintln(os.Stderr, "enumerate: missing binary path")
-			os.Exit(1)
-		}
-		funcs, err := EnumerateFunctions(enumerateCmd.Arg(0), *enumerateNoLibs)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "enumerate error:", err)
-			os.Exit(1)
-		}
-		type entry struct{ image, name string }
-		var entries []entry
-		for image, names := range funcs {
-			for _, name := range names {
-				entries = append(entries, entry{image, name})
-			}
-		}
-		slices.SortFunc(entries, func(a, b entry) int {
-			if c := cmp.Compare(a.image, b.image); c != 0 {
-				return c
-			}
-			return cmp.Compare(a.name, b.name)
-		})
-		for _, e := range entries {
-			fmt.Printf("%s %s\n", e.image, e.name)
-		}
-		fmt.Fprintf(os.Stderr, "Total: %d functions across %d image(s)\n", len(entries), len(funcs))
-
-	case "report", "-r":
-		reportCmd.Parse(os.Args[2:])
-		if reportCmd.NArg() < 2 {
-			fmt.Fprintln(os.Stderr, "report: usage: report <inputdir|log1,log2> <outputdir> [--formats html,xml,txt]")
-			os.Exit(1)
-		}
-		inputArg := reportCmd.Arg(0)
-		outputDir := reportCmd.Arg(1)
-		formats := strings.Split(*reportFormats, ",")
-
-		logFiles := collectLogFiles(inputArg)
-		if len(logFiles) == 0 {
-			fmt.Fprintln(os.Stderr, "report: no .log files found")
-			os.Exit(1)
-		}
-		coverage, err := analyzeLogs(logFiles)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "report error:", err)
-			os.Exit(1)
-		}
-		for _, format := range formats {
-			switch strings.TrimSpace(format) {
-			case "txt":
-				printTxtReport(coverage)
-			case "html":
-				_ = os.MkdirAll(outputDir, 0755)
-				for image, data := range coverage {
-					if err := generateHTMLReport(image, data, outputDir); err != nil {
-						fmt.Fprintln(os.Stderr, "HTML report error:", err)
-					}
-				}
-				_ = generateAggregateHTMLReport(coverage, outputDir)
-			case "xml":
-				_ = os.MkdirAll(outputDir, 0755)
-				for image, data := range coverage {
-					if err := generateXUnitReport(image, data, outputDir); err != nil {
-						fmt.Fprintln(os.Stderr, "XUnit report error:", err)
-					}
-				}
-			}
-		}
-
-	// Legacy aliases
-	case "wrap", "-w":
-		fmt.Fprintln(os.Stderr, "wrap is renamed to 'install'. Use: funkoverage install <binary>")
-		os.Exit(1)
-	case "unwrap", "-u":
-		fmt.Fprintln(os.Stderr, "unwrap is renamed to 'uninstall'. Use: funkoverage uninstall <binary>")
-		os.Exit(1)
-
-	default:
-		fmt.Fprintln(os.Stderr, "Unknown command:", os.Args[1])
+	c, ok := cmds[name]
+	if !ok {
+		fmt.Fprintln(os.Stderr, "Unknown command:", name)
 		fmt.Print(helpText)
 		os.Exit(1)
+	}
+	if err := c.run(os.Args[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s error: %v\n", c.name, err)
+		os.Exit(1)
+	}
+}
+
+func exitf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
+	os.Exit(1)
+}
+
+// --- subcommand implementations ---
+
+func cmdHelp(args []string) error    { fmt.Print(helpText); return nil }
+func cmdVersion(args []string) error { fmt.Println("funkoverage version", versionString); return nil }
+func cmdSetup(args []string) error   { return setupBpftrace() }
+
+func cmdInstall(args []string) error {
+	fs := flag.NewFlagSet("install", flag.ExitOnError)
+	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
+	fs.Parse(args)
+	if fs.NArg() < 1 {
+		return fmt.Errorf("missing binary path(s)")
+	}
+	return installMany(fs.Args(), *noLibs)
+}
+
+func cmdUninstall(args []string) error {
+	fs := flag.NewFlagSet("uninstall", flag.ExitOnError)
+	fs.Parse(args)
+	if fs.NArg() < 1 {
+		return fmt.Errorf("missing binary path(s)")
+	}
+	return uninstallMany(fs.Args())
+}
+
+func cmdTrace(args []string) error {
+	fs := flag.NewFlagSet("trace", flag.ExitOnError)
+	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
+	fs.Parse(args)
+	if fs.NArg() < 1 {
+		return fmt.Errorf("missing binary path")
+	}
+	return traceInline(fs.Arg(0), fs.Args()[1:], *noLibs)
+}
+
+func cmdEnumerate(args []string) error {
+	fs := flag.NewFlagSet("enumerate", flag.ExitOnError)
+	noLibs := fs.Bool("no-libs", false, "Skip library enumeration")
+	fs.Parse(args)
+	if fs.NArg() < 1 {
+		return fmt.Errorf("missing binary path")
+	}
+	funcs, err := EnumerateFunctions(fs.Arg(0), *noLibs)
+	if err != nil {
+		return err
+	}
+	type entry struct{ image, name string }
+	var entries []entry
+	for image, names := range funcs {
+		for _, name := range names {
+			entries = append(entries, entry{image, name})
+		}
+	}
+	slices.SortFunc(entries, func(a, b entry) int {
+		if c := cmp.Compare(a.image, b.image); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.name, b.name)
+	})
+	for _, e := range entries {
+		fmt.Printf("%s %s\n", e.image, e.name)
+	}
+	fmt.Fprintf(os.Stderr, "Total: %d functions across %d image(s)\n", len(entries), len(funcs))
+	return nil
+}
+
+func cmdReport(args []string) error {
+	fs := flag.NewFlagSet("report", flag.ExitOnError)
+	formats := fs.String("formats", "html,txt,xml", "Comma-separated list: html,xml,txt")
+	fs.Parse(args)
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: report <inputdir|log1,log2> <outputdir> [--formats html,xml,txt]")
+	}
+	inputArg, outputDir := fs.Arg(0), fs.Arg(1)
+
+	logFiles := collectLogFiles(inputArg)
+	if len(logFiles) == 0 {
+		return fmt.Errorf("no .log files found")
+	}
+	coverage, err := analyzeLogs(logFiles)
+	if err != nil {
+		return err
+	}
+	for _, format := range strings.Split(*formats, ",") {
+		emitReport(strings.TrimSpace(format), coverage, outputDir)
+	}
+	return nil
+}
+
+func emitReport(format string, coverage map[string]*CoverageData, outputDir string) {
+	switch format {
+	case "txt":
+		printTxtReport(coverage)
+	case "html":
+		_ = os.MkdirAll(outputDir, 0755)
+		for image, data := range coverage {
+			if err := generateHTMLReport(image, data, outputDir); err != nil {
+				fmt.Fprintln(os.Stderr, "HTML report error:", err)
+			}
+		}
+		_ = generateAggregateHTMLReport(coverage, outputDir)
+	case "xml":
+		_ = os.MkdirAll(outputDir, 0755)
+		for image, data := range coverage {
+			if err := generateXUnitReport(image, data, outputDir); err != nil {
+				fmt.Fprintln(os.Stderr, "XUnit report error:", err)
+			}
+		}
 	}
 }
 
