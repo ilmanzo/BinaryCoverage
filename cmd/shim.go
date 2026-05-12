@@ -1,31 +1,24 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"funkoverage/internal/funkutil"
 )
 
-const (
-	defaultShimSearchDir = "/usr/lib64/coverage-tools"
-)
+const defaultShimSearchDir = "/usr/lib64/coverage-tools"
 
 // install moves the real binary to SAFE_BIN_DIR/<basename>, writes a
 // _functions.log, and puts the shim binary at the original path.
 // No JSON config — the shim finds the real binary by path convention.
 func install(targetBinary string, noLibs bool) error {
-	LOG_DIR := os.Getenv("LOG_DIR")
-	if LOG_DIR == "" {
-		LOG_DIR = defaultLogDir
-	}
-	SAFE_BIN_DIR := os.Getenv("SAFE_BIN_DIR")
-	if SAFE_BIN_DIR == "" {
-		SAFE_BIN_DIR = defaultSafeBinDir
-	}
+	logDir := funkutil.LogDir()
+	safeBinDir := funkutil.SafeBinDir()
 
 	shimBinary, err := findShimBinary()
 	if err != nil {
@@ -45,9 +38,8 @@ func install(targetBinary string, noLibs bool) error {
 	}
 
 	binaryName := filepath.Base(realTarget)
-	safePath := filepath.Join(SAFE_BIN_DIR, binaryName)
+	safePath := filepath.Join(safeBinDir, binaryName)
 
-	// Check not already installed
 	if _, err := os.Stat(safePath); err == nil {
 		return fmt.Errorf("'%s' already has a shim installed (found %s). Use uninstall first", targetBinary, safePath)
 	}
@@ -63,10 +55,9 @@ func install(targetBinary string, noLibs bool) error {
 		return fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
 	}
 
-	if err := os.MkdirAll(SAFE_BIN_DIR, 0755); err != nil {
+	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
 		return err
 	}
-
 	if err := move(realTarget, safePath); err != nil {
 		return err
 	}
@@ -74,35 +65,26 @@ func install(targetBinary string, noLibs bool) error {
 		return fmt.Errorf("merge debug symbols: %w", err)
 	}
 
-	// Handle multicall symlinks
 	if isSymlink && originalName != binaryName {
-		symlinkPath := filepath.Join(SAFE_BIN_DIR, originalName)
+		symlinkPath := filepath.Join(safeBinDir, originalName)
 		if err := os.Symlink(binaryName, symlinkPath); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: multicall symlink %s -> %s: %v\n", symlinkPath, binaryName, err)
 		}
 	}
 
-	// Enumerate functions and write _functions.log
 	funcs, err := EnumerateFunctions(safePath, noLibs)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: function enumeration: %v\n", err)
-	} else {
-		if _, err := writeFunctionsLog(LOG_DIR, binaryName, funcs); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
-		}
+	} else if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 
-	// Write library list for the shim's bpftrace script
 	if !noLibs {
 		if libs, err := ParseLddLibraries(safePath); err == nil && len(libs) > 0 {
-			if data, err := json.Marshal(libs); err == nil {
-				libsPath := safePath + ".libs.json"
-				os.WriteFile(libsPath, data, 0644)
-			}
+			_ = funkutil.WriteLibsSidecar(safePath, libs)
 		}
 	}
 
-	// Copy shim binary to original location
 	if err := copyFile(shimBinary, realTarget, 0755); err != nil {
 		return fmt.Errorf("install shim binary: %w", err)
 	}
@@ -112,10 +94,7 @@ func install(targetBinary string, noLibs bool) error {
 }
 
 func uninstall(targetBinary string) error {
-	SAFE_BIN_DIR := os.Getenv("SAFE_BIN_DIR")
-	if SAFE_BIN_DIR == "" {
-		SAFE_BIN_DIR = defaultSafeBinDir
-	}
+	safeBinDir := funkutil.SafeBinDir()
 
 	realTarget, err := filepath.EvalSymlinks(targetBinary)
 	if err != nil {
@@ -123,7 +102,7 @@ func uninstall(targetBinary string) error {
 	}
 
 	binaryName := filepath.Base(realTarget)
-	safePath := filepath.Join(SAFE_BIN_DIR, binaryName)
+	safePath := filepath.Join(safeBinDir, binaryName)
 
 	fi, err := os.Lstat(safePath)
 	if err != nil {
@@ -145,7 +124,7 @@ func uninstall(targetBinary string) error {
 	if err := move(sourcePath, realTarget); err != nil {
 		return fmt.Errorf("restore binary: %w", err)
 	}
-	os.Remove(safePath + ".libs.json")
+	_ = funkutil.WriteLibsSidecar(safePath, nil)
 
 	fmt.Printf("Uninstalled shim for %s (restored original)\n", targetBinary)
 	return nil

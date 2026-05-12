@@ -13,11 +13,6 @@ import (
 	"strings"
 )
 
-const (
-	defaultLogDir     = "/var/coverage/data"
-	defaultSafeBinDir = "/var/coverage/bin"
-)
-
 var globalDebugRoot = "/usr/lib/debug"
 
 func isELF(path string) bool {

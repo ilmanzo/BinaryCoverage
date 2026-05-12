@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"funkoverage/internal/funkutil"
+
 	"github.com/ianlancetaylor/demangle"
 )
 
@@ -37,18 +39,9 @@ func imageIsRelevant(name string) bool {
 	return name != "[vdso]" && name != "" && name != "linux-vdso.so.1"
 }
 
-// stripVersionSuffix removes @GLIBC_x.y style version annotations.
-func stripVersionSuffix(name string) string {
-	if i := strings.IndexByte(name, '@'); i >= 0 {
-		return name[:i]
-	}
-	return name
-}
-
 // demangleName applies C++/Rust demangling and strips version suffixes.
 func demangleName(raw string) string {
-	stripped := stripVersionSuffix(raw)
-	return demangle.Filter(stripped)
+	return demangle.Filter(funkutil.StripVersion(raw))
 }
 
 // EnumerateFunctions returns map[imagePath][]functionName for the binary and

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -13,16 +12,16 @@ import (
 	"syscall"
 	"time"
 
+	"funkoverage/internal/funkutil"
+
 	"github.com/ianlancetaylor/demangle"
 )
 
 const (
-	activeEnvVar   = "FUNKOVERAGE_ACTIVE"
-	childEnvVar    = "FUNKOVERAGE_CHILD"
-	waitFdEnvVar   = "FUNKOVERAGE_WAIT_FD"
-	arg0EnvVar     = "FUNKOVERAGE_ARG0"
-	defaultLogDir  = "/var/coverage/data"
-	defaultSafeBin = "/var/coverage/bin"
+	activeEnvVar = "FUNKOVERAGE_ACTIVE"
+	childEnvVar  = "FUNKOVERAGE_CHILD"
+	waitFdEnvVar = "FUNKOVERAGE_WAIT_FD"
+	arg0EnvVar   = "FUNKOVERAGE_ARG0"
 )
 
 func realBinaryPath() string {
@@ -30,19 +29,7 @@ func realBinaryPath() string {
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
 	}
-	basename := filepath.Base(exe)
-	safeBinDir := os.Getenv("SAFE_BIN_DIR")
-	if safeBinDir == "" {
-		safeBinDir = defaultSafeBin
-	}
-	return filepath.Join(safeBinDir, basename)
-}
-
-func logDir() string {
-	if v := os.Getenv("LOG_DIR"); v != "" {
-		return v
-	}
-	return defaultLogDir
+	return filepath.Join(funkutil.SafeBinDir(), filepath.Base(exe))
 }
 
 func main() {
@@ -103,7 +90,7 @@ func childMain() {
 }
 
 func runWithTracing(realBin string) (exitCode int, err error) {
-	dir := logDir()
+	dir := funkutil.LogDir()
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return 1, fmt.Errorf("create log dir: %w", err)
 	}
@@ -224,7 +211,7 @@ func captureCalledLog(r io.Reader, calledLog *os.File) {
 		if len(parts) != 3 {
 			continue
 		}
-		demangled := demangle.Filter(stripVersionSuffix(parts[2]))
+		demangled := demangle.Filter(funkutil.StripVersion(parts[2]))
 		fmt.Fprintf(calledLog, "CALLED %s %s\n", parts[1], demangled)
 	}
 }
@@ -255,16 +242,12 @@ func waitForAttach(r io.Reader, timeout time.Duration) {
 
 func buildChildEnv(realBin string) []string {
 	env := cleanEnv()
-	safeBinDir := os.Getenv("SAFE_BIN_DIR")
-	if safeBinDir == "" {
-		safeBinDir = defaultSafeBin
-	}
 	env = append(env,
 		childEnvVar+"=1",
 		waitFdEnvVar+"=3",
 		arg0EnvVar+"="+os.Args[0],
 		activeEnvVar+"=1",
-		"SAFE_BIN_DIR="+safeBinDir,
+		"SAFE_BIN_DIR="+funkutil.SafeBinDir(),
 	)
 	if v := os.Getenv("LOG_DIR"); v != "" {
 		env = append(env, "LOG_DIR="+v)
@@ -289,7 +272,7 @@ func generateBpftraceScript(realBin string, childPID int) string {
 	fmt.Fprintf(&sb, "BEGIN { @watched[%d] = 1; }\n\n", childPID)
 
 	writeUprobeBlock(&sb, realBin, "called")
-	for i, lib := range readLibsSidecar(realBin + ".libs.json") {
+	for i, lib := range funkutil.ReadLibsSidecar(realBin) {
 		writeUprobeBlock(&sb, lib, fmt.Sprintf("lcalled%d", i))
 	}
 
@@ -339,21 +322,3 @@ func attachTimeoutDuration() time.Duration {
 	return 60 * time.Second
 }
 
-func stripVersionSuffix(name string) string {
-	if i := strings.IndexByte(name, '@'); i >= 0 {
-		return name[:i]
-	}
-	return name
-}
-
-func readLibsSidecar(path string) []string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	var libs []string
-	if err := json.Unmarshal(data, &libs); err != nil {
-		return nil
-	}
-	return libs
-}
