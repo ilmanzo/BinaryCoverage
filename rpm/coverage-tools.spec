@@ -20,7 +20,7 @@ Name:           coverage-tools
 Version:        0.7.0
 Release:        0
 Summary:        Function-level binary coverage via eBPF (uprobe_multi)
-License:        MIT
+License:        MIT AND GPL-2.0-only
 URL:            https://github.com/ilmanzo/BinaryCoverage
 Source0:        %{dname}.tar.gz
 Source1:        vendor.tar.gz
