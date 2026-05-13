@@ -266,26 +266,27 @@ func utsString(b []int8) string {
 }
 
 func findShimBinary() (string, error) {
-	if v := os.Getenv("FUNKOVERAGE_SHIM"); v != "" {
-		if _, err := os.Stat(v); err == nil {
-			return v, nil
+	for _, p := range shimSearchPaths() {
+		if p == "" {
+			continue
+		}
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
 		}
 	}
-	exe, err := os.Executable()
-	if err == nil {
+	return "", errors.New("funkoverage-shim not found. Set FUNKOVERAGE_SHIM env var or place it alongside funkoverage")
+}
+
+func shimSearchPaths() []string {
+	paths := []string{os.Getenv("FUNKOVERAGE_SHIM")}
+	if exe, err := os.Executable(); err == nil {
 		if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 			exe = resolved
 		}
-		candidate := filepath.Join(filepath.Dir(exe), "funkoverage-shim")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
+		paths = append(paths, filepath.Join(filepath.Dir(exe), "funkoverage-shim"))
 	}
-	candidate := filepath.Join(defaultShimSearchDir, "funkoverage-shim")
-	if _, err := os.Stat(candidate); err == nil {
-		return candidate, nil
-	}
-	return "", errors.New("funkoverage-shim not found. Set FUNKOVERAGE_SHIM env var or place it alongside funkoverage")
+	paths = append(paths, filepath.Join(defaultShimSearchDir, "funkoverage-shim"))
+	return paths
 }
 
 func copyFile(src, dst string, perm os.FileMode) error {

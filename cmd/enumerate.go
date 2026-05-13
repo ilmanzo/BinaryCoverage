@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"debug/dwarf"
 	"debug/elf"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -56,13 +58,12 @@ func (f *FuncFilter) Match(demangled string) bool {
 	return true
 }
 
-var funcBlacklist = map[string]struct{}{
-	"main": {}, "_init": {}, "_start": {}, ".plt.got": {}, ".plt": {},
-	"_dl_relocate_static_pie": {},
+var funcBlacklist = []string{
+	"main", "_init", "_start", ".plt.got", ".plt", "_dl_relocate_static_pie",
 }
 
 func funcIsRelevant(name string) bool {
-	if _, bad := funcBlacklist[name]; bad {
+	if slices.Contains(funcBlacklist, name) {
 		return false
 	}
 	if strings.HasSuffix(name, "@plt") || strings.HasSuffix(name, "@plt.got") {
@@ -71,6 +72,20 @@ func funcIsRelevant(name string) bool {
 	if strings.HasPrefix(name, "__") {
 		return false
 	}
+	return true
+}
+
+// acceptFunc reports whether to keep `raw` (mangled name) given a filter and
+// dedup set. On accept it marks `raw` as seen.
+func acceptFunc(seen map[string]struct{}, raw string, filter *FuncFilter) bool {
+	demangled := demangleName(raw)
+	if !funcIsRelevant(demangled) || !filter.Match(demangled) {
+		return false
+	}
+	if _, dup := seen[raw]; dup {
+		return false
+	}
+	seen[raw] = struct{}{}
 	return true
 }
 
@@ -122,10 +137,9 @@ func EnumerateFunctions(binPath string, noLibs bool, filter *FuncFilter) (map[st
 
 // enumerateOne enumerates functions from a single ELF file (binary or library).
 //
-// bpftrace's `uprobe:<path>:*` wildcard expands using the ELF symbol table,
-// not DWARF, so symtab is the source of truth for what we can actually trace.
-// We also dodge dwz-compressed DWARF (openSUSE/Fedora), where most
-// DW_TAG_subprogram entries reference abstract DIEs in a separate
+// Symtab is the source of truth: uprobe attach resolves names against the ELF
+// symbol table directly. We also dodge dwz-compressed DWARF (openSUSE/Fedora),
+// where most DW_TAG_subprogram entries reference abstract DIEs in a separate
 // .gnu_debugaltlink file that Go's debug/dwarf package cannot follow.
 //
 // Order: binary's .symtab → external .debug file's .symtab → DWARF.
@@ -139,11 +153,7 @@ func enumerateOne(path string, filter *FuncFilter) ([]string, error) {
 			return funcs, nil
 		}
 	}
-	target := path
-	if debugPath != "" {
-		target = debugPath
-	}
-	return dwarfFunctions(target, filter)
+	return dwarfFunctions(cmp.Or(debugPath, path), filter)
 }
 
 func symtabFunctions(path string, filter *FuncFilter) []string {
@@ -259,20 +269,10 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error)
 		}
 
 		// Keep the raw (mangled) name. uprobe attach resolves it against
-		// the ELF symbol table directly; demangling happens at output time
-		// (writeFunctionsLog, _called.log, cmdEnumerate stdout).
-		demangled := demangleName(raw)
-		if !funcIsRelevant(demangled) {
-			continue
+		// the ELF symbol table directly; demangling happens at output time.
+		if acceptFunc(seen, raw, filter) {
+			funcs = append(funcs, raw)
 		}
-		if !filter.Match(demangled) {
-			continue
-		}
-		if _, dup := seen[raw]; dup {
-			continue
-		}
-		seen[raw] = struct{}{}
-		funcs = append(funcs, raw)
 	}
 	return funcs, nil
 }
@@ -301,18 +301,9 @@ func enumerateSymtab(f *elf.File, filter *FuncFilter) ([]string, error) {
 		if sym.Size == 0 {
 			continue
 		}
-		demangled := demangleName(sym.Name)
-		if !funcIsRelevant(demangled) {
-			continue
+		if acceptFunc(seen, sym.Name, filter) {
+			funcs = append(funcs, sym.Name)
 		}
-		if !filter.Match(demangled) {
-			continue
-		}
-		if _, dup := seen[sym.Name]; dup {
-			continue
-		}
-		seen[sym.Name] = struct{}{}
-		funcs = append(funcs, sym.Name)
 	}
 	return funcs, nil
 }

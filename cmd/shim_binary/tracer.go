@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"sync"
@@ -92,11 +93,7 @@ func NewTracer(funcs map[string][]string, logPath string) (*Tracer, error) {
 // repeated invocations against the same input produce identical cookies —
 // useful for debugging and for cross-run analysis.
 func flattenFuncs(funcs map[string][]string) ([]FuncRef, map[string][]string, map[string][]uint64) {
-	images := make([]string, 0, len(funcs))
-	for img := range funcs {
-		images = append(images, img)
-	}
-	slices.Sort(images)
+	images := slices.Sorted(maps.Keys(funcs))
 
 	var refs []FuncRef
 	imgSyms := make(map[string][]string, len(images))

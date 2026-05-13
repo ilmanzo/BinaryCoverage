@@ -5,10 +5,11 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html/template"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -61,7 +62,10 @@ func detectLogType(path string) string {
 
 func ensureCoverage(coverage map[string]*CoverageData, image string) {
 	if _, ok := coverage[image]; !ok {
-		coverage[image] = &CoverageData{make(map[string]struct{}), make(map[string]struct{})}
+		coverage[image] = &CoverageData{
+			TotalFunctions:  make(map[string]struct{}),
+			CalledFunctions: make(map[string]struct{}),
+		}
 	}
 }
 
@@ -78,8 +82,8 @@ func splitCalledUncalled(data *CoverageData) (called, uncalled []string) {
 			uncalled = append(uncalled, fn)
 		}
 	}
-	sort.Strings(called)
-	sort.Strings(uncalled)
+	slices.Sort(called)
+	slices.Sort(uncalled)
 	return called, uncalled
 }
 
@@ -93,44 +97,53 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 			fmt.Fprintf(os.Stderr, "report: skipping unrecognized log file: %s\n", logFile)
 			continue
 		}
-		f, err := os.Open(logFile)
-		if err != nil {
-			return nil, fmt.Errorf("could not open log file %s: %w", logFile, err)
-		}
-		defer f.Close()
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if line == "" || line[0] == '#' {
-				continue
-			}
-			var re *regexp.Regexp
-			if logType == "functions" {
-				re = funcLineRe
-			} else {
-				re = calledLineRe
-			}
-			m := re.FindStringSubmatch(line)
-			if m == nil {
-				continue
-			}
-			image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
-			if image == "" || function == "" {
-				continue
-			}
-			ensureCoverage(coverage, image)
-			if logType == "functions" {
-				coverage[image].TotalFunctions[function] = struct{}{}
-			} else {
-				coverage[image].CalledFunctions[function] = struct{}{}
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			return nil, fmt.Errorf("error reading log file %s: %w", logFile, err)
+		if err := scanLog(logFile, logType, coverage); err != nil {
+			return nil, err
 		}
 	}
 	return coverage, nil
+}
+
+// scanLog reads a single log file and updates coverage in place.
+// Defer-cleanup fires per call, not per analyzeLogs invocation.
+func scanLog(logFile, logType string, coverage map[string]*CoverageData) error {
+	f, err := os.Open(logFile)
+	if err != nil {
+		return fmt.Errorf("could not open log file %s: %w", logFile, err)
+	}
+	defer f.Close()
+
+	re := funcLineRe
+	if logType == "called" {
+		re = calledLineRe
+	}
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" || line[0] == '#' {
+			continue
+		}
+		m := re.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+		if image == "" || function == "" {
+			continue
+		}
+		ensureCoverage(coverage, image)
+		if logType == "functions" {
+			coverage[image].TotalFunctions[function] = struct{}{}
+		} else {
+			coverage[image].CalledFunctions[function] = struct{}{}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading log file %s: %w", logFile, err)
+	}
+	return nil
 }
 
 // --- Console Report ---
@@ -273,18 +286,10 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 	return enc.Encode(ts)
 }
 
-type Row struct {
-	ImageName   string
-	TotalCount  int
-	CalledCount int
-	CoveragePct float64
-}
+// AggregateData carries CoverageTotals plus the timestamp for HTML rendering.
 type AggregateData struct {
-	Rows            []Row
-	GeneratedAt     string
-	TotalFunctions  int
-	TotalCalled     int
-	AverageCoverage float64
+	CoverageTotals
+	GeneratedAt string
 }
 
 // generateHTMLReport generates an HTML report for a single image's coverage data.
@@ -328,24 +333,12 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 // It creates a table with the image name, total functions, called functions, and coverage percentage.
 func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir string) error {
 	summary := summarizeCoverage(coverage)
-
-	// Convert CoverageSummary to Row for template compatibility
-	rows := make([]Row, len(summary.Rows))
-	for i, r := range summary.Rows {
-		rows[i] = Row{
-			ImageName:   filepath.Base(r.ImageName),
-			TotalCount:  r.TotalCount,
-			CalledCount: r.CalledCount,
-			CoveragePct: r.CoveragePct,
-		}
+	for i := range summary.Rows {
+		summary.Rows[i].ImageName = filepath.Base(summary.Rows[i].ImageName)
 	}
-
 	aggData := AggregateData{
-		Rows:            rows,
-		GeneratedAt:     time.Now().Format("2006-01-02 15:04:05 MST"),
-		TotalFunctions:  summary.TotalFunctions,
-		TotalCalled:     summary.TotalCalled,
-		AverageCoverage: summary.AverageCoverage,
+		CoverageTotals: summary,
+		GeneratedAt:    time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 
 	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate)
@@ -382,13 +375,9 @@ type CoverageTotals struct {
 // The average coverage is calculated as (total called functions / total functions across all images) * 100.
 // The function sorts the images alphabetically by name before summarizing.
 func summarizeCoverage(coverage map[string]*CoverageData) CoverageTotals {
-	imageNames := make([]string, 0, len(coverage))
-	for image := range coverage {
-		imageNames = append(imageNames, image)
-	}
-	sort.Strings(imageNames)
+	imageNames := slices.Sorted(maps.Keys(coverage))
 
-	rows := []CoverageSummary{}
+	rows := make([]CoverageSummary, 0, len(imageNames))
 	var totalFunctions, totalCalled int
 	for _, image := range imageNames {
 		data := coverage[image]

@@ -190,8 +190,9 @@ func buildChildEnv(realBin string) []string {
 
 func cleanEnv() []string {
 	skip := map[string]bool{childEnvVar: true, waitFdEnvVar: true, arg0EnvVar: true}
-	var env []string
-	for _, e := range os.Environ() {
+	src := os.Environ()
+	env := make([]string, 0, len(src))
+	for _, e := range src {
 		k := strings.SplitN(e, "=", 2)[0]
 		if !skip[k] {
 			env = append(env, e)

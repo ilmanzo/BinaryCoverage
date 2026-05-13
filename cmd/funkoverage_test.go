@@ -120,7 +120,7 @@ func TestHasDebugInfo_Linked(t *testing.T) {
 	}
 }
 
-// --- analyzeLogs tests (legacy Pin format + new format) ---
+// --- analyzeLogs tests ---
 
 func TestAnalyzeLogs(t *testing.T) {
 	tmp := t.TempDir()

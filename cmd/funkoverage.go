@@ -77,6 +77,16 @@ func exitf(format string, args ...any) {
 	os.Exit(1)
 }
 
+// addFilterFlags binds --include and --exclude on fs and returns a closure
+// that builds the FuncFilter after fs.Parse has run.
+func addFilterFlags(fs *flag.FlagSet) func() (*FuncFilter, error) {
+	include := fs.String("include", "", "Regex: only trace functions matching pattern")
+	exclude := fs.String("exclude", "", "Regex: skip functions matching pattern")
+	return func() (*FuncFilter, error) {
+		return NewFuncFilter(*include, *exclude)
+	}
+}
+
 // --- subcommand implementations ---
 
 func cmdHelp(args []string) error    { fmt.Print(helpText); return nil }
@@ -86,13 +96,12 @@ func cmdSetup(args []string) error   { return setupEnv() }
 func cmdInstall(args []string) error {
 	fs := flag.NewFlagSet("install", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
-	include := fs.String("include", "", "Regex: only trace functions matching pattern")
-	exclude := fs.String("exclude", "", "Regex: skip functions matching pattern")
+	buildFilter := addFilterFlags(fs)
 	fs.Parse(args)
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path(s)")
 	}
-	filter, err := NewFuncFilter(*include, *exclude)
+	filter, err := buildFilter()
 	if err != nil {
 		return err
 	}
@@ -111,13 +120,12 @@ func cmdUninstall(args []string) error {
 func cmdTrace(args []string) error {
 	fs := flag.NewFlagSet("trace", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
-	include := fs.String("include", "", "Regex: only trace functions matching pattern")
-	exclude := fs.String("exclude", "", "Regex: skip functions matching pattern")
+	buildFilter := addFilterFlags(fs)
 	fs.Parse(args)
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path")
 	}
-	filter, err := NewFuncFilter(*include, *exclude)
+	filter, err := buildFilter()
 	if err != nil {
 		return err
 	}
@@ -134,13 +142,12 @@ func cmdTrace(args []string) error {
 func cmdEnumerate(args []string) error {
 	fs := flag.NewFlagSet("enumerate", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library enumeration")
-	include := fs.String("include", "", "Regex: only list functions matching pattern")
-	exclude := fs.String("exclude", "", "Regex: skip functions matching pattern")
+	buildFilter := addFilterFlags(fs)
 	fs.Parse(args)
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path")
 	}
-	filter, err := NewFuncFilter(*include, *exclude)
+	filter, err := buildFilter()
 	if err != nil {
 		return err
 	}
@@ -185,7 +192,7 @@ func cmdReport(args []string) error {
 	if err != nil {
 		return err
 	}
-	for _, format := range strings.Split(*formats, ",") {
+	for format := range strings.SplitSeq(*formats, ",") {
 		emitReport(strings.TrimSpace(format), coverage, outputDir)
 	}
 	return nil
