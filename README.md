@@ -2,7 +2,9 @@
 
 **BinaryCoverage** (binary: `funkoverage`) is a native function-level code coverage tool for GNU/Linux. It uses **eBPF uprobes** (`uprobe_multi`) to capture function entry events from any ELF binary — no source code, no recompilation, no debugger.
 
-See [docs/design.md](docs/design.md) for architecture diagrams and a deep dive on how it works.
+**Documentation:**
+- [docs/install.md](docs/install.md) — Fresh-system installation guide
+- [docs/design.md](docs/design.md) — Architecture diagrams and internals
 
 [![Build check](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml) [![Run unit tests](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml)
 
@@ -83,6 +85,10 @@ grep "pattern" file.txt  # Automatically captures coverage
 - **DWZ Support**: Handles compressed debug information (common in openSUSE/Fedora).
 - **Multi-Library Tracing**: Can simultaneously trace the main binary and all linked shared libraries.
 - **Function Filtering**: `--include`/`--exclude` regex filters to focus on specific namespaces.
+
+## 🚧 TODO
+
+- **`dlopen()` libraries**: Only `DT_NEEDED` libraries (resolved via `ldd` at install time) are instrumented. Libraries loaded at runtime via `dlopen()` are invisible to `ldd` and currently not traced. Possible fixes: uprobe on `dlopen()` to trigger reattach, or poll `/proc/<pid>/maps` from the parent shim.
 
 ## License
 
