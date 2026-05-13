@@ -86,11 +86,17 @@ func cmdSetup(args []string) error   { return setupEnv() }
 func cmdInstall(args []string) error {
 	fs := flag.NewFlagSet("install", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
+	include := fs.String("include", "", "Regex: only trace functions matching pattern")
+	exclude := fs.String("exclude", "", "Regex: skip functions matching pattern")
 	fs.Parse(args)
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path(s)")
 	}
-	return installMany(fs.Args(), *noLibs)
+	filter, err := NewFuncFilter(*include, *exclude)
+	if err != nil {
+		return err
+	}
+	return installMany(fs.Args(), *noLibs, filter)
 }
 
 func cmdUninstall(args []string) error {
@@ -105,11 +111,17 @@ func cmdUninstall(args []string) error {
 func cmdTrace(args []string) error {
 	fs := flag.NewFlagSet("trace", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
+	include := fs.String("include", "", "Regex: only trace functions matching pattern")
+	exclude := fs.String("exclude", "", "Regex: skip functions matching pattern")
 	fs.Parse(args)
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path")
 	}
-	code, err := traceInline(fs.Arg(0), fs.Args()[1:], *noLibs)
+	filter, err := NewFuncFilter(*include, *exclude)
+	if err != nil {
+		return err
+	}
+	code, err := traceInline(fs.Arg(0), fs.Args()[1:], *noLibs, filter)
 	if err != nil {
 		return err
 	}
@@ -122,11 +134,17 @@ func cmdTrace(args []string) error {
 func cmdEnumerate(args []string) error {
 	fs := flag.NewFlagSet("enumerate", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library enumeration")
+	include := fs.String("include", "", "Regex: only list functions matching pattern")
+	exclude := fs.String("exclude", "", "Regex: skip functions matching pattern")
 	fs.Parse(args)
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path")
 	}
-	funcs, err := EnumerateFunctions(fs.Arg(0), *noLibs)
+	filter, err := NewFuncFilter(*include, *exclude)
+	if err != nil {
+		return err
+	}
+	funcs, err := EnumerateFunctions(fs.Arg(0), *noLibs, filter)
 	if err != nil {
 		return err
 	}

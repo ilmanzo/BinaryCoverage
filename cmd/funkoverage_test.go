@@ -295,7 +295,7 @@ int main() { return add(1,2) + sub(3,1); }
 		t.Fatalf("compile: %v\n%s", err, out)
 	}
 
-	funcs, err := EnumerateFunctions(bin, true)
+	funcs, err := EnumerateFunctions(bin, true, nil)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestInstallUninstall(t *testing.T) {
 
 	bin := compileDebugBinary(t, tmp, "testbin")
 
-	if err := install(bin, true); err != nil {
+	if err := install(bin, true, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 
@@ -448,7 +448,7 @@ func TestInstallMany(t *testing.T) {
 	bin1 := compileDebugBinary(t, tmp, "bin1")
 	bin2 := compileDebugBinary(t, tmp, "bin2")
 
-	if err := installMany([]string{bin1, bin2}, true); err != nil {
+	if err := installMany([]string{bin1, bin2}, true, nil); err != nil {
 		t.Fatalf("installMany: %v", err)
 	}
 	if err := uninstallMany([]string{bin1, bin2}); err != nil {

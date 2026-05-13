@@ -19,7 +19,7 @@ const defaultShimSearchDir = "/usr/lib64/coverage-tools"
 // install moves the real binary to SAFE_BIN_DIR/<basename>, writes a
 // _functions.log, and puts the shim binary at the original path.
 // No JSON config — the shim finds the real binary by path convention.
-func install(targetBinary string, noLibs bool) error {
+func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 	logDir := funkutil.LogDir()
 	safeBinDir := funkutil.SafeBinDir()
 
@@ -82,7 +82,7 @@ func install(targetBinary string, noLibs bool) error {
 	}
 
 	// Enumerate functions after merging debug info so all symbols are available
-	funcs, err := EnumerateFunctions(safePath, noLibs)
+	funcs, err := EnumerateFunctions(safePath, noLibs, filter)
 	if err != nil {
 		_ = move(safePath, realTarget)
 		return fmt.Errorf("function enumeration: %w", err)
@@ -177,10 +177,10 @@ func uninstall(targetBinary string) error {
 	return nil
 }
 
-func installMany(binaries []string, noLibs bool) error {
+func installMany(binaries []string, noLibs bool, filter *FuncFilter) error {
 	var failed []string
 	for _, bin := range binaries {
-		if err := install(bin, noLibs); err != nil {
+		if err := install(bin, noLibs, filter); err != nil {
 			fmt.Fprintf(os.Stderr, "install error for %s: %v\n", bin, err)
 			failed = append(failed, bin)
 		}

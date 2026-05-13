@@ -17,6 +17,45 @@ import (
 	"github.com/ianlancetaylor/demangle"
 )
 
+// FuncFilter gates which functions pass enumeration based on regex patterns
+// applied to the demangled name.
+type FuncFilter struct {
+	Include *regexp.Regexp
+	Exclude *regexp.Regexp
+}
+
+func NewFuncFilter(include, exclude string) (*FuncFilter, error) {
+	f := &FuncFilter{}
+	if include != "" {
+		re, err := regexp.Compile(include)
+		if err != nil {
+			return nil, fmt.Errorf("bad --include regex: %w", err)
+		}
+		f.Include = re
+	}
+	if exclude != "" {
+		re, err := regexp.Compile(exclude)
+		if err != nil {
+			return nil, fmt.Errorf("bad --exclude regex: %w", err)
+		}
+		f.Exclude = re
+	}
+	return f, nil
+}
+
+func (f *FuncFilter) Match(demangled string) bool {
+	if f == nil {
+		return true
+	}
+	if f.Include != nil && !f.Include.MatchString(demangled) {
+		return false
+	}
+	if f.Exclude != nil && f.Exclude.MatchString(demangled) {
+		return false
+	}
+	return true
+}
+
 var funcBlacklist = map[string]struct{}{
 	"main": {}, "_init": {}, "_start": {}, ".plt.got": {}, ".plt": {},
 	"_dl_relocate_static_pie": {},
@@ -46,10 +85,10 @@ func demangleName(raw string) string {
 
 // EnumerateFunctions returns map[imagePath][]functionName for the binary and
 // all its shared libraries that have debug info.
-func EnumerateFunctions(binPath string, noLibs bool) (map[string][]string, error) {
+func EnumerateFunctions(binPath string, noLibs bool, filter *FuncFilter) (map[string][]string, error) {
 	result := make(map[string][]string)
 
-	funcs, err := enumerateOne(binPath)
+	funcs, err := enumerateOne(binPath, filter)
 	if err != nil {
 		return nil, fmt.Errorf("enumerate %s: %w", binPath, err)
 	}
@@ -69,7 +108,7 @@ func EnumerateFunctions(binPath string, noLibs bool) (map[string][]string, error
 		if !imageIsRelevant(filepath.Base(lib)) {
 			continue
 		}
-		libFuncs, err := enumerateOne(lib)
+		libFuncs, err := enumerateOne(lib, filter)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "enumerate: skipping %s: %v\n", lib, err)
 			continue
@@ -90,13 +129,13 @@ func EnumerateFunctions(binPath string, noLibs bool) (map[string][]string, error
 // .gnu_debugaltlink file that Go's debug/dwarf package cannot follow.
 //
 // Order: binary's .symtab → external .debug file's .symtab → DWARF.
-func enumerateOne(path string) ([]string, error) {
-	if funcs := symtabFunctions(path); len(funcs) > 0 {
+func enumerateOne(path string, filter *FuncFilter) ([]string, error) {
+	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
 		return funcs, nil
 	}
 	debugPath := externalDebugPath(path)
 	if debugPath != "" {
-		if funcs := symtabFunctions(debugPath); len(funcs) > 0 {
+		if funcs := symtabFunctions(debugPath, filter); len(funcs) > 0 {
 			return funcs, nil
 		}
 	}
@@ -104,23 +143,23 @@ func enumerateOne(path string) ([]string, error) {
 	if debugPath != "" {
 		target = debugPath
 	}
-	return dwarfFunctions(target)
+	return dwarfFunctions(target, filter)
 }
 
-func symtabFunctions(path string) []string {
+func symtabFunctions(path string, filter *FuncFilter) []string {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil
 	}
 	defer f.Close()
-	funcs, err := enumerateSymtab(f)
+	funcs, err := enumerateSymtab(f, filter)
 	if err != nil {
 		return nil
 	}
 	return funcs
 }
 
-func dwarfFunctions(path string) ([]string, error) {
+func dwarfFunctions(path string, filter *FuncFilter) ([]string, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open elf: %w", err)
@@ -130,7 +169,7 @@ func dwarfFunctions(path string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dwarf: %w", err)
 	}
-	return enumerateDWARF(dw)
+	return enumerateDWARF(dw, filter)
 }
 
 // externalDebugPath returns the path to an external .debug file, or "".
@@ -187,7 +226,7 @@ func externalDebugPath(binPath string) string {
 	return ""
 }
 
-func enumerateDWARF(dwarfData *dwarf.Data) ([]string, error) {
+func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error) {
 	seen := make(map[string]struct{})
 	var funcs []string
 
@@ -222,7 +261,11 @@ func enumerateDWARF(dwarfData *dwarf.Data) ([]string, error) {
 		// Keep the raw (mangled) name. uprobe attach resolves it against
 		// the ELF symbol table directly; demangling happens at output time
 		// (writeFunctionsLog, _called.log, cmdEnumerate stdout).
-		if !funcIsRelevant(demangleName(raw)) {
+		demangled := demangleName(raw)
+		if !funcIsRelevant(demangled) {
+			continue
+		}
+		if !filter.Match(demangled) {
 			continue
 		}
 		if _, dup := seen[raw]; dup {
@@ -234,7 +277,7 @@ func enumerateDWARF(dwarfData *dwarf.Data) ([]string, error) {
 	return funcs, nil
 }
 
-func enumerateSymtab(f *elf.File) ([]string, error) {
+func enumerateSymtab(f *elf.File, filter *FuncFilter) ([]string, error) {
 	symbols, err := f.Symbols()
 	if err != nil {
 		// Try dynamic symbols as last resort
@@ -258,8 +301,11 @@ func enumerateSymtab(f *elf.File) ([]string, error) {
 		if sym.Size == 0 {
 			continue
 		}
-		// Keep raw mangled name for uprobe attach; demangle only at output.
-		if !funcIsRelevant(demangleName(sym.Name)) {
+		demangled := demangleName(sym.Name)
+		if !funcIsRelevant(demangled) {
+			continue
+		}
+		if !filter.Match(demangled) {
 			continue
 		}
 		if _, dup := seen[sym.Name]; dup {

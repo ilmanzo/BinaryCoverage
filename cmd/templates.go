@@ -16,17 +16,22 @@ Usage:
   funkoverage setup
       Validate eBPF environment (kernel ≥6.6, BTF). Run once as root.
 
-  funkoverage install [--no-libs] <binary...>
+  funkoverage install [--no-libs] [--include RE] [--exclude RE] <binary...>
       Install shim for ELF binary (requires debug symbols).
 
   funkoverage uninstall <binary...>
       Restore original binary.
 
-  funkoverage trace [--no-libs] <binary> [args...]
+  funkoverage trace [--no-libs] [--include RE] [--exclude RE] <binary> [args...]
       Run binary under tracing without permanent installation.
 
-  funkoverage enumerate [--no-libs] <binary>
+  funkoverage enumerate [--no-libs] [--include RE] [--exclude RE] <binary>
       List all discoverable functions (debug utility).
+
+  Filter flags:
+    --include RE   Only trace functions whose demangled name matches regex
+    --exclude RE   Skip functions whose demangled name matches regex
+    Both can be combined: include is applied first, then exclude
 
   funkoverage report <inputdir|log1,log2> <outputdir> [--formats html,xml,txt]
       Generate coverage reports from log files.
