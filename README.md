@@ -10,7 +10,7 @@
 
 ## ✅ Supported Platforms
 
-- **GNU/Linux** (x86_64)
+- **GNU/Linux** (x86_64, ARM64)
 - Requires **eBPF** support (Linux kernel 6.6+ with `CONFIG_DEBUG_INFO_BTF=y`)
 
 ## 📦 Prerequisites

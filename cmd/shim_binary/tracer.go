@@ -21,6 +21,7 @@ import (
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -type event -cc clang -cflags "-I/usr/include" -target amd64 tracer ./bpf/tracer.bpf.c
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -type event -cc clang -cflags "-I/usr/include" -target arm64 tracer ./bpf/tracer.bpf.c
 
 // FuncRef identifies a single traced function by image path and (mangled) name.
 type FuncRef struct {

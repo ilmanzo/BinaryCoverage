@@ -6,7 +6,7 @@ Fresh-system installation verified on **openSUSE Tumbleweed 20260511** with kern
 
 | Requirement | Minimum | Verified |
 |---|---|---|
-| **OS** | GNU/Linux x86_64 | openSUSE Tumbleweed |
+| **OS** | GNU/Linux x86_64 or ARM64 | openSUSE Tumbleweed |
 | **Kernel** | 6.6+ | 7.0.5 |
 | **BTF** | `CONFIG_DEBUG_INFO_BTF=y` | `/sys/kernel/btf/vmlinux` (5.7MB) |
 | **Go** | 1.26+ | 1.26.3 |

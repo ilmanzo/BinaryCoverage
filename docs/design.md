@@ -84,7 +84,7 @@ Steps:
          │   ├── set FUNKOVERAGE_CHILD=1, FUNKOVERAGE_WAIT_FD=3
          │   └── child blocks reading the pipe
          │
-         ├── load embedded BPF program (tracer_x86_bpfel.o)
+         ├── load embedded BPF program (arch-specific, build-tag selected)
          ├── for each image: link.UprobeMulti(symbols, cookies)
          │   (one syscall per image, all symbols at once)
          ├── attach sched_process_fork tracepoint
@@ -273,7 +273,7 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
 │   └── shim_binary/
 │       ├── main.go           # shim main + child fork dance
 │       ├── tracer.go         # cilium/ebpf wiring, ringbuf reader
-│       ├── tracer_x86_bpfel.{go,o}  # bpf2go-generated bindings
+│       ├── tracer_{x86,arm64}_bpfel.{go,o}  # bpf2go-generated bindings
 │       └── bpf/
 │           └── tracer.bpf.c  # GPL-2.0 eBPF program
 ├── internal/funkutil/        # shared helpers (env, sidecar I/O, version strip)

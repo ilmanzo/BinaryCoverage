@@ -7,8 +7,9 @@ if ! command -v go &>/dev/null; then
 fi
 
 # `go generate` (BPF compilation) is only needed when cmd/shim_binary/bpf/
-# changes. The repo ships pre-generated bindings (tracer_x86_bpfel.{go,o}),
-# so a normal build does NOT require clang/llvm/libbpf-devel/bpftool.
+# changes. The repo ships pre-generated bindings for x86_64 and ARM64
+# (tracer_{x86,arm64}_bpfel.{go,o}), so a normal build does NOT require
+# clang/llvm/libbpf-devel/bpftool.
 if [[ "${REGEN_BPF:-0}" == "1" ]]; then
     for tool in clang llvm-strip bpftool; do
         if ! command -v "$tool" &>/dev/null; then
