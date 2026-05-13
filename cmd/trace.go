@@ -65,7 +65,7 @@ func traceInline(binaryPath string, args []string, noLibs bool, filter *FuncFilt
 	}
 
 	tempFuncs := false
-	if funcs != nil && len(funcs) > 0 {
+	if len(funcs) > 0 {
 		if err := funkutil.WriteFuncList(safePath, funcs); err == nil {
 			tempFuncs = true
 		}
