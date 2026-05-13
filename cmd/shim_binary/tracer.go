@@ -64,7 +64,8 @@ func NewTracer(funcs map[string][]string, logPath string) (*Tracer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("tracer: load BPF spec: %w", err)
 	}
-	// Resize the dedup array to one byte per global func index.
+	// Resize the dedup map to one entry per global func index; each entry stores
+	// the 64-bit seen flag for that function.
 	spec.Maps["seen"].MaxEntries = uint32(len(refs))
 
 	var objs tracerObjects
