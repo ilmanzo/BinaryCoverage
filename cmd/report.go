@@ -97,6 +97,7 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not open log file %s: %w", logFile, err)
 		}
+		defer f.Close()
 		scanner := bufio.NewScanner(f)
 		scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 		for scanner.Scan() {
@@ -126,10 +127,8 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			f.Close()
 			return nil, fmt.Errorf("error reading log file %s: %w", logFile, err)
 		}
-		f.Close()
 	}
 	return coverage, nil
 }
