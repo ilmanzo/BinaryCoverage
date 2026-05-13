@@ -37,18 +37,35 @@ This compiles the BPF tracer and the `funkoverage` CLI tool.
 - **`uninstall`**: Restore the original binary.
 - **`report`**: Generate HTML, Text, or XML reports from captured logs.
 
+All enumeration commands (`enumerate`, `install`, `trace`) support function filtering:
+- `--include RE` — only trace functions whose demangled name matches the regex
+- `--exclude RE` — skip functions whose demangled name matches the regex
+
 #### Tracing a command
 
 ```bash
 ./funkoverage trace /usr/bin/curl -- --version
+
+# Trace only SSL-related functions
+./funkoverage trace --include "^SSL_" /usr/bin/curl -- https://example.com
 ```
 
 #### Installing the shim
 
 ```bash
 sudo ./funkoverage install /usr/bin/grep
-grep "pattern" file.txt  # Automatically captures coverage to /tmp/
-./funkoverage report /tmp/ ./coverage_report/
+grep "pattern" file.txt  # Automatically captures coverage
+./funkoverage report /var/coverage/data ./coverage_report/
+```
+
+#### Enumerating functions
+
+```bash
+# List all functions
+./funkoverage enumerate /usr/bin/openssl
+
+# Only math-related, excluding internal helpers
+./funkoverage enumerate --include "^math_" --exclude "is_" tests/sample/sample
 ```
 
 ## 🧪 Running Unit Tests
@@ -63,3 +80,8 @@ grep "pattern" file.txt  # Automatically captures coverage to /tmp/
 - **DWARF & Symbol Tables**: Automatically discovers functions via ELF symbols and DWARF debug info.
 - **DWZ Support**: Handles compressed debug information (common in openSUSE/Fedora).
 - **Multi-Library Tracing**: Can simultaneously trace the main binary and all linked shared libraries.
+- **Function Filtering**: `--include`/`--exclude` regex filters to focus on specific namespaces.
+
+## License
+
+Dual licensed: **MIT** (Go userspace code) and **GPL-2.0-only** (eBPF kernel code in `cmd/shim_binary/bpf/`). The eBPF programs must be GPL to use GPL-only BPF kernel helpers.

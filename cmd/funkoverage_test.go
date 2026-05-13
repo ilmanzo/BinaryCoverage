@@ -2,6 +2,7 @@ package main
 
 import (
 	"debug/elf"
+	"encoding/xml"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -531,5 +532,334 @@ func TestSummarizeCoverage_MultipleImages(t *testing.T) {
 	}
 	if len(summary.Rows) != 2 || !(summary.Rows[0].ImageName < summary.Rows[1].ImageName) {
 		t.Error("rows should be sorted alphabetically")
+	}
+}
+
+// --- FuncFilter tests ---
+
+func TestNewFuncFilter(t *testing.T) {
+	f, err := NewFuncFilter("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Include != nil || f.Exclude != nil {
+		t.Error("empty strings should produce nil regexps")
+	}
+
+	f, err = NewFuncFilter("^str_", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Include == nil {
+		t.Error("expected non-nil Include")
+	}
+
+	f, err = NewFuncFilter("", "^util_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Exclude == nil {
+		t.Error("expected non-nil Exclude")
+	}
+
+	_, err = NewFuncFilter("[invalid", "")
+	if err == nil {
+		t.Error("expected error for invalid include regex")
+	}
+	_, err = NewFuncFilter("", "[invalid")
+	if err == nil {
+		t.Error("expected error for invalid exclude regex")
+	}
+}
+
+func TestFuncFilterMatch(t *testing.T) {
+	var nilFilter *FuncFilter
+	if !nilFilter.Match("anything") {
+		t.Error("nil filter should match everything")
+	}
+
+	include, _ := NewFuncFilter("^str_", "")
+	if !include.Match("str_length") {
+		t.Error("should match str_length")
+	}
+	if include.Match("math_add") {
+		t.Error("should not match math_add")
+	}
+
+	exclude, _ := NewFuncFilter("", "^util_")
+	if !exclude.Match("str_length") {
+		t.Error("should match str_length")
+	}
+	if exclude.Match("util_clamp") {
+		t.Error("should not match util_clamp")
+	}
+
+	both, _ := NewFuncFilter("^math_", "is_")
+	if !both.Match("math_add") {
+		t.Error("should match math_add")
+	}
+	if both.Match("math_is_prime") {
+		t.Error("should not match math_is_prime (excluded)")
+	}
+	if both.Match("str_length") {
+		t.Error("should not match str_length (not included)")
+	}
+
+	empty, _ := NewFuncFilter("", "")
+	if !empty.Match("anything") {
+		t.Error("empty filter should match everything")
+	}
+}
+
+// --- imageIsRelevant tests ---
+
+func TestImageIsRelevant(t *testing.T) {
+	if imageIsRelevant("[vdso]") {
+		t.Error("[vdso] should not be relevant")
+	}
+	if imageIsRelevant("linux-vdso.so.1") {
+		t.Error("linux-vdso.so.1 should not be relevant")
+	}
+	if imageIsRelevant("") {
+		t.Error("empty should not be relevant")
+	}
+	if !imageIsRelevant("libssl.so.3") {
+		t.Error("libssl.so.3 should be relevant")
+	}
+	if !imageIsRelevant("libcrypto.so.3") {
+		t.Error("libcrypto.so.3 should be relevant")
+	}
+}
+
+// --- utsString tests ---
+
+func TestUtsString(t *testing.T) {
+	input := []int8{'h', 'e', 'l', 'l', 'o', 0, 'x', 'y'}
+	if got := utsString(input); got != "hello" {
+		t.Errorf("utsString = %q, want %q", got, "hello")
+	}
+	if got := utsString([]int8{0}); got != "" {
+		t.Errorf("utsString([0]) = %q, want empty", got)
+	}
+	if got := utsString([]int8{'a', 'b'}); got != "ab" {
+		t.Errorf("utsString without null = %q, want %q", got, "ab")
+	}
+}
+
+// --- collectLogFiles tests ---
+
+func TestCollectLogFiles_Dir(t *testing.T) {
+	tmp := t.TempDir()
+	os.WriteFile(filepath.Join(tmp, "a_functions.log"), []byte("x"), 0644)
+	os.WriteFile(filepath.Join(tmp, "b_called.log"), []byte("x"), 0644)
+	os.WriteFile(filepath.Join(tmp, "c.txt"), []byte("x"), 0644)
+
+	files := collectLogFiles(tmp)
+	if len(files) != 2 {
+		t.Fatalf("expected 2 log files, got %d: %v", len(files), files)
+	}
+	for _, f := range files {
+		if !strings.HasSuffix(f, ".log") {
+			t.Errorf("non-log file included: %s", f)
+		}
+	}
+}
+
+func TestCollectLogFiles_CommaSep(t *testing.T) {
+	files := collectLogFiles("a.log,b.log,c.log")
+	if len(files) != 3 {
+		t.Fatalf("expected 3, got %d", len(files))
+	}
+	if files[0] != "a.log" || files[2] != "c.log" {
+		t.Errorf("unexpected files: %v", files)
+	}
+}
+
+// --- generateXUnitReport tests ---
+
+func TestGenerateXUnitReport(t *testing.T) {
+	tmp := t.TempDir()
+	data := &CoverageData{
+		TotalFunctions:  map[string]struct{}{"foo": {}, "bar": {}, "baz": {}},
+		CalledFunctions: map[string]struct{}{"foo": {}},
+	}
+	if err := generateXUnitReport("/bin/test", data, tmp); err != nil {
+		t.Fatalf("generateXUnitReport: %v", err)
+	}
+	xmlFile := filepath.Join(tmp, "coverage_test.xml")
+	content, err := os.ReadFile(xmlFile)
+	if err != nil {
+		t.Fatalf("read xml: %v", err)
+	}
+
+	var ts TestSuites
+	if err := xml.Unmarshal(content, &ts); err != nil {
+		t.Fatalf("unmarshal xml: %v", err)
+	}
+	if len(ts.TestSuite) != 1 {
+		t.Fatalf("expected 1 suite, got %d", len(ts.TestSuite))
+	}
+	suite := ts.TestSuite[0]
+	if suite.Tests != 3 {
+		t.Errorf("expected 3 tests, got %d", suite.Tests)
+	}
+	if suite.Skipped != 2 {
+		t.Errorf("expected 2 skipped (uncalled), got %d", suite.Skipped)
+	}
+}
+
+// --- generateAggregateHTMLReport tests ---
+
+func TestGenerateAggregateHTMLReport(t *testing.T) {
+	tmp := t.TempDir()
+	coverage := map[string]*CoverageData{
+		"/bin/foo": {
+			TotalFunctions:  map[string]struct{}{"a": {}, "b": {}},
+			CalledFunctions: map[string]struct{}{"a": {}},
+		},
+		"/bin/bar": {
+			TotalFunctions:  map[string]struct{}{"x": {}},
+			CalledFunctions: map[string]struct{}{"x": {}},
+		},
+	}
+	if err := generateAggregateHTMLReport(coverage, tmp); err != nil {
+		t.Fatalf("generateAggregateHTMLReport: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(tmp, "aggregate.html"))
+	if err != nil {
+		t.Fatalf("read aggregate html: %v", err)
+	}
+	html := string(content)
+	if !strings.Contains(html, "foo") || !strings.Contains(html, "bar") {
+		t.Error("aggregate HTML should contain both image names")
+	}
+}
+
+// --- printTxtReport test ---
+
+func TestPrintTxtReport(t *testing.T) {
+	coverage := map[string]*CoverageData{
+		"/bin/test": {
+			TotalFunctions:  map[string]struct{}{"a": {}, "b": {}},
+			CalledFunctions: map[string]struct{}{"a": {}},
+		},
+	}
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	printTxtReport(coverage)
+	w.Close()
+	os.Stdout = old
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+	if !strings.Contains(output, "Coverage:") {
+		t.Error("txt report should contain 'Coverage:'")
+	}
+	if !strings.Contains(output, "50.00%") {
+		t.Errorf("expected 50%% coverage in output: %s", output)
+	}
+}
+
+// --- moveCrossDevice tests ---
+
+func TestMoveCrossDevice(t *testing.T) {
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "src.txt")
+	dst := filepath.Join(tmp, "dst.txt")
+	content := []byte("hello world")
+	if err := os.WriteFile(src, content, 0750); err != nil {
+		t.Fatal(err)
+	}
+	if err := moveCrossDevice(src, dst); err != nil {
+		t.Fatalf("moveCrossDevice: %v", err)
+	}
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read dst: %v", err)
+	}
+	if string(got) != string(content) {
+		t.Errorf("content mismatch: %q vs %q", got, content)
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Error("source should be removed after move")
+	}
+	fi, _ := os.Stat(dst)
+	if fi.Mode().Perm() != 0750 {
+		t.Errorf("expected perm 0750, got %o", fi.Mode().Perm())
+	}
+}
+
+// --- EnumerateFunctions with filter tests ---
+
+func TestEnumerateFunctionsWithFilter(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "main.c")
+	code := `
+int str_length() { return 42; }
+int str_upper() { return 1; }
+int math_add() { return 2; }
+int main() { return str_length() + str_upper() + math_add(); }
+`
+	os.WriteFile(src, []byte(code), 0644)
+	bin := filepath.Join(tmp, "test_filter")
+	if out, err := exec.Command("gcc", "-g", "-O0", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+
+	filter, _ := NewFuncFilter("^str_", "")
+	funcs, err := EnumerateFunctions(bin, true, filter)
+	if err != nil {
+		t.Fatalf("EnumerateFunctions: %v", err)
+	}
+	var names []string
+	for _, fns := range funcs {
+		names = append(names, fns...)
+	}
+	for _, n := range names {
+		if !strings.HasPrefix(n, "str_") {
+			t.Errorf("filter leaked non-str_ function: %s", n)
+		}
+	}
+	if len(names) != 2 {
+		t.Errorf("expected 2 str_ functions, got %d: %v", len(names), names)
+	}
+}
+
+// --- emitReport dispatch tests ---
+
+func TestEmitReport(t *testing.T) {
+	tmp := t.TempDir()
+	coverage := map[string]*CoverageData{
+		"/bin/test": {
+			TotalFunctions:  map[string]struct{}{"a": {}},
+			CalledFunctions: map[string]struct{}{"a": {}},
+		},
+	}
+
+	emitReport("html", coverage, tmp)
+	if _, err := os.Stat(filepath.Join(tmp, "test.html")); err != nil {
+		t.Error("emitReport('html') should create test.html")
+	}
+
+	emitReport("xml", coverage, tmp)
+	if _, err := os.Stat(filepath.Join(tmp, "coverage_test.xml")); err != nil {
+		t.Error("emitReport('xml') should create XML file")
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	emitReport("txt", coverage, tmp)
+	w.Close()
+	os.Stdout = old
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	if !strings.Contains(string(buf[:n]), "Coverage:") {
+		t.Error("emitReport('txt') should print coverage")
 	}
 }
