@@ -14,7 +14,7 @@
 
 # Please submit bugfixes or comments via https://bugs.opensuse.org/
 
-%define bversion 0.7.0
+%define bversion 0.8.0
 %define dname BinaryCoverage-%{bversion}
 Name:           coverage-tools
 Version:        0.7.0
