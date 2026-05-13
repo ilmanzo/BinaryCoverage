@@ -125,6 +125,10 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 				coverage[image].CalledFunctions[function] = struct{}{}
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			f.Close()
+			return nil, fmt.Errorf("error reading log file %s: %w", logFile, err)
+		}
 		f.Close()
 	}
 	return coverage, nil
