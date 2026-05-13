@@ -1,3 +1,13 @@
+This project uses dual licensing:
+
+- Go userspace code: MIT License
+- eBPF kernel code (cmd/shim_binary/bpf/): GPL-2.0-only
+
+The eBPF programs must be GPL-licensed to use GPL-only BPF helpers
+(bpf_get_attach_cookie, bpf_ringbuf_reserve, etc.) provided by the kernel.
+
+===========================================================================
+
 MIT License
 
 Copyright (c) 2025 ilmanzo
@@ -19,3 +29,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+===========================================================================
+
+The eBPF programs in cmd/shim_binary/bpf/ are licensed under GPL-2.0-only:
+
+                    GNU GENERAL PUBLIC LICENSE
+                       Version 2, June 1991
+
+ Copyright (C) 1989, 1991 Free Software Foundation, Inc.,
+ 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+See https://www.gnu.org/licenses/old-licenses/gpl-2.0.html for the
+full license text.

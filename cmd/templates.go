@@ -2,8 +2,6 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
-	"strings"
 )
 
 //go:embed templates/detailed.html
@@ -12,48 +10,44 @@ var detailedHTMLTemplateStr string
 //go:embed templates/aggregate.html
 var aggregateHTMLTemplate string
 
-const wrapHelpText = `Usage: funkoverage wrap /path/to/binary
-Wrap the given ELF binary with the Pin coverage wrapper.`
+const helpText = `funkoverage - binary function coverage via eBPF
 
-const unwrapHelpText = `Usage: funkoverage unwrap /path/to/binary
-Restore the original binary previously wrapped.`
+Usage:
+  funkoverage setup
+      Validate eBPF environment (kernel ≥6.6, BTF). Run once as root.
 
-const reportHelpText = `Usage: funkoverage report <inputdir|log1.txt,log2.txt> <outputdir> [--formats <formats>]
+  funkoverage install [--no-libs] [--include RE] [--exclude RE] <binary...>
+      Install shim for ELF binary (requires debug symbols).
 
-Generate coverage reports from log files.
-  <inputdir>         Directory containing .log files (all will be used)
-  log1.txt,log2.txt  Comma-separated list of log files
-  <outputdir>        Output directory for reports (mandatory)
-  --formats          Comma-separated list: html,xml,txt (default: html,txt,xml)
-`
+  funkoverage uninstall <binary...>
+      Restore original binary.
 
-var helpText string
+  funkoverage trace [--no-libs] [--include RE] [--exclude RE] <binary> [args...]
+      Run binary under tracing without permanent installation.
 
-func init() {
-	// We use fmt.Sprintf to build the main help text from the subcommand help texts
-	// to avoid duplication. The subcommand help texts are modified slightly for
-	// proper formatting in the main help view.
-	helpText = fmt.Sprintf(`Usage:
-  %s
-  %s
-  %s
-  help
-      Show this help message.
-  version
-      Show program version.
+  funkoverage enumerate [--no-libs] [--include RE] [--exclude RE] <binary>
+      List all discoverable functions (debug utility).
+
+  Filter flags:
+    --include RE   Only trace functions whose demangled name matches regex
+    --exclude RE   Skip functions whose demangled name matches regex
+    Both can be combined: include is applied first, then exclude
+
+  funkoverage report <inputdir|log1,log2> <outputdir> [--formats html,xml,txt]
+      Generate coverage reports from log files.
+
+  funkoverage version
+  funkoverage help
 
 Environment variables:
-  PIN_ROOT            Path to Intel Pin root directory (default: autodetect or required)
-  PIN_TOOL_SEARCH_DIR Directory to search for FuncTracer.so (default: /usr/lib64/coverage-tools)
-  LOG_DIR             Directory for coverage logs (default: /var/coverage/data)
-  SAFE_BIN_DIR        Directory to store original binaries (default: /var/coverage/bin)
-`,
-		indent(strings.TrimPrefix(wrapHelpText, "Usage: funkoverage "), "  "),
-		indent(strings.TrimPrefix(unwrapHelpText, "Usage: funkoverage "), "  "),
-		indent(strings.TrimPrefix(reportHelpText, "Usage: funkoverage "), "  "))
-}
+  FUNKOVERAGE_SHIM   Path to funkoverage-shim binary (default: same dir as funkoverage)
+  LOG_DIR            Coverage log directory (default: /var/coverage/data)
+  SAFE_BIN_DIR       Original binary store (default: /var/coverage/bin)
 
-// indent adds indentation to each line of a string.
-func indent(text, indentation string) string {
-	return indentation + strings.ReplaceAll(strings.TrimSpace(text), "\n", "\n"+indentation)
-}
+Quick start:
+  sudo funkoverage setup          # validate eBPF environment (once)
+  sudo funkoverage install /usr/bin/myapp
+  myapp --run-tests               # traced automatically by the shim
+  funkoverage report /var/coverage/data /tmp/report
+  sudo funkoverage uninstall /usr/bin/myapp
+`

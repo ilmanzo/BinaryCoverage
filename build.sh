@@ -1,39 +1,38 @@
 #!/bin/bash
 set -euo pipefail
-set -x 
-PIN_ARCHIVE="pin-external-4.2-99776-g21d818fa2-gcc-linux.tar.gz"
-PIN_URL="https://software.intel.com/sites/landingpage/pintool/downloads/$PIN_ARCHIVE"
 
-pushd .. > /dev/null
-
-if [[ ! -f "$PIN_ARCHIVE" ]]; then
-    echo "Downloading Intel Pin..."
-    wget $PIN_URL
-    tar xzf $PIN_ARCHIVE
-fi
-
-PIN_DIR=$(basename $PIN_ARCHIVE .tar.gz)
-
-if [[ ! -d "$PIN_DIR" ]]; then
-    echo "Error: Failed to download or extract Intel Pin archive." >&2
+if ! command -v go &>/dev/null; then
+    echo "Error: 'go' not found. Install Go ≥1.26 first." >&2
     exit 1
 fi
 
-export PIN_ROOT=$(realpath `ls -d $PIN_DIR`)
-popd > /dev/null
-make
-echo "export PIN_ROOT=\"$PIN_ROOT\"" > env
-strip obj-intel64/FuncTracer.so
-
-# Build Go program in cmd folder
-if command -v go &>/dev/null; then
-    echo "Building Go CLI in ./cmd..."
-    pushd cmd > /dev/null
-    go build -ldflags="-s -w" -o ../funkoverage .
-    popd > /dev/null
-    echo "Go CLI built as ./funkoverage"
-else
-    echo "Warning: Go not found, skipping Go CLI build."
+# `go generate` (BPF compilation) is only needed when cmd/shim_binary/bpf/
+# changes. The repo ships pre-generated bindings for x86_64 and ARM64
+# (tracer_{x86,arm64}_bpfel.{go,o}), so a normal build does NOT require
+# clang/llvm/libbpf-devel/bpftool.
+if [[ "${REGEN_BPF:-0}" == "1" ]]; then
+    for tool in clang llvm-strip bpftool; do
+        if ! command -v "$tool" &>/dev/null; then
+            echo "Error: REGEN_BPF=1 needs '$tool' (install clang, llvm21, bpftool)." >&2
+            exit 1
+        fi
+    done
+    echo "Regenerating BPF bindings..."
+    bpftool btf dump file /sys/kernel/btf/vmlinux format c 2>/dev/null \
+        > cmd/shim_binary/bpf/vmlinux.h
+    go generate ./cmd/shim_binary/
 fi
 
+echo "Building funkoverage CLI..."
+go build -buildvcs=false -ldflags="-s -w" -o funkoverage ./cmd/
 
+echo "Building funkoverage-shim..."
+go build -buildvcs=false -ldflags="-s -w" -o funkoverage-shim ./cmd/shim_binary/
+
+echo ""
+echo "Build complete:"
+echo "  funkoverage        - main CLI"
+echo "  funkoverage-shim   - eBPF shim (place alongside funkoverage or in /usr/lib64/coverage-tools)"
+echo ""
+echo "Install requires root (writes to /usr/bin and runs setcap)."
+echo "Runtime requires kernel ≥6.6 with CONFIG_DEBUG_INFO_BTF=y."

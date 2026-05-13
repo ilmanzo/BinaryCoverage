@@ -1,0 +1,309 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+
+	"funkoverage/internal/funkutil"
+)
+
+const defaultShimSearchDir = "/usr/lib64/coverage-tools"
+
+// install moves the real binary to SAFE_BIN_DIR/<basename>, writes a
+// _functions.log, and puts the shim binary at the original path.
+// No JSON config — the shim finds the real binary by path convention.
+func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
+	logDir := funkutil.LogDir()
+	safeBinDir := funkutil.SafeBinDir()
+
+	shimBinary, err := findShimBinary()
+	if err != nil {
+		return err
+	}
+
+	fileInfo, err := os.Lstat(targetBinary)
+	if err != nil {
+		return fmt.Errorf("lstat %s: %w", targetBinary, err)
+	}
+	isSymlink := (fileInfo.Mode() & os.ModeSymlink) != 0
+	originalName := filepath.Base(targetBinary)
+
+	realTarget, err := filepath.EvalSymlinks(targetBinary)
+	if err != nil {
+		return fmt.Errorf("resolve symlink: %w", err)
+	}
+
+	binaryName := filepath.Base(realTarget)
+	safePath := filepath.Join(safeBinDir, binaryName)
+
+	if _, err := os.Stat(safePath); err == nil {
+		return fmt.Errorf("'%s' already has a shim installed (found %s). Use uninstall first", targetBinary, safePath)
+	}
+
+	if !isELF(realTarget) {
+		return fmt.Errorf("'%s' is not an ELF executable", targetBinary)
+	}
+	found, err := hasDebugInfo(realTarget)
+	if err != nil {
+		return fmt.Errorf("debug info check: %w", err)
+	}
+	if !found {
+		return fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
+	}
+
+	origInfo, err := os.Stat(realTarget)
+	if err != nil {
+		return fmt.Errorf("stat original binary: %w", err)
+	}
+	origMode := origInfo.Mode().Perm()
+
+	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
+		return err
+	}
+	if err := move(realTarget, safePath); err != nil {
+		return err
+	}
+	if err := mergeDebugIfExternal(safePath); err != nil {
+		return fmt.Errorf("merge debug symbols: %w", err)
+	}
+
+	if isSymlink && originalName != binaryName {
+		symlinkPath := filepath.Join(safeBinDir, originalName)
+		if err := os.Symlink(binaryName, symlinkPath); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: multicall symlink %s -> %s: %v\n", symlinkPath, binaryName, err)
+		}
+	}
+
+	// Enumerate functions after merging debug info so all symbols are available
+	funcs, err := EnumerateFunctions(safePath, noLibs, filter)
+	if err != nil {
+		_ = move(safePath, realTarget)
+		return fmt.Errorf("function enumeration: %w", err)
+	}
+	if len(funcs) == 0 {
+		_ = move(safePath, realTarget)
+		return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
+	}
+	if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
+	}
+
+	if !noLibs {
+		if libs, err := ParseLddLibraries(safePath); err == nil && len(libs) > 0 {
+			_ = funkutil.WriteLibsSidecar(safePath, libs)
+		}
+	}
+
+	if err := funkutil.WriteFuncList(safePath, funcs); err != nil {
+		return fmt.Errorf("write func list sidecar: %w", err)
+	}
+
+	if err := copyFile(shimBinary, realTarget, origMode); err != nil {
+		return fmt.Errorf("install shim binary: %w", err)
+	}
+
+	if err := setShimCaps(realTarget); err != nil {
+		// Soft-fail: caps only matter for non-root invocation of the shim.
+		// Root install + root invocation works without them.
+		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
+
+	fmt.Printf("Installed shim for %s (original at %s)\n", targetBinary, safePath)
+	return nil
+}
+
+// setShimCaps grants the eBPF tracing capabilities the shim needs at runtime.
+// File capabilities are an xattr and are NOT preserved by io.Copy, so they
+// must be (re)applied to each installed shim copy after the copy completes.
+func setShimCaps(shimPath string) error {
+	caps := "cap_bpf,cap_perfmon,cap_dac_read_search+ep"
+	out, err := exec.Command("setcap", caps, shimPath).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("setcap %s %s: %w\n%s", caps, shimPath, err, out)
+	}
+	return nil
+}
+
+func uninstall(targetBinary string) error {
+	safeBinDir := funkutil.SafeBinDir()
+
+	realTarget, err := filepath.EvalSymlinks(targetBinary)
+	if err != nil {
+		return fmt.Errorf("resolve symlink: %w", err)
+	}
+
+	binaryName := filepath.Base(realTarget)
+	safePath := filepath.Join(safeBinDir, binaryName)
+
+	fi, err := os.Lstat(safePath)
+	if err != nil {
+		return fmt.Errorf("original binary not found at %s: %w", safePath, err)
+	}
+
+	sourcePath := safePath
+	if (fi.Mode() & os.ModeSymlink) != 0 {
+		resolved, err := filepath.EvalSymlinks(safePath)
+		if err != nil {
+			return fmt.Errorf("resolve backup symlink: %w", err)
+		}
+		if err := os.Remove(safePath); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: remove backup symlink: %v\n", err)
+		}
+		sourcePath = resolved
+	}
+
+	if err := move(sourcePath, realTarget); err != nil {
+		return fmt.Errorf("restore binary: %w", err)
+	}
+	_ = funkutil.WriteLibsSidecar(safePath, nil)
+	_ = funkutil.WriteFuncList(safePath, nil)
+
+	originalName := filepath.Base(targetBinary)
+	if originalName != binaryName {
+		mcLink := filepath.Join(safeBinDir, originalName)
+		if _, err := os.Lstat(mcLink); err == nil {
+			_ = os.Remove(mcLink)
+		}
+	}
+
+	fmt.Printf("Uninstalled shim for %s (restored original)\n", targetBinary)
+	return nil
+}
+
+func installMany(binaries []string, noLibs bool, filter *FuncFilter) error {
+	var failed []string
+	for _, bin := range binaries {
+		if err := install(bin, noLibs, filter); err != nil {
+			fmt.Fprintf(os.Stderr, "install error for %s: %v\n", bin, err)
+			failed = append(failed, bin)
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("failed to install: %v", failed)
+	}
+	return nil
+}
+
+func uninstallMany(binaries []string) error {
+	var failed []string
+	for _, bin := range binaries {
+		if err := uninstall(bin); err != nil {
+			fmt.Fprintf(os.Stderr, "uninstall error for %s: %v\n", bin, err)
+			failed = append(failed, bin)
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("failed to uninstall: %v", failed)
+	}
+	return nil
+}
+
+// setupEnv validates the host environment for the eBPF tracer:
+//   - kernel ≥6.6 (uprobe_multi support);
+//   - kernel BTF available at /sys/kernel/btf/vmlinux;
+//   - LOG_DIR and SAFE_BIN_DIR exist and are writable.
+//
+// It does not perform any installation — capabilities are applied per-shim
+// at install time (see setShimCaps).
+func setupEnv() error {
+	if err := checkKernelVersion(6, 6); err != nil {
+		return err
+	}
+	if _, err := os.Stat("/sys/kernel/btf/vmlinux"); err != nil {
+		return fmt.Errorf("BTF unavailable at /sys/kernel/btf/vmlinux: %w "+
+			"(kernel must be built with CONFIG_DEBUG_INFO_BTF=y)", err)
+	}
+	for _, dir := range []string{funkutil.LogDir(), funkutil.SafeBinDir()} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("create %s: %w", dir, err)
+		}
+	}
+	fmt.Println("Environment OK: kernel + BTF + log/bin directories ready.")
+	fmt.Println("Run 'funkoverage install <binary>' as root to install a shim.")
+	return nil
+}
+
+// checkKernelVersion parses `uname -r` and ensures the running kernel is
+// at least major.minor. Patch and suffix are ignored.
+func checkKernelVersion(wantMajor, wantMinor int) error {
+	var uts syscall.Utsname
+	if err := syscall.Uname(&uts); err != nil {
+		return fmt.Errorf("uname: %w", err)
+	}
+	release := utsString(uts.Release[:])
+	parts := strings.SplitN(release, ".", 3)
+	if len(parts) < 2 {
+		return fmt.Errorf("cannot parse kernel release %q", release)
+	}
+	maj, err1 := strconv.Atoi(parts[0])
+	min, err2 := strconv.Atoi(strings.SplitN(parts[1], "-", 2)[0])
+	if err1 != nil || err2 != nil {
+		return fmt.Errorf("cannot parse kernel release %q", release)
+	}
+	if maj < wantMajor || (maj == wantMajor && min < wantMinor) {
+		return fmt.Errorf("kernel %d.%d+ required (have %d.%d) for uprobe_multi support",
+			wantMajor, wantMinor, maj, min)
+	}
+	return nil
+}
+
+func utsString(b []int8) string {
+	out := make([]byte, 0, len(b))
+	for _, c := range b {
+		if c == 0 {
+			break
+		}
+		out = append(out, byte(c))
+	}
+	return string(out)
+}
+
+func findShimBinary() (string, error) {
+	for _, p := range shimSearchPaths() {
+		if p == "" {
+			continue
+		}
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+	return "", errors.New("funkoverage-shim not found. Set FUNKOVERAGE_SHIM env var or place it alongside funkoverage")
+}
+
+func shimSearchPaths() []string {
+	paths := []string{os.Getenv("FUNKOVERAGE_SHIM")}
+	if exe, err := os.Executable(); err == nil {
+		if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = resolved
+		}
+		paths = append(paths, filepath.Join(filepath.Dir(exe), "funkoverage-shim"))
+	}
+	paths = append(paths, filepath.Join(defaultShimSearchDir, "funkoverage-shim"))
+	return paths
+}
+
+func copyFile(src, dst string, perm os.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(out, in)
+	out.Close()
+	if err != nil {
+		os.Remove(dst)
+		return err
+	}
+	return os.Chmod(dst, perm)
+}

@@ -1,125 +1,95 @@
-# BinaryCoverage
+# BinaryCoverage (funkoverage)
 
-**BinaryCoverage** is a code coverage tool built as a plugin for
-[Intel Pin][pin], a dynamic binary instrumentation (DBI) framework.
-It analyzes binary executables to measure and report code coverage.
+**BinaryCoverage** (binary: `funkoverage`) is a native function-level code coverage tool for GNU/Linux. It uses **eBPF uprobes** (`uprobe_multi`) to capture function entry events from any ELF binary — no source code, no recompilation, no debugger.
 
-[pin]: https://www.intel.com/content/www/us/en/developer/articles/tool/pin-a-dynamic-binary-instrumentation-tool.html
+**Documentation:**
+- [docs/install.md](docs/install.md) — Fresh-system installation guide
+- [docs/design.md](docs/design.md) — Architecture diagrams and internals
 
 [![Build check](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml) [![Run unit tests](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml)
 
-The project started as a fork of https://github.com/simotin13/CodeCoverage. Thanks to [simotin13](https://github.com/simotin13) for the idea and first implementation!
-
 ## ✅ Supported Platforms
 
-- **GNU/Linux** (x86_64 only)
-
+- **GNU/Linux** (x86_64, ARM64)
+- Requires **eBPF** support (Linux kernel 6.6+ with `CONFIG_DEBUG_INFO_BTF=y`)
 
 ## 📦 Prerequisites
 
-To build and run this tool, you'll need:
-
-- **x86_64 CPU** (other architectures are not supported)
-- `make`
-- **Go language compiler**
-- `g++` version **15** (or any c++ 2017 )
-- **Catch2 v2** library (optional, only for running the C++ test suite)
-  - A copy is provided in `tests/catch2/catch.hpp`
-- **elfutils** (provides `eu-unstrip`)
-  - Required by the `wrap` command when targeting **stripped** binaries that
-    ship their debug symbols in a separate `.debug` file (the typical layout
-    on distros: binary in `/usr/bin/`, symbols in
-    `/usr/lib/debug/.build-id/xx/yyyy.debug`).
-  - Intel Pin's `RTN_*` API resolves function names from the binary's own
-    symbol table and **does not follow `.gnu_debuglink`**. When `wrap` moves
-    a stripped binary into the safe directory, the relative debuglink lookup
-    breaks and PIN would only see two pseudo-routines (`.text` and `.fini`).
-  - `eu-unstrip` merges the external debug info back into the relocated
-    binary, so PIN can discover real function names.
-  - Install on openSUSE: `zypper in elfutils`
-
+- **Go 1.26+**
+- **Clang/LLVM** (only for BPF regeneration with `REGEN_BPF=1`)
+- **bpftool** (only for BPF regeneration with `REGEN_BPF=1`)
+- **libbpf-devel** (only for BPF regeneration with `REGEN_BPF=1`)
+- **elfutils** (provides `eu-unstrip` for debug info merging)
 
 ## 🛠️ Build & Run
 
 ### 🔧 Build
 
-Clone the repository:
-
-```bash
-git clone git@github.com:ilmanzo/BinaryCoverage.git
-cd BinaryCoverage/
-```
-
-Download and build the project:
-
 ```bash
 ./build.sh
 ```
 
-`build.sh` will:
-- Download and extract Intel Pin locally
-- Build the coverage tool
-- Compile and instrument the example C program in the `example/` directory
+This compiles the BPF tracer and the `funkoverage` CLI tool.
 
-### ▶️ Run
+### ▶️ Usage
 
-Before building, export the PIN_ROOT environment variable:
+`funkoverage` supports several subcommands:
 
-```bash
-export PIN_ROOT=../pin-external-4.0-99633-g5ca9893f2-gcc-linux
-```
+- **`enumerate`**: List all discoverable functions in a binary and its shared libraries.
+- **`trace`**: Run a binary and capture coverage on-the-fly.
+- **`install`**: Replace a binary with a transparent shim that captures coverage every time it runs.
+- **`uninstall`**: Restore the original binary.
+- **`report`**: Generate HTML, Text, or XML reports from captured logs.
 
-`PIN_ROOT` should point to the root directory where Intel Pin was extracted.
-This is a common convention when building Pin tools.
+All enumeration commands (`enumerate`, `install`, `trace`) support function filtering:
+- `--include RE` — only trace functions whose demangled name matches the regex
+- `--exclude RE` — skip functions whose demangled name matches the regex
 
-To run the tool:
-
-```bash
-$PIN_ROOT/pin -t ./obj-intel64/FuncTracer.so -- <target_binary_path> <args...>
-```
-
-Replace ``<target_binary_path>`` and ``<args...>`` with your target program and
-its arguments.
-
-### 📎 Note on Debug Info
-
-This tool relies on DWARF debugging information to determine line-level
-coverage. Please compile your target programs with:
+#### Tracing a command
 
 ```bash
-gcc -g -gdwarf-4 main.c
+./funkoverage trace /usr/bin/curl -- --version
+
+# Trace only SSL-related functions
+./funkoverage trace --include "^SSL_" /usr/bin/curl -- https://example.com
 ```
 
-Pin 3+ supports DWARF4. Debug info is essential for accurate line mapping.
+#### Installing the shim
+
+```bash
+sudo ./funkoverage install /usr/bin/grep
+grep "pattern" file.txt  # Automatically captures coverage
+./funkoverage report /var/coverage/data ./coverage_report/
+```
+
+#### Enumerating functions
+
+```bash
+# List all functions
+./funkoverage enumerate /usr/bin/openssl
+
+# Only math-related, excluding internal helpers
+./funkoverage enumerate --include "^math_" --exclude "is_" tests/sample/sample
+```
 
 ## 🧪 Running Unit Tests
-
-To run the unit tests:
-
-Ensure to have `gcc` installed (required for running Go unit tests)
 
 ```bash
 ./run_unit_tests.sh
 ```
 
-Uses Catch2 v2 (already included in the repo in `tests/catch2/catch.hpp`).
+## 📎 Technical Details
 
-## 🖼️ Modifying the HTML Output
+- **eBPF Uprobes**: Uses kernel uprobes to trigger events on function entry.
+- **DWARF & Symbol Tables**: Automatically discovers functions via ELF symbols and DWARF debug info.
+- **DWZ Support**: Handles compressed debug information (common in openSUSE/Fedora).
+- **Multi-Library Tracing**: Can simultaneously trace the main binary and all linked shared libraries.
+- **Function Filtering**: `--include`/`--exclude` regex filters to focus on specific namespaces.
 
-If you just want to modify the HTML report templates, you don't need to rebuild
-everything.
+## 🚧 TODO
 
-HTML templates are located in `cmd/templates/`. You can modify them and
-preview the results by displaying the HTML in a browser.
+- **`dlopen()` libraries**: Only `DT_NEEDED` libraries (resolved via `ldd` at install time) are instrumented. Libraries loaded at runtime via `dlopen()` are invisible to `ldd` and currently not traced. Possible fixes: uprobe on `dlopen()` to trigger reattach, or poll `/proc/<pid>/maps` from the parent shim.
 
-### 🔄 Rebuilding Just the Report Generator
+## License
 
-If you change the analyzer logic or Go code:
-
-```bash
-cd cmd
-go build
-./cmd report ../example/sample_data /tmp
-```
-
-This generates example HTML reports (with dummy data) under `/tmp`.
+Dual licensed: **MIT** (Go userspace code) and **GPL-2.0-only** (eBPF kernel code in `cmd/shim_binary/bpf/`). The eBPF programs must be GPL to use GPL-only BPF kernel helpers.
