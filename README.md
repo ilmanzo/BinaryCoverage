@@ -1,6 +1,8 @@
 # BinaryCoverage (funkoverage)
 
-**BinaryCoverage** (renamed to **funkoverage**) is a native code coverage tool for GNU/Linux. Originally built on Intel Pin, it now uses **eBPF (uprobes)** for high-performance, system-wide function-level coverage without the overhead of dynamic binary instrumentation.
+**BinaryCoverage** (binary: `funkoverage`) is a native function-level code coverage tool for GNU/Linux. It uses **eBPF uprobes** (`uprobe_multi`) to capture function entry events from any ELF binary — no source code, no recompilation, no debugger.
+
+See [docs/design.md](docs/design.md) for architecture diagrams and a deep dive on how it works.
 
 [![Build check](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml) [![Run unit tests](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml)
 
