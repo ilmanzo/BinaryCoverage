@@ -39,7 +39,7 @@ func StripVersion(name string) string {
 }
 
 // LibsSidecarPath returns the per-binary library list path
-// (<safePath>.libs.json) used to feed the shim's bpftrace script.
+// (<safePath>.libs.json) used by the shim's eBPF tracer.
 func LibsSidecarPath(safePath string) string {
 	return safePath + ".libs.json"
 }
@@ -60,7 +60,7 @@ func WriteLibsSidecar(safePath string, libs []string) error {
 }
 
 // ReadLibsSidecar reads LibsSidecarPath(safePath) and returns the list.
-// Missing or malformed sidecar files yield an empty slice (no error).
+// Missing or malformed sidecar files yield nil (no error).
 func ReadLibsSidecar(safePath string) []string {
 	data, err := os.ReadFile(LibsSidecarPath(safePath))
 	if err != nil {

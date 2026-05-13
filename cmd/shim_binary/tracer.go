@@ -19,7 +19,7 @@ import (
 	"github.com/ianlancetaylor/demangle"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -type event -cc clang -target amd64 tracer ./bpf/tracer.bpf.c
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -type event -cc clang -cflags "-I/usr/include" -target amd64 tracer ./bpf/tracer.bpf.c
 
 // FuncRef identifies a single traced function by image path and (mangled) name.
 type FuncRef struct {
@@ -40,7 +40,8 @@ type Tracer struct {
 	reader  *ringbuf.Reader
 	logFile *os.File
 
-	wg sync.WaitGroup
+	wg       sync.WaitGroup
+	stopOnce sync.Once
 }
 
 // NewTracer loads BPF objects sized for the given function set and opens the
@@ -194,22 +195,24 @@ func (t *Tracer) readLoop() {
 const drainDelay = 100 * time.Millisecond
 
 func (t *Tracer) Stop() error {
-	for _, l := range t.links {
-		_ = l.Close()
-	}
-	t.links = nil
+	t.stopOnce.Do(func() {
+		for _, l := range t.links {
+			_ = l.Close()
+		}
+		t.links = nil
 
-	if t.reader != nil {
-		go func() {
-			time.Sleep(drainDelay)
-			_ = t.reader.Close()
-		}()
-	}
-	t.wg.Wait()
+		if t.reader != nil {
+			go func() {
+				time.Sleep(drainDelay)
+				_ = t.reader.Close()
+			}()
+		}
+		t.wg.Wait()
 
-	if t.logFile != nil {
-		_ = t.logFile.Close()
-	}
-	t.objs.Close()
+		if t.logFile != nil {
+			_ = t.logFile.Close()
+		}
+		t.objs.Close()
+	})
 	return nil
 }

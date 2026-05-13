@@ -3,8 +3,7 @@ funkoverage-shim
 tests/sample/sample
 __pycache__/
 pin.log
-funkoverage-shim
 .claude/settings.local.json
 CLAUDE.md
-tests/sample/sample
 *.o
+!cmd/shim_binary/tracer_x86_bpfel.o

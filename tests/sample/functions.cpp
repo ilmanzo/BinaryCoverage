@@ -19,10 +19,10 @@ std::string str_reverse(const std::string& s) {
     std::string r = s; std::reverse(r.begin(), r.end()); return r;
 }
 std::string str_upper(const std::string& s) {
-    std::string r = s; for (auto& c : r) c = toupper(c); return r;
+    std::string r = s; for (auto& c : r) c = toupper((unsigned char)c); return r;
 }
 std::string str_lower(const std::string& s) {
-    std::string r = s; for (auto& c : r) c = tolower(c); return r;
+    std::string r = s; for (auto& c : r) c = tolower((unsigned char)c); return r;
 }
 std::string str_trim(const std::string& s) {
     auto b = s.find_first_not_of(" \t\n\r");

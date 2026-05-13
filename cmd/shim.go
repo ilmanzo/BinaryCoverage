@@ -58,6 +58,12 @@ func install(targetBinary string, noLibs bool) error {
 		return fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
 	}
 
+	origInfo, err := os.Stat(realTarget)
+	if err != nil {
+		return fmt.Errorf("stat original binary: %w", err)
+	}
+	origMode := origInfo.Mode().Perm()
+
 	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
 		return err
 	}
@@ -78,8 +84,14 @@ func install(targetBinary string, noLibs bool) error {
 	// Enumerate functions after merging debug info so all symbols are available
 	funcs, err := EnumerateFunctions(safePath, noLibs)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: function enumeration: %v\n", err)
-	} else if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
+		_ = move(safePath, realTarget)
+		return fmt.Errorf("function enumeration: %w", err)
+	}
+	if len(funcs) == 0 {
+		_ = move(safePath, realTarget)
+		return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
+	}
+	if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 
@@ -93,7 +105,7 @@ func install(targetBinary string, noLibs bool) error {
 		return fmt.Errorf("write func list sidecar: %w", err)
 	}
 
-	if err := copyFile(shimBinary, realTarget, 0755); err != nil {
+	if err := copyFile(shimBinary, realTarget, origMode); err != nil {
 		return fmt.Errorf("install shim binary: %w", err)
 	}
 
@@ -152,6 +164,14 @@ func uninstall(targetBinary string) error {
 	}
 	_ = funkutil.WriteLibsSidecar(safePath, nil)
 	_ = funkutil.WriteFuncList(safePath, nil)
+
+	originalName := filepath.Base(targetBinary)
+	if originalName != binaryName {
+		mcLink := filepath.Join(safeBinDir, originalName)
+		if _, err := os.Lstat(mcLink); err == nil {
+			_ = os.Remove(mcLink)
+		}
+	}
 
 	fmt.Printf("Uninstalled shim for %s (restored original)\n", targetBinary)
 	return nil

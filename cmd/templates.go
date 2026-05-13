@@ -10,12 +10,11 @@ var detailedHTMLTemplateStr string
 //go:embed templates/aggregate.html
 var aggregateHTMLTemplate string
 
-const helpText = `funkoverage - binary function coverage via bpftrace
+const helpText = `funkoverage - binary function coverage via eBPF
 
 Usage:
   funkoverage setup
-      Grant bpftrace the required capabilities (run once as root after install).
-      After this, the shim can be run by plain users without sudo.
+      Validate eBPF environment (kernel ≥6.6, BTF). Run once as root.
 
   funkoverage install [--no-libs] <binary...>
       Install shim for ELF binary (requires debug symbols).
@@ -36,13 +35,12 @@ Usage:
   funkoverage help
 
 Environment variables:
-  FUNKOVERAGE_SHIM            Path to funkoverage-shim binary (default: same dir as funkoverage)
-  LOG_DIR                     Coverage log directory (default: /var/coverage/data)
-  SAFE_BIN_DIR                Original binary store (default: /var/coverage/bin)
-  FUNKOVERAGE_ATTACH_TIMEOUT  bpftrace probe attach timeout (default: 60s)
+  FUNKOVERAGE_SHIM   Path to funkoverage-shim binary (default: same dir as funkoverage)
+  LOG_DIR            Coverage log directory (default: /var/coverage/data)
+  SAFE_BIN_DIR       Original binary store (default: /var/coverage/bin)
 
 Quick start:
-  sudo funkoverage setup          # grant bpftrace CAP_BPF (once)
+  sudo funkoverage setup          # validate eBPF environment (once)
   sudo funkoverage install /usr/bin/myapp
   myapp --run-tests               # traced automatically by the shim
   funkoverage report /var/coverage/data /tmp/report

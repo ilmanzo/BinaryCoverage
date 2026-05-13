@@ -21,13 +21,17 @@ Version:        0.7.0
 Release:        0
 Summary:        Function-level binary coverage via eBPF (uprobe_multi)
 License:        MIT
-URL:            https://github.com/ilmanzo/CodeCoverage
+URL:            https://github.com/ilmanzo/BinaryCoverage
 Source0:        %{dname}.tar.gz
 Source1:        vendor.tar.gz
 
-# Build-time
+# Build-time (pre-generated BPF bindings are shipped in the tarball)
 BuildRequires:  go >= 1.26
 ExclusiveArch:  x86_64
+# Only needed to regenerate BPF bindings (REGEN_BPF=1):
+#BuildRequires:  clang
+#BuildRequires:  bpftool
+#BuildRequires:  libbpf-devel
 
 # Runtime: setcap is invoked by `funkoverage install` to grant CAP_BPF /
 # CAP_PERFMON / CAP_DAC_READ_SEARCH to each shim copy. elfutils is used by

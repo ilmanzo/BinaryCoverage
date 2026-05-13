@@ -14,39 +14,43 @@ import (
 // Writes _functions.log, creates a temporary real-binary symlink in
 // SAFE_BIN_DIR so the shim's path-convention lookup works, invokes the
 // shim, then cleans up.
-func traceInline(binaryPath string, args []string, noLibs bool) error {
+func traceInline(binaryPath string, args []string, noLibs bool) (int, error) {
 	logDir := funkutil.LogDir()
 	safeBinDir := funkutil.SafeBinDir()
 
 	realBin, err := filepath.EvalSymlinks(binaryPath)
 	if err != nil {
-		return fmt.Errorf("resolve %s: %w", binaryPath, err)
+		return 1, fmt.Errorf("resolve %s: %w", binaryPath, err)
 	}
 	if !isELF(realBin) {
-		return fmt.Errorf("'%s' is not an ELF executable", binaryPath)
+		return 1, fmt.Errorf("'%s' is not an ELF executable", binaryPath)
 	}
 
 	shimBinary, err := findShimBinary()
 	if err != nil {
-		return err
+		return 1, err
 	}
 
 	funcs, err := EnumerateFunctions(realBin, noLibs)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "trace: function enumeration warning: %v\n", err)
-	} else if _, err := writeFunctionsLog(logDir, filepath.Base(realBin), funcs); err != nil {
+		return 1, fmt.Errorf("function enumeration: %w", err)
+	}
+	if len(funcs) == 0 {
+		return 1, fmt.Errorf("no functions found in %s (debug symbols missing?)", realBin)
+	}
+	if _, err := writeFunctionsLog(logDir, filepath.Base(realBin), funcs); err != nil {
 		fmt.Fprintf(os.Stderr, "trace: write functions log warning: %v\n", err)
 	}
 
 	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
-		return err
+		return 1, err
 	}
 	safePath := filepath.Join(safeBinDir, filepath.Base(realBin))
 
 	tempSafe := false
 	if _, err := os.Stat(safePath); err != nil {
 		if err := os.Symlink(realBin, safePath); err != nil {
-			return fmt.Errorf("create temp safe entry: %w", err)
+			return 1, fmt.Errorf("create temp safe entry: %w", err)
 		}
 		tempSafe = true
 	}
@@ -91,9 +95,9 @@ func traceInline(binaryPath string, args []string, noLibs bool) error {
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			os.Exit(exitErr.ExitCode())
+			return exitErr.ExitCode(), nil
 		}
-		return err
+		return 1, err
 	}
-	return nil
+	return 0, nil
 }

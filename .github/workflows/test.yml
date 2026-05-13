@@ -12,10 +12,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
 
       - name: Install required tools
-        run: sudo apt update && sudo apt install -y golang-go bpftrace g++ make python3 elfutils
+        run: sudo apt update && sudo apt install -y g++ make python3 elfutils
 
       - name: Run unit tests
         run: ./run_unit_tests.sh

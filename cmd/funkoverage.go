@@ -109,7 +109,14 @@ func cmdTrace(args []string) error {
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path")
 	}
-	return traceInline(fs.Arg(0), fs.Args()[1:], *noLibs)
+	code, err := traceInline(fs.Arg(0), fs.Args()[1:], *noLibs)
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		os.Exit(code)
+	}
+	return nil
 }
 
 func cmdEnumerate(args []string) error {

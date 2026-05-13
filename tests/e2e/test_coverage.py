@@ -1,7 +1,7 @@
 """
-End-to-end tests for funkoverage bpftrace-based coverage tool.
+End-to-end tests for funkoverage eBPF-based coverage tool.
 
-Run as root (or with bpftrace having CAP_BPF via 'funkoverage setup'):
+Run as root (or with the shim having CAP_BPF+CAP_PERFMON via 'funkoverage install'):
     sudo python3 tests/e2e/test_coverage.py
 
 Set FUNKOVERAGE_SYSTEM_TEST=1 to enable tests on system binaries (wget, unzip).
@@ -46,8 +46,9 @@ class TestPrerequisites(unittest.TestCase):
             run(["make", "-C", str(SAMPLE_DIR)])
         self.assertTrue(SAMPLE_SRC.exists(), "Compile tests/sample/sample first")
 
-    def test_bpftrace_available(self):
-        self.assertTrue(shutil.which("bpftrace"), "bpftrace not found in PATH")
+    def test_btf_available(self):
+        self.assertTrue(os.path.exists("/sys/kernel/btf/vmlinux"),
+                        "Kernel BTF not available (CONFIG_DEBUG_INFO_BTF=y required)")
 
 
 class BaseCoverageTest(unittest.TestCase):
@@ -201,19 +202,19 @@ class TestInstallUninstall(BaseCoverageTest):
             "Second install should fail")
 
 
-@unittest.skipUnless(shutil.which("bpftrace"), "bpftrace not available")
+@unittest.skipUnless(os.path.exists("/sys/kernel/btf/vmlinux"), "kernel BTF not available")
 class TestCoverageTracing(BaseCoverageTest):
-    """Tests that require bpftrace to actually run (needs CAP_BPF or root)."""
+    """Tests that require eBPF tracing (needs CAP_BPF or root)."""
 
     def _skip_if_no_bpf(self):
         if os.getuid() != 0:
             result = subprocess.run(
-                ["getcap", shutil.which("bpftrace")],
+                ["getcap", str(SHIM_BINARY)],
                 capture_output=True, text=True,
             )
             if "cap_bpf" not in result.stdout:
                 self.skipTest(
-                    "bpftrace needs CAP_BPF. Run: sudo funkoverage setup"
+                    "funkoverage-shim needs CAP_BPF. Run tests as root or use 'funkoverage install'"
                 )
 
     def test_strings_group_traced(self):

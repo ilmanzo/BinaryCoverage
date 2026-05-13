@@ -7,14 +7,15 @@
 ## ✅ Supported Platforms
 
 - **GNU/Linux** (x86_64)
-- Requires **eBPF** support (Linux kernel 4.4+, 5.10+ recommended for ringbuffer)
+- Requires **eBPF** support (Linux kernel 6.6+ with `CONFIG_DEBUG_INFO_BTF=y`)
 
 ## 📦 Prerequisites
 
-- **Go 1.22+**
-- **Clang/LLVM** (for BPF CO-RE compilation)
+- **Go 1.26+**
+- **Clang/LLVM** (only for BPF regeneration with `REGEN_BPF=1`)
+- **bpftool** (only for BPF regeneration with `REGEN_BPF=1`)
+- **libbpf-devel** (only for BPF regeneration with `REGEN_BPF=1`)
 - **elfutils** (provides `eu-unstrip` for debug info merging)
-- **bpftrace** (optional, used by the shim for tracing)
 
 ## 🛠️ Build & Run
 

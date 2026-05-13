@@ -170,11 +170,15 @@ func calledLogPath(dir, realBin string) string {
 }
 
 func buildChildEnv(realBin string) []string {
+	arg0 := os.Getenv(arg0EnvVar)
+	if arg0 == "" {
+		arg0 = os.Args[0]
+	}
 	env := cleanEnv()
 	env = append(env,
 		childEnvVar+"=1",
 		waitFdEnvVar+"=3",
-		arg0EnvVar+"="+os.Args[0],
+		arg0EnvVar+"="+arg0,
 		activeEnvVar+"=1",
 		"SAFE_BIN_DIR="+funkutil.SafeBinDir(),
 	)
