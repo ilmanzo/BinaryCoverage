@@ -1,7 +1,7 @@
 #
 # spec file for package coverage-tools
 #
-# Copyright (c) 2025 SUSE LLC
+# Copyright (c) 2026 SUSE LLC
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -14,25 +14,18 @@
 
 # Please submit bugfixes or comments via https://bugs.opensuse.org/
 
-%define bversion 0.8.0
+%define bversion 0.7.1
 %define dname BinaryCoverage-%{bversion}
 Name:           coverage-tools
-Version:        0.7.0
+Version:        0.7.1
 Release:        0
-Summary:        Function-level binary coverage via eBPF (uprobe_multi)
+Summary:        Tools to test binary coverage of different packages
 License:        MIT AND GPL-2.0-only
-URL:            https://github.com/ilmanzo/BinaryCoverage
+URL:            https://github.com/ilmanzo/CodeCoverage
 Source0:        %{dname}.tar.gz
 Source1:        vendor.tar.gz
-
-# Build-time (pre-generated BPF bindings are shipped in the tarball)
 BuildRequires:  go >= 1.26
 ExclusiveArch:  x86_64
-# Only needed to regenerate BPF bindings (REGEN_BPF=1):
-#BuildRequires:  clang
-#BuildRequires:  bpftool
-#BuildRequires:  libbpf-devel
-
 # Runtime: setcap is invoked by `funkoverage install` to grant CAP_BPF /
 # CAP_PERFMON / CAP_DAC_READ_SEARCH to each shim copy. elfutils is used by
 # the DWARF enumeration path for binaries with split debug info.
@@ -51,16 +44,13 @@ every enumerated function (via DWARF or .symtab/.dynsym), records the
 first call of each via a kernel ringbuf, and writes a CALLED log used
 to generate HTML / XML / text coverage reports.
 
-No source code, no recompilation of the target, no Intel Pin.
-
-Requires kernel ≥6.6 (uprobe_multi) and CONFIG_DEBUG_INFO_BTF=y.
 
 %prep
 %autosetup -n %{dname} -a1
 
 %build
 export GOFLAGS="-buildmode=pie -trimpath -mod=vendor"
-mv %{_builddir}/vendor .
+#mv %{_builddir}/vendor .
 go build -ldflags="-s -w" -o funkoverage      ./cmd/
 go build -ldflags="-s -w" -o funkoverage-shim ./cmd/shim_binary/
 

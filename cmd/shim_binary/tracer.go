@@ -131,13 +131,16 @@ func (t *Tracer) Start(rootPID uint32) error {
 	for img, cookies := range t.imgCookies {
 		ex, err := link.OpenExecutable(img)
 		if err != nil {
-			return fmt.Errorf("tracer: open executable %s: %w", img, err)
+			// Some libraries lack the execute bit (packaging bug); skip rather than abort.
+			fmt.Fprintf(os.Stderr, "funkoverage-shim: skipping %s: %v\n", img, err)
+			continue
 		}
 		l, err := ex.UprobeMulti(t.imgSymbols[img], t.objs.TraceUprobe, &link.UprobeMultiOptions{
 			Cookies: cookies,
 		})
 		if err != nil {
-			return fmt.Errorf("tracer: attach uprobes on %s (%d symbols): %w", img, len(cookies), err)
+			fmt.Fprintf(os.Stderr, "funkoverage-shim: skipping uprobes on %s: %v\n", img, err)
+			continue
 		}
 		t.links = append(t.links, l)
 	}
