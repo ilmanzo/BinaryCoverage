@@ -78,6 +78,12 @@ grep "pattern" file.txt  # Automatically captures coverage
 ./run_unit_tests.sh
 ```
 
+Pre-captured coverage logs are available in `tests/sample_data/` to develop or test report generation without needing a live eBPF environment:
+
+```bash
+./funkoverage report tests/sample_data/ /tmp/report/
+```
+
 ## 📎 Technical Details
 
 - **eBPF Uprobes**: Uses kernel uprobes to trigger events on function entry.

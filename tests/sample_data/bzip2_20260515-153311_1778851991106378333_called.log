@@ -1,0 +1,11 @@
+CALLED /var/coverage/bin/bzip2 copyFileName
+CALLED /var/coverage/bin/bzip2 addFlagsFromEnvVar
+CALLED /var/coverage/bin/bzip2 snocString
+CALLED /var/coverage/bin/bzip2 compress
+CALLED /var/coverage/bin/bzip2 compressStream
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzWriteOpen
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzCompressInit
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzWrite
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzCompress
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzWriteClose64
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzCompressEnd
