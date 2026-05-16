@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const versionString = "0.7.1"
+var versionString = "dev"
 
 // command is one funkoverage subcommand. run receives the args after the
 // subcommand name (so for "funkoverage install -no-libs foo", run sees

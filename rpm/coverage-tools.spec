@@ -14,10 +14,10 @@
 
 # Please submit bugfixes or comments via https://bugs.opensuse.org/
 
-%define bversion 0.7.1
+%define bversion 0.7.2
 %define dname BinaryCoverage-%{bversion}
 Name:           coverage-tools
-Version:        0.7.1
+Version:        0.7.2
 Release:        0
 Summary:        Tools to test binary coverage of different packages
 License:        MIT AND GPL-2.0-only
@@ -50,8 +50,8 @@ to generate HTML / XML / text coverage reports.
 
 %build
 export GOFLAGS="-buildmode=pie -trimpath -mod=vendor"
-#mv %{_builddir}/vendor .
-go build -ldflags="-s -w" -o funkoverage      ./cmd/
+mv %{_builddir}/vendor .
+go build -ldflags="-s -w -X main.versionString=%{version}" -o funkoverage      ./cmd/
 go build -ldflags="-s -w" -o funkoverage-shim ./cmd/shim_binary/
 
 %check

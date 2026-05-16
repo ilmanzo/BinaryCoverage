@@ -23,8 +23,10 @@ if [[ "${REGEN_BPF:-0}" == "1" ]]; then
     go generate ./cmd/shim_binary/
 fi
 
-echo "Building funkoverage CLI..."
-go build -buildvcs=false -ldflags="-s -w" -o funkoverage ./cmd/
+GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION="dev-${GIT_HASH}"
+echo "Building funkoverage CLI (${VERSION})..."
+go build -buildvcs=false -ldflags="-s -w -X main.versionString=${VERSION}" -o funkoverage ./cmd/
 
 echo "Building funkoverage-shim..."
 go build -buildvcs=false -ldflags="-s -w" -o funkoverage-shim ./cmd/shim_binary/
