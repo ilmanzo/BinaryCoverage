@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	activeEnvVar = "FUNKOVERAGE_ACTIVE"
-	childEnvVar  = "FUNKOVERAGE_CHILD"
-	waitFdEnvVar = "FUNKOVERAGE_WAIT_FD"
-	arg0EnvVar   = "FUNKOVERAGE_ARG0"
+	activeEnvPrefix = "FUNKOVERAGE_ACTIVE_"
+	childEnvVar     = "FUNKOVERAGE_CHILD"
+	waitFdEnvVar    = "FUNKOVERAGE_WAIT_FD"
+	arg0EnvVar      = "FUNKOVERAGE_ARG0"
 )
 
 func realBinaryPath() string {
@@ -40,7 +40,8 @@ func main() {
 
 	realBin := realBinaryPath()
 
-	// Recursion guard: already tracing, exec real binary directly.
+	// Recursion guard: already tracing this specific binary, exec real binary directly.
+	activeEnvVar := activeEnvPrefix + envSafeName(filepath.Base(realBin))
 	if os.Getenv(activeEnvVar) != "" {
 		if err := syscall.Exec(realBin, os.Args, os.Environ()); err != nil {
 			fmt.Fprintf(os.Stderr, "funkoverage-shim: exec %s: %v\n", realBin, err)
@@ -174,7 +175,8 @@ func buildChildEnv(realBin string) []string {
 	if arg0 == "" {
 		arg0 = os.Args[0]
 	}
-	env := cleanEnv()
+	activeEnvVar := activeEnvPrefix + envSafeName(filepath.Base(realBin))
+	env := cleanEnv(activeEnvVar)
 	env = append(env,
 		childEnvVar+"=1",
 		waitFdEnvVar+"=3",
@@ -188,8 +190,23 @@ func buildChildEnv(realBin string) []string {
 	return env
 }
 
-func cleanEnv() []string {
+func envSafeName(s string) string {
+	return strings.Map(func(r rune) rune {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		if r >= 'a' && r <= 'z' {
+			return r - 32
+		}
+		return '_'
+	}, s)
+}
+
+func cleanEnv(extra ...string) []string {
 	skip := map[string]bool{childEnvVar: true, waitFdEnvVar: true, arg0EnvVar: true}
+	for _, k := range extra {
+		skip[k] = true
+	}
 	src := os.Environ()
 	env := make([]string, 0, len(src))
 	for _, e := range src {
