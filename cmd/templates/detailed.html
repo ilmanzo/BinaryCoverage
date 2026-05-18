@@ -29,27 +29,37 @@
             border: 1px solid #ddd;
         }
 
-        .summary .percentage {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #0c322c;
+        .progress-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.75em;
+            margin-top: 1em;
         }
 
         .progress-bar {
+            position: relative;
             background: #e9ecef;
             border-radius: 50px;
             overflow: hidden;
-            height: 30px;
-            margin-top: 1em;
+            height: 25px;
+            flex: 1;
         }
 
         .progress-bar-inner {
             background: #30ba78;
             height: 100%;
-            color: #fff, text-align: center;
-            line-height: 30px;
-            font-weight: bold;
             transition: width 0.5s;
+        }
+
+        .progress-bar-label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            line-height: 25px;
+            font-weight: bold;
+            color: #0c322c;
         }
 
         .function-list {
@@ -138,9 +148,6 @@
                 background: #1d1d1d;
                 border-color: #525252;
             }
-            .summary .percentage {
-                color: #efefef;
-            }
             details summary h2 {
                 color: #efefef;
             }
@@ -149,6 +156,9 @@
             }
             .progress-bar-inner {
                 background: #008657;
+            }
+            .progress-bar-label {
+                color: #efefef;
             }
             .called {
                 background: #0c322c;
@@ -172,10 +182,12 @@
             <p><strong>Total Functions:</strong> {{.TotalCount}}</p>
             <p><strong>Called Functions:</strong> {{.CalledCount}}</p>
             <p><strong>Uncalled Functions:</strong> {{.UncalledCount}}</p>
-            <p class="percentage">Coverage: {{printf "%.1f" .CoveragePercentage}}%</p>
-            <div class="progress-bar">
-                <div class="progress-bar-inner" style="width: {{.CoveragePercentage}}%">{{printf "%.2f"
-                    .CoveragePercentage}}%</div>
+            <div class="progress-bar-wrap">
+                <strong>Coverage:</strong>
+                <div class="progress-bar">
+                    <div class="progress-bar-inner" style="width: {{.CoveragePercentage}}%"></div>
+                    <span class="progress-bar-label">{{printf "%.1f" .CoveragePercentage}}%</span>
+                </div>
             </div>
         </div>
         <details>
