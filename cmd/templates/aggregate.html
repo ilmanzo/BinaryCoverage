@@ -30,12 +30,11 @@
         th,
         td {
             padding: 0.7em 1em;
-            border-bottom: 1px solid #ddd;
             text-align: left;
         }
 
         th {
-            background: #f4f4f4;
+            background: #efefef;
             cursor: pointer;
             user-select: none;
         }
@@ -45,6 +44,7 @@
         }
 
         .bar {
+            position: relative;
             height: 18px;
             background: #efefef;
             border-radius: 9px;
@@ -54,15 +54,22 @@
         .bar-inner {
             background: #30ba78;
             height: 100%;
-            color: #0c322c;
+        }
+
+        .bar-label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
             text-align: center;
+            line-height: 18px;
             font-size: 0.9em;
             font-weight: bold;
-            line-height: 18px;
+            color: #0c322c;
         }
 
         tr:nth-child(even) {
-            background-color: #f9f9f9;
+            background-color: #fafafa;
         }
 
         th.sort-asc::after {
@@ -86,6 +93,8 @@
             }
             .bar-inner {
                 background: #008657;
+            }
+            .bar-label {
                 color: #efefef;
             }
             th {
@@ -130,9 +139,8 @@
                     <td>{{.CalledCount}}</td>
                     <td>
                         <div class="bar">
-                            <div class="bar-inner" style="width: {{printf " %.1f" .CoveragePct}}%">
-                                {{printf "%.1f" .CoveragePct}}%
-                            </div>
+                            <div class="bar-inner" style="width: {{printf "%.1f" .CoveragePct}}%"></div>
+                            <span class="bar-label">{{printf "%.1f" .CoveragePct}}%</span>
                         </div>
                     </td>
                 </tr>
