@@ -87,6 +87,34 @@
             border-left: 5px solid #ff5a2b;
         }
 
+        details summary {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        details summary::before {
+            content: "▶";
+            margin-right: 0.5em;
+            font-size: 0.85em;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        details[open] summary::before {
+            transform: rotate(90deg);
+        }
+
+        details summary h2 {
+            display: inline;
+            margin: 0;
+        }
+
         @media (prefers-color-scheme: dark) {
             body {
                 background: #3e3e3e;
@@ -100,6 +128,9 @@
                 border-color: #525252;
             }
             .summary .percentage {
+                color: #efefef;
+            }
+            details summary h2 {
                 color: #efefef;
             }
             .progress-bar {
