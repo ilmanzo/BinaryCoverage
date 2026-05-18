@@ -61,8 +61,6 @@
         }
 
         .function-list li {
-            padding: 0.6em;
-            border-radius: 5px;
             font-family: monospace;
             white-space: nowrap;
             overflow: hidden;
@@ -75,6 +73,13 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
         }
 
+        .called,
+        .uncalled {
+            padding: 0.2em 0.5em;
+            border-radius: 5px;
+            margin-right: 0.5em;
+        }
+
         .called {
             background: #d4edda;
             color: #025937;
@@ -85,6 +90,12 @@
             background: #f8d7da;
             color: #8e2810;
             border-left: 5px solid #ff5a2b;
+        }
+
+        .function-list li.called,
+        .function-list li.uncalled {
+            padding: 0.6em;
+            margin-right: 0;
         }
 
         details summary {
