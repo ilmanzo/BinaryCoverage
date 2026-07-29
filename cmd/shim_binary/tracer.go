@@ -50,7 +50,8 @@ type Tracer struct {
 	links          []link.Link
 	reader         *ringbuf.Reader
 	logFile        *os.File
-	funcsLogFile   *os.File
+	funcsLogPath   string
+	funcsLogFile   *os.File // lazily opened by ensureFuncsLog on first dlopen event
 	rootPID        uint32
 	seenCapacity   uint32 // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
 	capacityWarned bool
@@ -96,13 +97,10 @@ func NewTracer(funcs map[string][]string, logPath string) (*Tracer, error) {
 		return nil, fmt.Errorf("tracer: create log %s: %w", logPath, err)
 	}
 
+	// funcsLogFile is opened lazily on first dlopen-discovered function
+	// (see ensureFuncsLog) — dlopen firing is rare, and creating this file
+	// eagerly on every run leaves a near-always-empty file behind forever.
 	funcsLogPath := strings.Replace(logPath, "_called.log", "_functions.log", 1)
-	funcsLogFile, err := os.Create(funcsLogPath)
-	if err != nil {
-		logFile.Close()
-		objs.Close()
-		return nil, fmt.Errorf("tracer: create funcs log %s: %w", funcsLogPath, err)
-	}
 
 	return &Tracer{
 		funcs:        refs,
@@ -110,9 +108,24 @@ func NewTracer(funcs map[string][]string, logPath string) (*Tracer, error) {
 		imgCookies:   imgCookies,
 		objs:         objs,
 		logFile:      logFile,
-		funcsLogFile: funcsLogFile,
+		funcsLogPath: funcsLogPath,
 		seenCapacity: seenCapacity,
 	}, nil
+}
+
+// ensureFuncsLog opens the per-run dynamic functions log on first use.
+// Called only from handleDynamicLoad (readLoop goroutine), so no locking
+// is needed — Stop only touches funcsLogFile after readLoop has exited.
+func (t *Tracer) ensureFuncsLog() (*os.File, error) {
+	if t.funcsLogFile != nil {
+		return t.funcsLogFile, nil
+	}
+	f, err := os.Create(t.funcsLogPath)
+	if err != nil {
+		return nil, err
+	}
+	t.funcsLogFile = f
+	return f, nil
 }
 
 // flattenFuncs builds the global cookie space. Images are sorted so that
@@ -477,6 +490,12 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 			continue
 		}
 
+		funcsLog, err := t.ensureFuncsLog()
+		if err != nil {
+			debugLog("funkoverage-shim: error opening funcs log: %v", err)
+			continue
+		}
+
 		var cookies []uint64
 		var names []string
 		for _, name := range syms {
@@ -488,7 +507,7 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 
 			// Write to functions log so report captures it as a total function!
 			demangledName := demangle.Filter(funkutil.StripVersion(name))
-			fmt.Fprintf(t.funcsLogFile, "FUNC %s %s\n", lib, demangledName)
+			fmt.Fprintf(funcsLog, "FUNC %s %s\n", lib, demangledName)
 		}
 
 		l, err := ex.UprobeMulti(names, t.objs.TraceUprobe, &link.UprobeMultiOptions{
