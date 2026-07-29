@@ -18,6 +18,19 @@ type tracerEvent struct {
 	FuncIdx uint32
 }
 
+// Names of all BPF objects in the ELF.
+//
+// Used for safe lookups in a Collection or CollectionSpec.
+const (
+	tracerMapEvents             = "events"
+	tracerMapSeen               = "seen"
+	tracerMapWatched            = "watched"
+	tracerProgTraceDlopenReturn = "trace_dlopen_return"
+	tracerProgTraceFork         = "trace_fork"
+	tracerProgTraceUprobe       = "trace_uprobe"
+	tracerVarUnused             = "unused"
+)
+
 // loadTracer returns the embedded CollectionSpec for tracer.
 func loadTracer() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_TracerBytes)
@@ -38,7 +51,7 @@ func loadTracer() (*ebpf.CollectionSpec, error) {
 //	*tracerMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
-func loadTracerObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
+func loadTracerObjects(obj any, opts *ebpf.CollectionOptions) error {
 	spec, err := loadTracer()
 	if err != nil {
 		return err
@@ -60,8 +73,9 @@ type tracerSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type tracerProgramSpecs struct {
-	TraceFork   *ebpf.ProgramSpec `ebpf:"trace_fork"`
-	TraceUprobe *ebpf.ProgramSpec `ebpf:"trace_uprobe"`
+	TraceDlopenReturn *ebpf.ProgramSpec `ebpf:"trace_dlopen_return"`
+	TraceFork         *ebpf.ProgramSpec `ebpf:"trace_fork"`
+	TraceUprobe       *ebpf.ProgramSpec `ebpf:"trace_uprobe"`
 }
 
 // tracerMapSpecs contains maps before they are loaded into the kernel.
@@ -124,12 +138,14 @@ type tracerVariables struct {
 //
 // It can be passed to loadTracerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type tracerPrograms struct {
-	TraceFork   *ebpf.Program `ebpf:"trace_fork"`
-	TraceUprobe *ebpf.Program `ebpf:"trace_uprobe"`
+	TraceDlopenReturn *ebpf.Program `ebpf:"trace_dlopen_return"`
+	TraceFork         *ebpf.Program `ebpf:"trace_fork"`
+	TraceUprobe       *ebpf.Program `ebpf:"trace_uprobe"`
 }
 
 func (p *tracerPrograms) Close() error {
 	return _TracerClose(
+		p.TraceDlopenReturn,
 		p.TraceFork,
 		p.TraceUprobe,
 	)

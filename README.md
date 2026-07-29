@@ -91,10 +91,7 @@ Pre-captured coverage logs are available in `tests/sample_data/` to develop or t
 - **DWZ Support**: Handles compressed debug information (common in openSUSE/Fedora).
 - **Multi-Library Tracing**: Can simultaneously trace the main binary and all linked shared libraries.
 - **Function Filtering**: `--include`/`--exclude` regex filters to focus on specific namespaces.
-
-## 🚧 TODO
-
-- **`dlopen()` libraries**: Only `DT_NEEDED` libraries (resolved via `ldd` at install time) are instrumented. Libraries loaded at runtime via `dlopen()` are invisible to `ldd` and currently not traced. Possible fixes: uprobe on `dlopen()` to trigger reattach, or poll `/proc/<pid>/maps` from the parent shim.
+- **`dlopen()` Support**: Dynamically loaded libraries are traced on-the-fly via JIT instrumentation of `dlopen` calls using eBPF uretprobes and automatic maps monitoring.
 
 ## License
 

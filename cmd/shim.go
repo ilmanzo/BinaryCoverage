@@ -54,7 +54,7 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 	if err != nil {
 		return fmt.Errorf("debug info check: %w", err)
 	}
-	if !found {
+	if !found && noLibs {
 		return fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
 	}
 
@@ -87,7 +87,7 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		_ = move(safePath, realTarget)
 		return fmt.Errorf("function enumeration: %w", err)
 	}
-	if len(funcs) == 0 {
+	if len(funcs) == 0 && noLibs {
 		_ = move(safePath, realTarget)
 		return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
 	}

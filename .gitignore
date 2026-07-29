@@ -9,3 +9,6 @@ CLAUDE.md
 !cmd/shim_binary/tracer_x86_bpfel.o
 !cmd/shim_binary/tracer_arm64_bpfel.o
 shim_binary
+example/cov_sample
+example/dlopen_test
+*.so

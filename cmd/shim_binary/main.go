@@ -96,9 +96,8 @@ func childMain() {
 // exits. Returns the child's exit code (or 1 with err on tracer failure).
 func runWithTracing(realBin string) (exitCode int, err error) {
 	funcs := funkutil.ReadFuncList(realBin)
-	if len(funcs) == 0 {
-		return 1, fmt.Errorf("missing or empty %s — reinstall required",
-			funkutil.FuncListPath(realBin))
+	if funcs == nil {
+		funcs = make(map[string][]string)
 	}
 
 	dir := funkutil.LogDir()

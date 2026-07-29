@@ -153,7 +153,8 @@ func enumerateOne(path string, filter *FuncFilter) ([]string, error) {
 			return funcs, nil
 		}
 	}
-	return dwarfFunctions(cmp.Or(debugPath, path), filter)
+	funcs, _ := dwarfFunctions(cmp.Or(debugPath, path), filter)
+	return funcs, nil
 }
 
 func symtabFunctions(path string, filter *FuncFilter) []string {

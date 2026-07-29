@@ -35,7 +35,7 @@ func traceInline(binaryPath string, args []string, noLibs bool, filter *FuncFilt
 	if err != nil {
 		return 1, fmt.Errorf("function enumeration: %w", err)
 	}
-	if len(funcs) == 0 {
+	if len(funcs) == 0 && noLibs {
 		return 1, fmt.Errorf("no functions found in %s (debug symbols missing?)", realBin)
 	}
 	if _, err := writeFunctionsLog(logDir, filepath.Base(realBin), funcs); err != nil {
