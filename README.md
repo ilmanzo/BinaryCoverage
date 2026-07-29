@@ -7,7 +7,7 @@
 - [docs/design.md](docs/design.md) — Architecture diagrams and internals
 - [docs/dlopen_realworld_testing.md](docs/dlopen_realworld_testing.md) — Real-world VM validation runbook for dlopen() JIT tracing
 
-[![Build check](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml) [![Run unit tests](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml)
+[![Build check](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml) [![Run unit tests](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/ilmanzo/BinaryCoverage/graph/badge.svg)](https://codecov.io/gh/ilmanzo/BinaryCoverage)
 
 ## ✅ Supported Platforms
 
