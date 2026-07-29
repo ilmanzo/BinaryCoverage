@@ -41,6 +41,7 @@ type Tracer struct {
 	imgCookies map[string][]uint64 // image path → per-symbol cookies (global indices)
 
 	objs         tracerObjects
+	linksMu      sync.Mutex // guards links: Stop (caller goroutine) vs handleDynamicLoad (readLoop goroutine)
 	links        []link.Link
 	reader       *ringbuf.Reader
 	logFile      *os.File
@@ -158,14 +159,14 @@ func (t *Tracer) Start(rootPID uint32) error {
 			debugLog("funkoverage-shim: skipping uprobes on %s: %v", img, err)
 			continue
 		}
-		t.links = append(t.links, l)
+		t.addLink(l)
 	}
 
 	fl, err := link.Tracepoint("sched", "sched_process_fork", t.objs.TraceFork, nil)
 	if err != nil {
 		return fmt.Errorf("tracer: attach fork tracepoint: %w", err)
 	}
-	t.links = append(t.links, fl)
+	t.addLink(fl)
 
 	// Dynamically locate and attach uretprobe to dlopen
 	libcPath, err := findLibcPath(rootPID)
@@ -174,7 +175,7 @@ func (t *Tracer) Start(rootPID uint32) error {
 		if err == nil {
 			l, err := ex.Uretprobe("dlopen", t.objs.TraceDlopenReturn, nil)
 			if err == nil {
-				t.links = append(t.links, l)
+				t.addLink(l)
 			} else {
 				debugLog("funkoverage-shim: error attaching uretprobe to dlopen: %v", err)
 			}
@@ -238,12 +239,23 @@ func (t *Tracer) readLoop() {
 //  4. Close log + release BPF objects.
 const drainDelay = 100 * time.Millisecond
 
+// addLink appends l to t.links under linksMu — safe to call from the
+// readLoop goroutine (handleDynamicLoad) concurrently with Stop.
+func (t *Tracer) addLink(l link.Link) {
+	t.linksMu.Lock()
+	t.links = append(t.links, l)
+	t.linksMu.Unlock()
+}
+
 func (t *Tracer) Stop() error {
 	t.stopOnce.Do(func() {
-		for _, l := range t.links {
+		t.linksMu.Lock()
+		links := t.links
+		t.links = nil
+		t.linksMu.Unlock()
+		for _, l := range links {
 			_ = l.Close()
 		}
-		t.links = nil
 
 		if t.reader != nil {
 			go func() {
@@ -467,7 +479,7 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 			continue
 		}
 
-		t.links = append(t.links, l)
+		t.addLink(l)
 		t.imgSymbols[lib] = names
 		t.imgCookies[lib] = cookies
 
