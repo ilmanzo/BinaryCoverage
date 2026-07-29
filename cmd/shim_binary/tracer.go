@@ -26,6 +26,11 @@ import (
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -type event -cc clang -cflags "-I/usr/include" -target amd64 tracer ./bpf/tracer.bpf.c
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -type event -cc clang -cflags "-I/usr/include" -target arm64 tracer ./bpf/tracer.bpf.c
 
+// dynFuncHeadroom is extra capacity reserved in the "seen" dedup map at load
+// time for functions discovered later via dlopen JIT instrumentation, on top
+// of the statically enumerated function count.
+const dynFuncHeadroom = 100000
+
 // FuncRef identifies a single traced function by image path and (mangled) name.
 type FuncRef struct {
 	Image string
@@ -40,13 +45,15 @@ type Tracer struct {
 	imgSymbols map[string][]string // image path → symbols (for UprobeMulti)
 	imgCookies map[string][]uint64 // image path → per-symbol cookies (global indices)
 
-	objs         tracerObjects
-	linksMu      sync.Mutex // guards links: Stop (caller goroutine) vs handleDynamicLoad (readLoop goroutine)
-	links        []link.Link
-	reader       *ringbuf.Reader
-	logFile      *os.File
-	funcsLogFile *os.File
-	rootPID      uint32
+	objs           tracerObjects
+	linksMu        sync.Mutex // guards links: Stop (caller goroutine) vs handleDynamicLoad (readLoop goroutine)
+	links          []link.Link
+	reader         *ringbuf.Reader
+	logFile        *os.File
+	funcsLogFile   *os.File
+	rootPID        uint32
+	seenCapacity   uint32 // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
+	capacityWarned bool
 
 	wg       sync.WaitGroup
 	stopOnce sync.Once
@@ -75,7 +82,8 @@ func NewTracer(funcs map[string][]string, logPath string) (*Tracer, error) {
 	}
 	// Resize the dedup map to one entry per global func index plus headroom
 	// for dynamically loaded library functions.
-	spec.Maps["seen"].MaxEntries = uint32(len(refs) + 100000)
+	seenCapacity := uint32(len(refs) + dynFuncHeadroom)
+	spec.Maps["seen"].MaxEntries = seenCapacity
 
 	var objs tracerObjects
 	if err := spec.LoadAndAssign(&objs, nil); err != nil {
@@ -103,6 +111,7 @@ func NewTracer(funcs map[string][]string, logPath string) (*Tracer, error) {
 		objs:         objs,
 		logFile:      logFile,
 		funcsLogFile: funcsLogFile,
+		seenCapacity: seenCapacity,
 	}, nil
 }
 
@@ -451,6 +460,17 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 			continue
 		}
 
+		// The "seen" dedup map was sized once at BPF load time; cookies
+		// beyond its capacity silently fail lookup in the kernel and the
+		// call is dropped rather than recorded. Clip rather than overrun.
+		if remaining := int(t.seenCapacity) - len(t.funcs); remaining <= 0 {
+			t.warnCapacityExhausted()
+			continue
+		} else if len(syms) > remaining {
+			t.warnCapacityExhausted()
+			syms = syms[:remaining]
+		}
+
 		ex, err := link.OpenExecutable(lib)
 		if err != nil {
 			debugLog("funkoverage-shim: error opening %s: %v", lib, err)
@@ -485,6 +505,17 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 
 		debugLog("funkoverage-shim: successfully instrumented %d functions in %s", len(syms), lib)
 	}
+}
+
+// warnCapacityExhausted reports (once, unconditionally — this is a real
+// coverage-correctness gap, not a debug detail) that dynamic function
+// capacity ran out and further dlopen'd functions will not be traced.
+func (t *Tracer) warnCapacityExhausted() {
+	if t.capacityWarned {
+		return
+	}
+	t.capacityWarned = true
+	fmt.Fprintf(os.Stderr, "funkoverage-shim: dynamic function capacity (%d) exhausted; some dlopen'd functions will not be traced\n", t.seenCapacity)
 }
 
 func debugLog(format string, args ...any) {
