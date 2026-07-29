@@ -264,6 +264,37 @@ func (t *Tracer) Stop() error {
 	return nil
 }
 
+// hasSymbol reports whether the ELF file at path exports the given symbol
+// name, checking dynamic symbols first (the common case for shared libs)
+// then the full symbol table.
+func hasSymbol(path, name string) bool {
+	f, err := elf.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	if syms, err := f.DynamicSymbols(); err == nil {
+		for _, s := range syms {
+			if s.Name == name {
+				return true
+			}
+		}
+	}
+	if syms, err := f.Symbols(); err == nil {
+		for _, s := range syms {
+			if s.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// findLibcPath locates the shared library exporting dlopen for the given
+// pid. On glibc >= 2.34 that's libc.so.6; on older glibc it's libdl.so.2 —
+// so we verify the symbol is actually present rather than trusting that a
+// path merely exists.
 func findLibcPath(pid uint32) (string, error) {
 	standardPaths := []string{
 		"/usr/lib/x86_64-linux-gnu/libc.so.6",
@@ -271,9 +302,14 @@ func findLibcPath(pid uint32) (string, error) {
 		"/lib64/libc.so.6",
 		"/usr/lib/aarch64-linux-gnu/libc.so.6",
 		"/lib/aarch64-linux-gnu/libc.so.6",
+		"/usr/lib/x86_64-linux-gnu/libdl.so.2",
+		"/lib/x86_64-linux-gnu/libdl.so.2",
+		"/lib64/libdl.so.2",
+		"/usr/lib/aarch64-linux-gnu/libdl.so.2",
+		"/lib/aarch64-linux-gnu/libdl.so.2",
 	}
 	for _, p := range standardPaths {
-		if _, err := os.Stat(p); err == nil {
+		if hasSymbol(p, "dlopen") {
 			return p, nil
 		}
 	}
@@ -286,12 +322,12 @@ func findLibcPath(pid uint32) (string, error) {
 	for _, line := range lines {
 		if (strings.Contains(line, "libc.so.6") || strings.Contains(line, "libdl.so.2")) && strings.Contains(line, "r-xp") {
 			parts := strings.Fields(line)
-			if len(parts) >= 6 {
+			if len(parts) >= 6 && hasSymbol(parts[5], "dlopen") {
 				return parts[5], nil
 			}
 		}
 	}
-	return "", fmt.Errorf("libc not found in standard paths or /proc/%d/maps", pid)
+	return "", fmt.Errorf("dlopen symbol not found in standard paths or /proc/%d/maps", pid)
 }
 
 func getMappedSharedLibraries(pid uint32) ([]string, error) {
