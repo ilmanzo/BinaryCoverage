@@ -441,13 +441,20 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 	}
 	defer f.Close()
 
-	syms, err := f.Symbols()
-	if err != nil {
-		// Fall back to dynamic symbols if .symtab is stripped (common for shared libraries!)
-		syms, err = f.DynamicSymbols()
-		if err != nil {
-			return nil, err
-		}
+	// Union .dynsym and .symtab rather than falling back only on a hard
+	// error: a present-but-stripped-down .symtab (common for shared libs —
+	// glibc's libc.so.6 ships one that omits exported functions like
+	// dlopen, which live only in .dynsym) would otherwise silently hide
+	// real, callable functions instead of triggering the fallback.
+	var syms []elf.Symbol
+	if dynSyms, err := f.DynamicSymbols(); err == nil {
+		syms = append(syms, dynSyms...)
+	}
+	if statSyms, err := f.Symbols(); err == nil {
+		syms = append(syms, statSyms...)
+	}
+	if len(syms) == 0 {
+		return nil, fmt.Errorf("no symbol table (dynamic or static) in %s", path)
 	}
 
 	var funcs []string
