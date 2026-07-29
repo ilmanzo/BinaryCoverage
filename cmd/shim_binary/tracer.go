@@ -75,10 +75,7 @@ type Tracer struct {
 // instrumentation, matching the filtering already applied at enumeration
 // time to statically discovered functions.
 func NewTracer(funcs map[string][]string, logPath, includePattern, excludePattern string) (*Tracer, error) {
-	// If funcs is empty, allow it for pure runtime dynamic library tracing
-	if len(funcs) == 0 {
-		funcs = make(map[string][]string)
-	}
+	funcs = normalizeFuncs(funcs)
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
 	}
@@ -166,6 +163,16 @@ func (t *Tracer) ensureFuncsLog() (*os.File, error) {
 	}
 	t.funcsLogFile = f
 	return f, nil
+}
+
+// normalizeFuncs defaults a nil/empty funcs map to an empty (non-nil) map,
+// supporting pure runtime dynamic-library tracing: a binary with no static
+// functions of its own, relying entirely on dlopen'd plugins for coverage.
+func normalizeFuncs(funcs map[string][]string) map[string][]string {
+	if len(funcs) == 0 {
+		return make(map[string][]string)
+	}
+	return funcs
 }
 
 // flattenFuncs builds the global cookie space. Images are sorted so that
@@ -464,7 +471,11 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 	return funcs, nil
 }
 
-var systemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|libthread_db|ld-linux|libstdc\+\+|libgcc_s|libglib|libgobject|libgthread|libgio|libcap|libattr|libpcre|libselinux|libmount|libblkid|libuuid|libpam|libaudit|libdbus|libsystemd|libudev)\b`)
+// libstdc\+\+ is matched as its own alternative, outside the shared trailing
+// \b: "+" is not a word character, so a \b immediately after it can never
+// match a following "." (both sides non-word) — under the combined pattern
+// this alternative could never actually match a real "libstdc++.so*" path.
+var systemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|libthread_db|ld-linux|libgcc_s|libglib|libgobject|libgthread|libgio|libcap|libattr|libpcre|libselinux|libmount|libblkid|libuuid|libpam|libaudit|libdbus|libsystemd|libudev)\b|libstdc\+\+`)
 
 func isSystemLib(path string) bool {
 	return systemLibRe.MatchString(filepath.Base(path))
@@ -529,12 +540,13 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 		// The "seen" dedup map was sized once at BPF load time; cookies
 		// beyond its capacity silently fail lookup in the kernel and the
 		// call is dropped rather than recorded. Clip rather than overrun.
-		if remaining := int(t.seenCapacity) - len(t.funcs); remaining <= 0 {
+		clipped, warn := clipToCapacity(syms, len(t.funcs), t.seenCapacity)
+		if warn {
 			t.warnCapacityExhausted()
+		}
+		syms = clipped
+		if len(syms) == 0 {
 			continue
-		} else if len(syms) > remaining {
-			t.warnCapacityExhausted()
-			syms = syms[:remaining]
 		}
 
 		ex, err := link.OpenExecutable(lib)
@@ -577,6 +589,21 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 
 		debugLog("funkoverage-shim: successfully instrumented %d functions in %s", len(syms), lib)
 	}
+}
+
+// clipToCapacity trims syms to fit the remaining "seen" map capacity
+// (seenCapacity - alreadyUsed), reporting whether any symbols were dropped
+// as a result (either all of them, if capacity is already exhausted, or
+// the tail beyond what fits).
+func clipToCapacity(syms []string, alreadyUsed int, seenCapacity uint32) (clipped []string, warn bool) {
+	remaining := int(seenCapacity) - alreadyUsed
+	if remaining <= 0 {
+		return nil, true
+	}
+	if len(syms) > remaining {
+		return syms[:remaining], true
+	}
+	return syms, false
 }
 
 // warnCapacityExhausted reports (once, unconditionally — this is a real
