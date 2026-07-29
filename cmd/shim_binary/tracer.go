@@ -55,6 +55,8 @@ type Tracer struct {
 	rootPID        uint32
 	seenCapacity   uint32 // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
 	capacityWarned bool
+	includeRe      *regexp.Regexp // dlopen JIT filter, mirrors install-time --include
+	excludeRe      *regexp.Regexp // dlopen JIT filter, mirrors install-time --exclude
 
 	wg       sync.WaitGroup
 	stopOnce sync.Once
@@ -66,13 +68,35 @@ type Tracer struct {
 // `funcs` maps each ELF image path (main binary or shared library) to the
 // list of symbol names to trace. The flattened order — images sorted, symbols
 // in input order — defines the global cookie space used to identify events.
-func NewTracer(funcs map[string][]string, logPath string) (*Tracer, error) {
+//
+// `includePattern`/`excludePattern` are the source regex patterns from the
+// install-time --include/--exclude filter (empty string = no filter). They
+// are re-applied to functions discovered later via dlopen JIT
+// instrumentation, matching the filtering already applied at enumeration
+// time to statically discovered functions.
+func NewTracer(funcs map[string][]string, logPath, includePattern, excludePattern string) (*Tracer, error) {
 	// If funcs is empty, allow it for pure runtime dynamic library tracing
 	if len(funcs) == 0 {
 		funcs = make(map[string][]string)
 	}
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
+	}
+
+	var includeRe, excludeRe *regexp.Regexp
+	if includePattern != "" {
+		if re, err := regexp.Compile(includePattern); err == nil {
+			includeRe = re
+		} else {
+			debugLog("funkoverage-shim: bad --include pattern %q: %v", includePattern, err)
+		}
+	}
+	if excludePattern != "" {
+		if re, err := regexp.Compile(excludePattern); err == nil {
+			excludeRe = re
+		} else {
+			debugLog("funkoverage-shim: bad --exclude pattern %q: %v", excludePattern, err)
+		}
 	}
 
 	refs, imgSyms, imgCookies := flattenFuncs(funcs)
@@ -110,7 +134,23 @@ func NewTracer(funcs map[string][]string, logPath string) (*Tracer, error) {
 		logFile:      logFile,
 		funcsLogPath: funcsLogPath,
 		seenCapacity: seenCapacity,
+		includeRe:    includeRe,
+		excludeRe:    excludeRe,
 	}, nil
+}
+
+// matchesFilter reports whether demangled passes the install-time
+// --include/--exclude filter: include must match if set, exclude must not
+// match. Mirrors FuncFilter.Match in cmd/enumerate.go (unavailable here —
+// separate package main).
+func (t *Tracer) matchesFilter(demangled string) bool {
+	if t.includeRe != nil && !t.includeRe.MatchString(demangled) {
+		return false
+	}
+	if t.excludeRe != nil && t.excludeRe.MatchString(demangled) {
+		return false
+	}
+	return true
 }
 
 // ensureFuncsLog opens the per-run dynamic functions log on first use.
@@ -471,6 +511,19 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 
 		if len(syms) == 0 {
 			continue
+		}
+
+		if t.includeRe != nil || t.excludeRe != nil {
+			filtered := syms[:0]
+			for _, name := range syms {
+				if t.matchesFilter(demangle.Filter(funkutil.StripVersion(name))) {
+					filtered = append(filtered, name)
+				}
+			}
+			syms = filtered
+			if len(syms) == 0 {
+				continue
+			}
 		}
 
 		// The "seen" dedup map was sized once at BPF load time; cookies

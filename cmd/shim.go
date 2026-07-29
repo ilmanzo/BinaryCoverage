@@ -101,6 +101,10 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		}
 	}
 
+	if err := funkutil.WriteFilterSidecar(safePath, filter.Sidecar()); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: write filter sidecar: %v\n", err)
+	}
+
 	if err := funkutil.WriteFuncList(safePath, funcs); err != nil {
 		return fmt.Errorf("write func list sidecar: %w", err)
 	}

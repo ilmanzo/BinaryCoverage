@@ -71,6 +71,11 @@ func traceInline(binaryPath string, args []string, noLibs bool, filter *FuncFilt
 		}
 	}
 
+	tempFilter := false
+	if err := funkutil.WriteFilterSidecar(safePath, filter.Sidecar()); err == nil {
+		tempFilter = true
+	}
+
 	defer func() {
 		if tempSafe {
 			os.Remove(safePath)
@@ -80,6 +85,9 @@ func traceInline(binaryPath string, args []string, noLibs bool, filter *FuncFilt
 		}
 		if tempFuncs {
 			_ = funkutil.WriteFuncList(safePath, nil)
+		}
+		if tempFilter {
+			_ = funkutil.WriteFilterSidecar(safePath, funkutil.FilterSidecar{})
 		}
 	}()
 

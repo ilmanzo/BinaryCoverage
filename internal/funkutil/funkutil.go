@@ -81,3 +81,31 @@ func WriteLibsSidecar(safePath string, libs []string) error {
 func ReadLibsSidecar(safePath string) []string {
 	return readJSON[[]string](LibsSidecarPath(safePath))
 }
+
+// FilterSidecar carries the --include/--exclude regex source patterns so the
+// shim can re-apply them to functions discovered at runtime (dlopen JIT
+// instrumentation), matching the filtering already applied at enumeration
+// time to statically discovered functions.
+type FilterSidecar struct {
+	Include string
+	Exclude string
+}
+
+// FilterSidecarPath returns the per-binary filter sidecar path
+// (<safePath>.filter.json) used by the shim's eBPF tracer.
+func FilterSidecarPath(safePath string) string { return safePath + ".filter.json" }
+
+// WriteFilterSidecar writes the filter patterns as JSON to
+// FilterSidecarPath(safePath). Empty patterns delete any existing sidecar.
+func WriteFilterSidecar(safePath string, filter FilterSidecar) error {
+	return writeJSON(FilterSidecarPath(safePath), filter, func(v FilterSidecar) bool {
+		return v.Include == "" && v.Exclude == ""
+	})
+}
+
+// ReadFilterSidecar reads FilterSidecarPath(safePath) and returns the
+// patterns. Missing or malformed sidecar files yield the zero value (no
+// filtering, no error).
+func ReadFilterSidecar(safePath string) FilterSidecar {
+	return readJSON[FilterSidecar](FilterSidecarPath(safePath))
+}

@@ -99,6 +99,7 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	if funcs == nil {
 		funcs = make(map[string][]string)
 	}
+	filter := funkutil.ReadFilterSidecar(realBin)
 
 	dir := funkutil.LogDir()
 	if err := os.MkdirAll(dir, 0777); err != nil {
@@ -139,7 +140,7 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	})
 
 	logPath := calledLogPath(dir, realBin)
-	tracer, err := NewTracer(funcs, logPath)
+	tracer, err := NewTracer(funcs, logPath, filter.Include, filter.Exclude)
 	if err != nil {
 		return 1, err
 	}

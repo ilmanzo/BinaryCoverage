@@ -50,14 +50,14 @@ func TestFlattenFuncs_DeterministicAcrossRuns(t *testing.T) {
 }
 
 func TestNewTracer_RejectsEmptyFuncs(t *testing.T) {
-	_, err := NewTracer(map[string][]string{}, "/tmp/should-not-be-created")
+	_, err := NewTracer(map[string][]string{}, "/tmp/should-not-be-created", "", "")
 	if err == nil {
 		t.Fatal("NewTracer with empty funcs: want error, got nil")
 	}
 }
 
 func TestNewTracer_RejectsNilFuncs(t *testing.T) {
-	_, err := NewTracer(nil, "/tmp/should-not-be-created")
+	_, err := NewTracer(nil, "/tmp/should-not-be-created", "", "")
 	if err == nil {
 		t.Fatal("NewTracer with nil funcs: want error, got nil")
 	}

@@ -58,6 +58,23 @@ func (f *FuncFilter) Match(demangled string) bool {
 	return true
 }
 
+// Sidecar converts f to its serializable form (regex source patterns) so the
+// shim can re-apply the same filter to functions discovered via dlopen at
+// runtime. A nil filter yields the zero value (no filtering).
+func (f *FuncFilter) Sidecar() funkutil.FilterSidecar {
+	var s funkutil.FilterSidecar
+	if f == nil {
+		return s
+	}
+	if f.Include != nil {
+		s.Include = f.Include.String()
+	}
+	if f.Exclude != nil {
+		s.Exclude = f.Exclude.String()
+	}
+	return s
+}
+
 var funcBlacklist = []string{
 	"main", "_init", "_start", ".plt.got", ".plt", "_dl_relocate_static_pie",
 }
