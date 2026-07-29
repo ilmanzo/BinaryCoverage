@@ -337,16 +337,6 @@ func enumerateSymtab(f *elf.File, filter *FuncFilter) ([]string, error) {
 // Capture group 1 is the absolute library path.
 var lddLineRe = regexp.MustCompile(`(?:=>\s*)?(/\S+)\s+\(0x[0-9a-fA-F]+\)`)
 
-// systemLibRe matches glibc/runtime libraries we never want to wildcard-trace:
-// each carries thousands of symbols, so attaching uprobes to all of them
-// blows past FUNKOVERAGE_ATTACH_TIMEOUT and rarely yields useful coverage
-// for the target program.
-var systemLibRe = regexp.MustCompile(`^(ld-linux[^/]*|libc|libm|libdl|librt|libpthread|libresolv|libnsl|libutil|libcrypt|libanl|libgcc_s|libstdc\+\+)\.so(\.|$)`)
-
-func isSystemLib(libPath string) bool {
-	return systemLibRe.MatchString(filepath.Base(libPath))
-}
-
 // ParseLddLibraries runs ldd on binPath and returns absolute paths of
 // shared libraries (skips vdso, "not found", and glibc/runtime system libs).
 func ParseLddLibraries(binPath string) ([]string, error) {
@@ -366,7 +356,7 @@ func ParseLddLibraries(binPath string) ([]string, error) {
 			continue
 		}
 		path := m[1]
-		if isSystemLib(path) {
+		if funkutil.IsSystemLib(path) {
 			continue
 		}
 		libs = append(libs, path)

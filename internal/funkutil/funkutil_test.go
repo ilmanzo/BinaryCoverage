@@ -60,3 +60,32 @@ func TestFuncIsRelevant(t *testing.T) {
 		}
 	}
 }
+
+func TestIsSystemLib(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"/lib64/libc.so.6", true},
+		{"/lib64/libm.so.6", true},
+		{"/usr/lib/x86_64-linux-gnu/libpthread.so.0", true},
+		{"/lib64/ld-linux-x86-64.so.2", true},
+		{"/lib64/libstdc++.so.6", true},
+		{"/usr/lib/x86_64-linux-gnu/libstdc++.so.6", true},
+		{"/lib64/libgcc_s.so.1", true},
+		{"/lib64/libdl.so.2", true},
+		{"/lib64/librt.so.1", true},
+		{"/usr/lib64/libssl.so.3", false},
+		{"/usr/lib64/libcurl.so.4", false},
+		{"/opt/foo/libmycrypto.so.1", false},
+		{"/lib64/libz.so.1", false},
+		{"/opt/myapp/libplugin.so", false},
+		{"./libplugin.so", false},
+		{"/usr/lib64/libcustomthing.so.1", false},
+	}
+	for _, c := range cases {
+		if got := IsSystemLib(c.path); got != c.want {
+			t.Errorf("IsSystemLib(%q) = %v, want %v", c.path, got, c.want)
+		}
+	}
+}

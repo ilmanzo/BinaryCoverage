@@ -6,6 +6,8 @@ package funkutil
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -59,6 +61,25 @@ func FuncIsRelevant(name string) bool {
 		return false
 	}
 	return true
+}
+
+// systemLibRe matches glibc/runtime/system libraries that are never useful
+// wildcard-trace targets: each carries thousands of symbols, so attaching
+// uprobes to all of them blows past attach timeouts and rarely yields
+// meaningful coverage for the target program. Shared between install-time
+// ldd-based enumeration (cmd) and runtime dlopen JIT discovery
+// (cmd/shim_binary), which both want the same "not worth it" list.
+//
+// libstdc\+\+ is matched as its own alternative, outside the shared trailing
+// \b: "+" is not a word character, so a \b immediately after it can never
+// match a following "." (both sides non-word) — under the combined pattern
+// this alternative could never actually match a real "libstdc++.so*" path.
+var systemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|libthread_db|ld-linux|libgcc_s|libglib|libgobject|libgthread|libgio|libcap|libattr|libpcre|libselinux|libmount|libblkid|libuuid|libpam|libaudit|libdbus|libsystemd|libudev|libresolv|libnsl|libutil|libcrypt|libanl)\b|libstdc\+\+`)
+
+// IsSystemLib reports whether path names a system/runtime library that
+// install-time enumeration and runtime dlopen discovery should both skip.
+func IsSystemLib(path string) bool {
+	return systemLibRe.MatchString(filepath.Base(path))
 }
 
 // writeJSON marshals v to path. An empty value (per isEmpty) deletes the file.

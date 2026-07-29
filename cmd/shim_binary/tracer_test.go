@@ -79,25 +79,6 @@ func TestNormalizeFuncs_DefaultsEmptyAndNil(t *testing.T) {
 	}
 }
 
-func TestIsSystemLib(t *testing.T) {
-	cases := []struct {
-		path string
-		want bool
-	}{
-		{"/lib64/libc.so.6", true},
-		{"/usr/lib/x86_64-linux-gnu/libstdc++.so.6", true},
-		{"/lib64/libpthread.so.0", true},
-		{"/opt/myapp/libplugin.so", false},
-		{"./libplugin.so", false},
-		{"/usr/lib64/libcustomthing.so.1", false},
-	}
-	for _, c := range cases {
-		if got := isSystemLib(c.path); got != c.want {
-			t.Errorf("isSystemLib(%q) = %v, want %v", c.path, got, c.want)
-		}
-	}
-}
-
 func TestClipToCapacity(t *testing.T) {
 	cases := []struct {
 		name        string

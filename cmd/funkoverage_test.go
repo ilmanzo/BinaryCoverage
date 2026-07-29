@@ -157,7 +157,7 @@ func TestParseLddLibraries(t *testing.T) {
 		t.Fatalf("ParseLddLibraries: %v", err)
 	}
 	for _, l := range libs {
-		if isSystemLib(l) {
+		if funkutil.IsSystemLib(l) {
 			t.Errorf("system library leaked into result: %s", l)
 		}
 		if strings.Contains(l, "vdso") {
@@ -425,37 +425,6 @@ func TestAnalyzeLogsMalformed(t *testing.T) {
 	}
 	if len(coverage) != 0 {
 		t.Errorf("expected empty map for malformed log, got %v", coverage)
-	}
-}
-
-// --- isSystemLib tests ---
-
-func TestIsSystemLib(t *testing.T) {
-	syslibs := []string{
-		"/lib64/libc.so.6",
-		"/lib64/libm.so.6",
-		"/usr/lib/x86_64-linux-gnu/libpthread.so.0",
-		"/lib64/ld-linux-x86-64.so.2",
-		"/lib64/libstdc++.so.6",
-		"/lib64/libgcc_s.so.1",
-		"/lib64/libdl.so.2",
-		"/lib64/librt.so.1",
-	}
-	for _, p := range syslibs {
-		if !isSystemLib(p) {
-			t.Errorf("isSystemLib(%q) should be true", p)
-		}
-	}
-	userlibs := []string{
-		"/usr/lib64/libssl.so.3",
-		"/usr/lib64/libcurl.so.4",
-		"/opt/foo/libmycrypto.so.1",
-		"/lib64/libz.so.1",
-	}
-	for _, p := range userlibs {
-		if isSystemLib(p) {
-			t.Errorf("isSystemLib(%q) should be false", p)
-		}
 	}
 }
 

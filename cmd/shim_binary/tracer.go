@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -478,16 +477,6 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 	return funcs, nil
 }
 
-// libstdc\+\+ is matched as its own alternative, outside the shared trailing
-// \b: "+" is not a word character, so a \b immediately after it can never
-// match a following "." (both sides non-word) — under the combined pattern
-// this alternative could never actually match a real "libstdc++.so*" path.
-var systemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|libthread_db|ld-linux|libgcc_s|libglib|libgobject|libgthread|libgio|libcap|libattr|libpcre|libselinux|libmount|libblkid|libuuid|libpam|libaudit|libdbus|libsystemd|libudev)\b|libstdc\+\+`)
-
-func isSystemLib(path string) bool {
-	return systemLibRe.MatchString(filepath.Base(path))
-}
-
 func (t *Tracer) handleDynamicLoad(pid uint32) {
 	libs, err := getMappedSharedLibraries(pid)
 	if err != nil {
@@ -502,7 +491,7 @@ func (t *Tracer) handleDynamicLoad(pid uint32) {
 		}
 
 		// Also skip system libraries to keep trace size reasonable
-		if isSystemLib(lib) {
+		if funkutil.IsSystemLib(lib) {
 			continue
 		}
 
