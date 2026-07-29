@@ -120,7 +120,6 @@ SEC("uretprobe/dlopen")
 int trace_dlopen_return(struct pt_regs *ctx)
 {
     __u32 tgid = bpf_get_current_pid_tgid() >> 32;
-    bpf_printk("dlopen uretprobe fired, tgid: %d\n", tgid);
     if (!bpf_map_lookup_elem(&watched, &tgid))
         return 0;
 
@@ -132,7 +131,6 @@ int trace_dlopen_return(struct pt_regs *ctx)
     void *handle = (void *)1; // fallback
 #endif
 
-    bpf_printk("dlopen handle: %p\n", handle);
     if (!handle)
         return 0;
 
