@@ -101,8 +101,7 @@ func traceInline(binaryPath string, args []string, noLibs bool, filter *FuncFilt
 	)
 
 	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return exitErr.ExitCode(), nil
 		}
 		return 1, err

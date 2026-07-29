@@ -399,8 +399,8 @@ func findLibcPath(pid uint32) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(data), "\n")
+	for line := range lines {
 		if (strings.Contains(line, "libc.so.6") || strings.Contains(line, "libdl.so.2")) && strings.Contains(line, "r-xp") {
 			parts := strings.Fields(line)
 			if len(parts) >= 6 && hasSymbol(parts[5], "dlopen") {

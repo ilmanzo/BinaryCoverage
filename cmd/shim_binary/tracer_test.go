@@ -4,6 +4,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"testing"
 )
 
@@ -211,13 +212,7 @@ func TestGetSharedLibrarySymbols(t *testing.T) {
 	if len(syms) == 0 {
 		t.Fatalf("getSharedLibrarySymbols(%s) returned no symbols", path)
 	}
-	found := false
-	for _, s := range syms {
-		if s == "dlopen" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(syms, "dlopen")
 	if !found {
 		t.Errorf("expected dlopen among discovered symbols in %s", path)
 	}

@@ -32,8 +32,8 @@ func SafeBinDir() string { return EnvOr("SAFE_BIN_DIR", DefaultSafeBinDir) }
 // StripVersion removes a trailing "@VERSION" suffix from a symbol name.
 // e.g. "memcpy@GLIBC_2.14" → "memcpy".
 func StripVersion(name string) string {
-	if i := strings.IndexByte(name, '@'); i >= 0 {
-		return name[:i]
+	if before, _, ok := strings.Cut(name, "@"); ok {
+		return before
 	}
 	return name
 }

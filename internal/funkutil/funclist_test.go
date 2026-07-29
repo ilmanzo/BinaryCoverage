@@ -11,8 +11,8 @@ func TestFuncListRoundtrip(t *testing.T) {
 	tmp := t.TempDir()
 	safe := filepath.Join(tmp, "mybin")
 	funcs := map[string][]string{
-		"/var/coverage/bin/ssh":      {"main", "do_authentication"},
-		"/usr/lib64/libcrypto.so.3":  {"EVP_DigestInit", "EVP_DigestUpdate"},
+		"/var/coverage/bin/ssh":     {"main", "do_authentication"},
+		"/usr/lib64/libcrypto.so.3": {"EVP_DigestInit", "EVP_DigestUpdate"},
 	}
 
 	if err := WriteFuncList(safe, funcs); err != nil {

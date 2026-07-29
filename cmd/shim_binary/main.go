@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -115,8 +116,8 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	// which run in LIFO order on any error return.
 	var cleanups []func()
 	defer func() {
-		for i := len(cleanups) - 1; i >= 0; i-- {
-			cleanups[i]()
+		for _, cleanup := range slices.Backward(cleanups) {
+			cleanup()
 		}
 	}()
 	cleanups = append(cleanups, func() { pipeW.Close() })
@@ -210,7 +211,7 @@ func cleanEnv(extra ...string) []string {
 	src := os.Environ()
 	env := make([]string, 0, len(src))
 	for _, e := range src {
-		k := strings.SplitN(e, "=", 2)[0]
+		k, _, _ := strings.Cut(e, "=")
 		if !skip[k] {
 			env = append(env, e)
 		}
