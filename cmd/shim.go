@@ -174,32 +174,31 @@ func uninstall(targetBinary string) error {
 	return nil
 }
 
-func installMany(binaries []string, noLibs bool, filter *FuncFilter) error {
+// forEachBinary runs fn for each binary, logging and collecting failures
+// rather than stopping at the first one, and reports the full failed set as
+// a single error.
+func forEachBinary(binaries []string, verb string, fn func(string) error) error {
 	var failed []string
 	for _, bin := range binaries {
-		if err := install(bin, noLibs, filter); err != nil {
-			fmt.Fprintf(os.Stderr, "install error for %s: %v\n", bin, err)
+		if err := fn(bin); err != nil {
+			fmt.Fprintf(os.Stderr, "%s error for %s: %v\n", verb, bin, err)
 			failed = append(failed, bin)
 		}
 	}
 	if len(failed) > 0 {
-		return fmt.Errorf("failed to install: %v", failed)
+		return fmt.Errorf("failed to %s: %v", verb, failed)
 	}
 	return nil
 }
 
+func installMany(binaries []string, noLibs bool, filter *FuncFilter) error {
+	return forEachBinary(binaries, "install", func(bin string) error {
+		return install(bin, noLibs, filter)
+	})
+}
+
 func uninstallMany(binaries []string) error {
-	var failed []string
-	for _, bin := range binaries {
-		if err := uninstall(bin); err != nil {
-			fmt.Fprintf(os.Stderr, "uninstall error for %s: %v\n", bin, err)
-			failed = append(failed, bin)
-		}
-	}
-	if len(failed) > 0 {
-		return fmt.Errorf("failed to uninstall: %v", failed)
-	}
-	return nil
+	return forEachBinary(binaries, "uninstall", uninstall)
 }
 
 // setupEnv validates the host environment for the eBPF tracer:
