@@ -55,15 +55,6 @@ func traceInline(binaryPath string, args []string, noLibs bool, filter *FuncFilt
 		tempSafe = true
 	}
 
-	tempLibs := false
-	if !noLibs {
-		if libs, err := ParseLddLibraries(realBin); err == nil && len(libs) > 0 {
-			if err := funkutil.WriteLibsSidecar(safePath, libs); err == nil {
-				tempLibs = true
-			}
-		}
-	}
-
 	tempFuncs := false
 	if len(funcs) > 0 {
 		if err := funkutil.WriteFuncList(safePath, funcs); err == nil {
@@ -79,9 +70,6 @@ func traceInline(binaryPath string, args []string, noLibs bool, filter *FuncFilt
 	defer func() {
 		if tempSafe {
 			os.Remove(safePath)
-		}
-		if tempLibs {
-			_ = funkutil.WriteLibsSidecar(safePath, nil)
 		}
 		if tempFuncs {
 			_ = funkutil.WriteFuncList(safePath, nil)

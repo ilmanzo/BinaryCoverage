@@ -66,22 +66,6 @@ func readJSON[T any](path string) T {
 	return zero
 }
 
-// LibsSidecarPath returns the per-binary library list path
-// (<safePath>.libs.json) used by the shim's eBPF tracer.
-func LibsSidecarPath(safePath string) string { return safePath + ".libs.json" }
-
-// WriteLibsSidecar writes the library list as JSON to LibsSidecarPath(safePath).
-// A nil/empty libs list deletes any existing sidecar.
-func WriteLibsSidecar(safePath string, libs []string) error {
-	return writeJSON(LibsSidecarPath(safePath), libs, func(v []string) bool { return len(v) == 0 })
-}
-
-// ReadLibsSidecar reads LibsSidecarPath(safePath) and returns the list.
-// Missing or malformed sidecar files yield nil (no error).
-func ReadLibsSidecar(safePath string) []string {
-	return readJSON[[]string](LibsSidecarPath(safePath))
-}
-
 // FilterSidecar carries the --include/--exclude regex source patterns so the
 // shim can re-apply them to functions discovered at runtime (dlopen JIT
 // instrumentation), matching the filtering already applied at enumeration

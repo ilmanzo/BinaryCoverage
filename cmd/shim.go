@@ -95,12 +95,6 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 
-	if !noLibs {
-		if libs, err := ParseLddLibraries(safePath); err == nil && len(libs) > 0 {
-			_ = funkutil.WriteLibsSidecar(safePath, libs)
-		}
-	}
-
 	if err := funkutil.WriteFilterSidecar(safePath, filter.Sidecar()); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: write filter sidecar: %v\n", err)
 	}
@@ -166,7 +160,6 @@ func uninstall(targetBinary string) error {
 	if err := move(sourcePath, realTarget); err != nil {
 		return fmt.Errorf("restore binary: %w", err)
 	}
-	_ = funkutil.WriteLibsSidecar(safePath, nil)
 	_ = funkutil.WriteFuncList(safePath, nil)
 
 	originalName := filepath.Base(targetBinary)
