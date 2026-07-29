@@ -30,3 +30,33 @@ func TestStripVersion(t *testing.T) {
 		}
 	}
 }
+
+func TestFuncIsRelevant(t *testing.T) {
+	cases := []struct {
+		name string
+		want bool
+	}{
+		{"foo", true},
+		{"bar", true},
+		{"myFunc", true},
+		{"str_length", true},
+		{"math_add", true},
+		{"plugin_func", true},
+		{"printf@GLIBC_2.2.5", true},
+		{"main", false},
+		{"_init", false},
+		{"_start", false},
+		{".plt", false},
+		{".plt.got", false},
+		{"foo@plt", false},
+		{"bar@plt.got", false},
+		{"__cxa_atexit", false},
+		{"__libc_start_main", false},
+		{"_dl_relocate_static_pie", false},
+	}
+	for _, c := range cases {
+		if got := FuncIsRelevant(c.name); got != c.want {
+			t.Errorf("FuncIsRelevant(%q) = %v, want %v", c.name, got, c.want)
+		}
+	}
+}

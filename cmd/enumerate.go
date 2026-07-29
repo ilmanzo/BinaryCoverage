@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
@@ -75,28 +74,11 @@ func (f *FuncFilter) Sidecar() funkutil.FilterSidecar {
 	return s
 }
 
-var funcBlacklist = []string{
-	"main", "_init", "_start", ".plt.got", ".plt", "_dl_relocate_static_pie",
-}
-
-func funcIsRelevant(name string) bool {
-	if slices.Contains(funcBlacklist, name) {
-		return false
-	}
-	if strings.HasSuffix(name, "@plt") || strings.HasSuffix(name, "@plt.got") {
-		return false
-	}
-	if strings.HasPrefix(name, "__") {
-		return false
-	}
-	return true
-}
-
 // acceptFunc reports whether to keep `raw` (mangled name) given a filter and
 // dedup set. On accept it marks `raw` as seen.
 func acceptFunc(seen map[string]struct{}, raw string, filter *FuncFilter) bool {
 	demangled := demangleName(raw)
-	if !funcIsRelevant(demangled) || !filter.Match(demangled) {
+	if !funkutil.FuncIsRelevant(demangled) || !filter.Match(demangled) {
 		return false
 	}
 	if _, dup := seen[raw]; dup {

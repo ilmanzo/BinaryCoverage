@@ -98,29 +98,6 @@ func TestIsSystemLib(t *testing.T) {
 	}
 }
 
-func TestFuncIsRelevant(t *testing.T) {
-	cases := []struct {
-		name string
-		want bool
-	}{
-		{"main", false},
-		{"_init", false},
-		{"_start", false},
-		{".plt", false},
-		{".plt.got", false},
-		{"foo@plt", false},
-		{"foo@plt.got", false},
-		{"__libc_start_main", false},
-		{"plugin_func", true},
-		{"printf@GLIBC_2.2.5", true},
-	}
-	for _, c := range cases {
-		if got := funcIsRelevant(c.name); got != c.want {
-			t.Errorf("funcIsRelevant(%q) = %v, want %v", c.name, got, c.want)
-		}
-	}
-}
-
 func TestClipToCapacity(t *testing.T) {
 	cases := []struct {
 		name        string

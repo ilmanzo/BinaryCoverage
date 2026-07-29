@@ -428,23 +428,6 @@ func TestAnalyzeLogsMalformed(t *testing.T) {
 	}
 }
 
-// --- funcIsRelevant tests ---
-
-func TestFuncIsRelevant(t *testing.T) {
-	relevant := []string{"foo", "bar", "myFunc", "str_length", "math_add"}
-	for _, name := range relevant {
-		if !funcIsRelevant(name) {
-			t.Errorf("funcIsRelevant(%q) should be true", name)
-		}
-	}
-	irrelevant := []string{"main", "_init", "_start", "__cxa_atexit", "foo@plt", "bar@plt.got", "__libc_start_main"}
-	for _, name := range irrelevant {
-		if funcIsRelevant(name) {
-			t.Errorf("funcIsRelevant(%q) should be false", name)
-		}
-	}
-}
-
 // --- isSystemLib tests ---
 
 func TestIsSystemLib(t *testing.T) {

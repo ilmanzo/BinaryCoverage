@@ -466,7 +466,7 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 		if sym.Value == 0 || sym.Size == 0 {
 			continue
 		}
-		if sym.Name == "" || !funcIsRelevant(sym.Name) {
+		if sym.Name == "" || !funkutil.FuncIsRelevant(sym.Name) {
 			continue
 		}
 		if _, dup := seen[sym.Name]; dup {
@@ -486,19 +486,6 @@ var systemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|li
 
 func isSystemLib(path string) bool {
 	return systemLibRe.MatchString(filepath.Base(path))
-}
-
-func funcIsRelevant(name string) bool {
-	if name == "main" || name == "_init" || name == "_start" || name == ".plt" || name == ".plt.got" {
-		return false
-	}
-	if strings.HasSuffix(name, "@plt") || strings.HasSuffix(name, "@plt.got") {
-		return false
-	}
-	if strings.HasPrefix(name, "__") {
-		return false
-	}
-	return true
 }
 
 func (t *Tracer) handleDynamicLoad(pid uint32) {

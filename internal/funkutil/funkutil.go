@@ -6,6 +6,7 @@ package funkutil
 import (
 	"encoding/json"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -36,6 +37,28 @@ func StripVersion(name string) string {
 		return before
 	}
 	return name
+}
+
+// funcBlacklist holds mangled names that are never real coverage targets:
+// entry points and PLT stub markers rather than user code.
+var funcBlacklist = []string{"main", "_init", "_start", ".plt.got", ".plt", "_dl_relocate_static_pie"}
+
+// FuncIsRelevant reports whether a mangled function name is worth tracing —
+// excludes entry points, PLT stubs/thunks, and compiler-internal symbols
+// (leading "__"). Shared between install-time enumeration (cmd) and runtime
+// dlopen JIT discovery (cmd/shim_binary), which must agree on what counts as
+// a real function.
+func FuncIsRelevant(name string) bool {
+	if slices.Contains(funcBlacklist, name) {
+		return false
+	}
+	if strings.HasSuffix(name, "@plt") || strings.HasSuffix(name, "@plt.got") {
+		return false
+	}
+	if strings.HasPrefix(name, "__") {
+		return false
+	}
+	return true
 }
 
 // writeJSON marshals v to path. An empty value (per isEmpty) deletes the file.
