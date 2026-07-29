@@ -12,3 +12,4 @@ shim_binary
 example/cov_sample
 example/dlopen_test
 *.so
+coverage.out
