@@ -285,7 +285,7 @@ func (t *Tracer) readLoop() {
 		idx := binary.LittleEndian.Uint32(record.RawSample[:4])
 		debugLog("Go readLoop: read event idx: %x", idx)
 		if idx == 0xFFFFFFFF {
-			t.handleDynamicLoad(t.rootPID)
+			t.handleDynamicLoad()
 			continue
 		}
 		if idx >= uint32(len(t.funcs)) {
@@ -410,6 +410,19 @@ func findLibcPath(pid uint32) (string, error) {
 	return "", fmt.Errorf("dlopen symbol not found in standard paths or /proc/%d/maps", pid)
 }
 
+// watchedPIDs returns the live contents of the "watched" BPF map: rootPID
+// plus every descendant seen by the sched_process_fork tracepoint so far.
+func (t *Tracer) watchedPIDs() ([]uint32, error) {
+	var pids []uint32
+	var key uint32
+	var val uint8
+	it := t.objs.Watched.Iterate()
+	for it.Next(&key, &val) {
+		pids = append(pids, key)
+	}
+	return pids, it.Err()
+}
+
 func getMappedSharedLibraries(pid uint32) ([]string, error) {
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/maps", pid))
 	if err != nil {
@@ -477,11 +490,33 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 	return funcs, nil
 }
 
-func (t *Tracer) handleDynamicLoad(pid uint32) {
-	libs, err := getMappedSharedLibraries(pid)
+// handleDynamicLoad reacts to a dlopen() event by rescanning every currently
+// watched process's memory map, not just the root process. The ringbuf event
+// that triggers this carries no pid — dlopen() may have been called from a
+// forked child (watched via sched_process_fork), whose newly-mapped library
+// would be invisible if we only inspected rootPID's /proc/maps.
+func (t *Tracer) handleDynamicLoad() {
+	pids, err := t.watchedPIDs()
 	if err != nil {
-		debugLog("funkoverage-shim: error getting mapped libraries: %v", err)
+		debugLog("funkoverage-shim: error listing watched pids: %v", err)
 		return
+	}
+
+	seen := make(map[string]struct{})
+	var libs []string
+	for _, pid := range pids {
+		mapped, err := getMappedSharedLibraries(pid)
+		if err != nil {
+			debugLog("funkoverage-shim: error getting mapped libraries for pid %d: %v", pid, err)
+			continue
+		}
+		for _, lib := range mapped {
+			if _, dup := seen[lib]; dup {
+				continue
+			}
+			seen[lib] = struct{}{}
+			libs = append(libs, lib)
+		}
 	}
 
 	for _, lib := range libs {

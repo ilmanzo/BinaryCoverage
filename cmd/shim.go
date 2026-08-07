@@ -87,9 +87,12 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		_ = move(safePath, realTarget)
 		return fmt.Errorf("function enumeration: %w", err)
 	}
-	if len(funcs) == 0 && noLibs {
-		_ = move(safePath, realTarget)
-		return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
+	if len(funcs) == 0 {
+		if noLibs {
+			_ = move(safePath, realTarget)
+			return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
+		}
+		fmt.Fprintf(os.Stderr, "warning: no functions found in %s statically; coverage will rely entirely on runtime dlopen() discovery\n", safePath)
 	}
 	if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
