@@ -44,6 +44,14 @@ var (
 	calledPrefix = []byte("CALLED ")
 )
 
+// Parsed once at package init instead of on every report/image — the
+// template text is a compile-time constant, so re-parsing per call was
+// pure repeated work.
+var (
+	parsedDetailedTemplate  = template.Must(template.New("report").Parse(detailedHTMLTemplateStr))
+	parsedAggregateTemplate = template.Must(template.New("aggregate").Parse(aggregateHTMLTemplate))
+)
+
 // safeImageName returns a filesystem-safe slug from an image path.
 func safeImageName(image string) string {
 	return safeNameRe.ReplaceAllString(filepath.Base(image), "_")
@@ -324,17 +332,13 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 		Functions:          functions,
 		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
-	tmpl, err := template.New("report").Parse(detailedHTMLTemplateStr)
-	if err != nil {
-		return err
-	}
 	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeImageName(image)))
 	f, err := os.Create(outfile)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	return tmpl.Execute(f, reportData)
+	return parsedDetailedTemplate.Execute(f, reportData)
 }
 
 // generateAggregateHTMLReport generates an HTML report summarizing coverage across all images.
@@ -349,17 +353,13 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 		GeneratedAt:    time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 
-	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate)
-	if err != nil {
-		return err
-	}
 	outfile := filepath.Join(outputDir, "aggregate.html")
 	f, err := os.Create(outfile)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	return tmpl.Execute(f, aggData)
+	return parsedAggregateTemplate.Execute(f, aggData)
 }
 
 type CoverageSummary struct {

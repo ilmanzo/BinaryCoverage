@@ -79,9 +79,13 @@ func BenchmarkAnalyzeLogs(b *testing.B) {
 	}
 }
 
+// generateHTMLReport/generateXUnitReport are called once per image by
+// emitReport, so the benchmark needs many images (the axis bottleneck B's
+// per-call template re-parse actually costs on) rather than few images
+// with huge function counts.
 func BenchmarkGenerateHTMLReport(b *testing.B) {
 	dir := b.TempDir()
-	files := genBenchLogs(b, dir, 1, 5000, 4)
+	files := genBenchLogs(b, dir, 200, 50, 2)
 	coverage, err := analyzeLogs(files)
 	if err != nil {
 		b.Fatal(err)
@@ -99,7 +103,7 @@ func BenchmarkGenerateHTMLReport(b *testing.B) {
 
 func BenchmarkGenerateXUnitReport(b *testing.B) {
 	dir := b.TempDir()
-	files := genBenchLogs(b, dir, 1, 5000, 4)
+	files := genBenchLogs(b, dir, 200, 50, 2)
 	coverage, err := analyzeLogs(files)
 	if err != nil {
 		b.Fatal(err)
