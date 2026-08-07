@@ -1,11 +1,6 @@
 package funkutil
 
-import (
-	"os"
-	"path/filepath"
-	"reflect"
-	"testing"
-)
+import "testing"
 
 func TestEnvOr(t *testing.T) {
 	t.Setenv("FUNKUTIL_TEST_X", "value")
@@ -36,46 +31,61 @@ func TestStripVersion(t *testing.T) {
 	}
 }
 
-func TestLibsSidecarRoundtrip(t *testing.T) {
-	tmp := t.TempDir()
-	safe := filepath.Join(tmp, "mybin")
-	libs := []string{"/lib64/libc.so.6", "/lib64/libm.so.6"}
-
-	if err := WriteLibsSidecar(safe, libs); err != nil {
-		t.Fatalf("write: %v", err)
+func TestFuncIsRelevant(t *testing.T) {
+	cases := []struct {
+		name string
+		want bool
+	}{
+		{"foo", true},
+		{"bar", true},
+		{"myFunc", true},
+		{"str_length", true},
+		{"math_add", true},
+		{"plugin_func", true},
+		{"printf@GLIBC_2.2.5", true},
+		{"main", false},
+		{"_init", false},
+		{"_start", false},
+		{".plt", false},
+		{".plt.got", false},
+		{"foo@plt", false},
+		{"bar@plt.got", false},
+		{"__cxa_atexit", false},
+		{"__libc_start_main", false},
+		{"_dl_relocate_static_pie", false},
 	}
-	if _, err := os.Stat(LibsSidecarPath(safe)); err != nil {
-		t.Fatalf("sidecar not created: %v", err)
-	}
-
-	got := ReadLibsSidecar(safe)
-	if !reflect.DeepEqual(got, libs) {
-		t.Errorf("roundtrip: got %v, want %v", got, libs)
-	}
-}
-
-func TestLibsSidecarEmptyDeletes(t *testing.T) {
-	tmp := t.TempDir()
-	safe := filepath.Join(tmp, "mybin")
-	_ = WriteLibsSidecar(safe, []string{"/lib/x.so"})
-	if err := WriteLibsSidecar(safe, nil); err != nil {
-		t.Fatalf("delete: %v", err)
-	}
-	if _, err := os.Stat(LibsSidecarPath(safe)); !os.IsNotExist(err) {
-		t.Errorf("sidecar should be removed, stat err: %v", err)
-	}
-	if got := ReadLibsSidecar(safe); got != nil {
-		t.Errorf("missing sidecar should yield nil, got %v", got)
+	for _, c := range cases {
+		if got := FuncIsRelevant(c.name); got != c.want {
+			t.Errorf("FuncIsRelevant(%q) = %v, want %v", c.name, got, c.want)
+		}
 	}
 }
 
-func TestReadLibsSidecarMalformed(t *testing.T) {
-	tmp := t.TempDir()
-	safe := filepath.Join(tmp, "mybin")
-	if err := os.WriteFile(LibsSidecarPath(safe), []byte("not json"), 0644); err != nil {
-		t.Fatal(err)
+func TestIsSystemLib(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"/lib64/libc.so.6", true},
+		{"/lib64/libm.so.6", true},
+		{"/usr/lib/x86_64-linux-gnu/libpthread.so.0", true},
+		{"/lib64/ld-linux-x86-64.so.2", true},
+		{"/lib64/libstdc++.so.6", true},
+		{"/usr/lib/x86_64-linux-gnu/libstdc++.so.6", true},
+		{"/lib64/libgcc_s.so.1", true},
+		{"/lib64/libdl.so.2", true},
+		{"/lib64/librt.so.1", true},
+		{"/usr/lib64/libssl.so.3", false},
+		{"/usr/lib64/libcurl.so.4", false},
+		{"/opt/foo/libmycrypto.so.1", false},
+		{"/lib64/libz.so.1", false},
+		{"/opt/myapp/libplugin.so", false},
+		{"./libplugin.so", false},
+		{"/usr/lib64/libcustomthing.so.1", false},
 	}
-	if got := ReadLibsSidecar(safe); got != nil {
-		t.Errorf("malformed sidecar should yield nil, got %v", got)
+	for _, c := range cases {
+		if got := IsSystemLib(c.path); got != c.want {
+			t.Errorf("IsSystemLib(%q) = %v, want %v", c.path, got, c.want)
+		}
 	}
 }

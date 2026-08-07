@@ -116,6 +116,32 @@ int trace_fork(struct sched_process_fork_args *ctx)
     return 0;
 }
 
+SEC("uretprobe/dlopen")
+int trace_dlopen_return(struct pt_regs *ctx)
+{
+    __u32 tgid = bpf_get_current_pid_tgid() >> 32;
+    if (!bpf_map_lookup_elem(&watched, &tgid))
+        return 0;
+
+#if defined(__x86_64__)
+    void *handle = (void *)ctx->ax;
+#elif defined(__aarch64__)
+    void *handle = (void *)ctx->regs[0];
+#else
+    void *handle = (void *)1; // fallback
+#endif
+
+    if (!handle)
+        return 0;
+
+    struct event *e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
+    if (!e)
+        return 0;
+    e->func_idx = 0xFFFFFFFF; // Reserved token for dlopen
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
 // No sched_process_exit cleanup. When a non-leader thread calls execve(),
 // the kernel's de_thread() kills the old leader, firing sched_process_exit
 // with args->pid == TGID — that would prematurely evict our newly-execed

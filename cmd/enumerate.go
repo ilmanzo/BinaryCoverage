@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
@@ -58,28 +57,28 @@ func (f *FuncFilter) Match(demangled string) bool {
 	return true
 }
 
-var funcBlacklist = []string{
-	"main", "_init", "_start", ".plt.got", ".plt", "_dl_relocate_static_pie",
-}
-
-func funcIsRelevant(name string) bool {
-	if slices.Contains(funcBlacklist, name) {
-		return false
+// Sidecar converts f to its serializable form (regex source patterns) so the
+// shim can re-apply the same filter to functions discovered via dlopen at
+// runtime. A nil filter yields the zero value (no filtering).
+func (f *FuncFilter) Sidecar() funkutil.FilterSidecar {
+	var s funkutil.FilterSidecar
+	if f == nil {
+		return s
 	}
-	if strings.HasSuffix(name, "@plt") || strings.HasSuffix(name, "@plt.got") {
-		return false
+	if f.Include != nil {
+		s.Include = f.Include.String()
 	}
-	if strings.HasPrefix(name, "__") {
-		return false
+	if f.Exclude != nil {
+		s.Exclude = f.Exclude.String()
 	}
-	return true
+	return s
 }
 
 // acceptFunc reports whether to keep `raw` (mangled name) given a filter and
 // dedup set. On accept it marks `raw` as seen.
 func acceptFunc(seen map[string]struct{}, raw string, filter *FuncFilter) bool {
 	demangled := demangleName(raw)
-	if !funcIsRelevant(demangled) || !filter.Match(demangled) {
+	if !funkutil.FuncIsRelevant(demangled) || !filter.Match(demangled) {
 		return false
 	}
 	if _, dup := seen[raw]; dup {
@@ -338,16 +337,6 @@ func enumerateSymtab(f *elf.File, filter *FuncFilter) ([]string, error) {
 // Capture group 1 is the absolute library path.
 var lddLineRe = regexp.MustCompile(`(?:=>\s*)?(/\S+)\s+\(0x[0-9a-fA-F]+\)`)
 
-// systemLibRe matches glibc/runtime libraries we never want to wildcard-trace:
-// each carries thousands of symbols, so attaching uprobes to all of them
-// blows past FUNKOVERAGE_ATTACH_TIMEOUT and rarely yields useful coverage
-// for the target program.
-var systemLibRe = regexp.MustCompile(`^(ld-linux[^/]*|libc|libm|libdl|librt|libpthread|libresolv|libnsl|libutil|libcrypt|libanl|libgcc_s|libstdc\+\+)\.so(\.|$)`)
-
-func isSystemLib(libPath string) bool {
-	return systemLibRe.MatchString(filepath.Base(libPath))
-}
-
 // ParseLddLibraries runs ldd on binPath and returns absolute paths of
 // shared libraries (skips vdso, "not found", and glibc/runtime system libs).
 func ParseLddLibraries(binPath string) ([]string, error) {
@@ -367,7 +356,7 @@ func ParseLddLibraries(binPath string) ([]string, error) {
 			continue
 		}
 		path := m[1]
-		if isSystemLib(path) {
+		if funkutil.IsSystemLib(path) {
 			continue
 		}
 		libs = append(libs, path)

@@ -54,7 +54,7 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 	if err != nil {
 		return fmt.Errorf("debug info check: %w", err)
 	}
-	if !found {
+	if !found && noLibs {
 		return fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
 	}
 
@@ -88,17 +88,18 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		return fmt.Errorf("function enumeration: %w", err)
 	}
 	if len(funcs) == 0 {
-		_ = move(safePath, realTarget)
-		return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
+		if noLibs {
+			_ = move(safePath, realTarget)
+			return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
+		}
+		fmt.Fprintf(os.Stderr, "warning: no functions found in %s statically; coverage will rely entirely on runtime dlopen() discovery\n", safePath)
 	}
 	if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 
-	if !noLibs {
-		if libs, err := ParseLddLibraries(safePath); err == nil && len(libs) > 0 {
-			_ = funkutil.WriteLibsSidecar(safePath, libs)
-		}
+	if err := funkutil.WriteFilterSidecar(safePath, filter.Sidecar()); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: write filter sidecar: %v\n", err)
 	}
 
 	if err := funkutil.WriteFuncList(safePath, funcs); err != nil {
@@ -162,7 +163,6 @@ func uninstall(targetBinary string) error {
 	if err := move(sourcePath, realTarget); err != nil {
 		return fmt.Errorf("restore binary: %w", err)
 	}
-	_ = funkutil.WriteLibsSidecar(safePath, nil)
 	_ = funkutil.WriteFuncList(safePath, nil)
 
 	originalName := filepath.Base(targetBinary)
@@ -177,32 +177,31 @@ func uninstall(targetBinary string) error {
 	return nil
 }
 
-func installMany(binaries []string, noLibs bool, filter *FuncFilter) error {
+// forEachBinary runs fn for each binary, logging and collecting failures
+// rather than stopping at the first one, and reports the full failed set as
+// a single error.
+func forEachBinary(binaries []string, verb string, fn func(string) error) error {
 	var failed []string
 	for _, bin := range binaries {
-		if err := install(bin, noLibs, filter); err != nil {
-			fmt.Fprintf(os.Stderr, "install error for %s: %v\n", bin, err)
+		if err := fn(bin); err != nil {
+			fmt.Fprintf(os.Stderr, "%s error for %s: %v\n", verb, bin, err)
 			failed = append(failed, bin)
 		}
 	}
 	if len(failed) > 0 {
-		return fmt.Errorf("failed to install: %v", failed)
+		return fmt.Errorf("failed to %s: %v", verb, failed)
 	}
 	return nil
 }
 
+func installMany(binaries []string, noLibs bool, filter *FuncFilter) error {
+	return forEachBinary(binaries, "install", func(bin string) error {
+		return install(bin, noLibs, filter)
+	})
+}
+
 func uninstallMany(binaries []string) error {
-	var failed []string
-	for _, bin := range binaries {
-		if err := uninstall(bin); err != nil {
-			fmt.Fprintf(os.Stderr, "uninstall error for %s: %v\n", bin, err)
-			failed = append(failed, bin)
-		}
-	}
-	if len(failed) > 0 {
-		return fmt.Errorf("failed to uninstall: %v", failed)
-	}
-	return nil
+	return forEachBinary(binaries, "uninstall", uninstall)
 }
 
 // setupEnv validates the host environment for the eBPF tracer:

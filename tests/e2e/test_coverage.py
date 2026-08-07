@@ -20,6 +20,9 @@ FUNKOVERAGE   = PROJECT_ROOT / "funkoverage"
 SHIM_BINARY   = PROJECT_ROOT / "funkoverage-shim"
 SAMPLE_DIR    = PROJECT_ROOT / "tests" / "sample"
 SAMPLE_SRC    = SAMPLE_DIR / "sample"
+EXAMPLE_DIR   = PROJECT_ROOT / "example"
+DLOPEN_SRC    = EXAMPLE_DIR / "dlopen_test"
+PLUGIN_SRC    = EXAMPLE_DIR / "libplugin.so"
 
 
 def run(args, *, env=None, check=True, capture=False, **kw):
@@ -274,6 +277,80 @@ class TestCoverageTracing(BaseCoverageTest):
             env=self.env)
         called_logs = list(self.log_dir.glob("*_called.log"))
         self.assertGreater(len(called_logs), 0, "Expected _called.log after trace")
+
+
+@unittest.skipUnless(os.path.exists("/sys/kernel/btf/vmlinux"), "kernel BTF not available")
+class TestDlopenTracing(unittest.TestCase):
+    """JIT instrumentation of a shared library loaded at runtime via dlopen
+    (needs CAP_BPF or root). See docs/dlopen_scalability_plan.md."""
+
+    def setUp(self):
+        if not FUNKOVERAGE.exists() or not SHIM_BINARY.exists():
+            self.skipTest("funkoverage or funkoverage-shim not built")
+        if not DLOPEN_SRC.exists() or not PLUGIN_SRC.exists():
+            try:
+                run(["make", "-C", str(EXAMPLE_DIR), "dlopen_test"])
+            except subprocess.CalledProcessError:
+                self.skipTest("could not build example/dlopen_test (need a C compiler)")
+
+        if os.getuid() != 0:
+            result = subprocess.run(
+                ["getcap", str(SHIM_BINARY)], capture_output=True, text=True,
+            )
+            if "cap_bpf" not in result.stdout:
+                self.skipTest(
+                    "funkoverage-shim needs CAP_BPF. Run tests as root or use 'funkoverage install'"
+                )
+
+        self.tmp      = Path(tempfile.mkdtemp(prefix="funkoverage_e2e_dlopen_"))
+        self.safe_bin = self.tmp / "safe"
+        self.log_dir  = self.tmp / "logs"
+        for d in (self.safe_bin, self.log_dir):
+            d.mkdir(parents=True)
+
+        # main_dlopen.c does dlopen("./libplugin.so") — a relative path, so
+        # the binary and plugin must sit side by side in the run cwd.
+        self.bin = self.tmp / "dlopen_test"
+        shutil.copy2(str(DLOPEN_SRC), str(self.bin))
+        self.bin.chmod(0o755)
+        shutil.copy2(str(PLUGIN_SRC), str(self.tmp / "libplugin.so"))
+
+        self.env = {
+            "FUNKOVERAGE_SHIM": str(SHIM_BINARY),
+            "SAFE_BIN_DIR":     str(self.safe_bin),
+            "LOG_DIR":          str(self.log_dir),
+        }
+
+    def tearDown(self):
+        try:
+            run([FUNKOVERAGE, "uninstall", str(self.bin)], env=self.env, check=False)
+        except Exception:
+            pass
+        shutil.rmtree(str(self.tmp), ignore_errors=True)
+
+    def called_functions(self):
+        called = set()
+        for f in self.log_dir.glob("*_called.log"):
+            for line in f.read_text().splitlines():
+                if line.startswith("CALLED "):
+                    parts = line.split(" ", 2)
+                    if len(parts) == 3:
+                        called.add(parts[2])
+        return called
+
+    def test_dlopen_plugin_function_traced(self):
+        # No --no-libs: the main binary's own functions (main, etc.) are
+        # traced normally; libplugin.so is invisible to ldd (loaded via
+        # dlopen at runtime) and must be picked up by JIT instrumentation.
+        run([FUNKOVERAGE, "install", str(self.bin)], env=self.env)
+        run([str(self.bin)], env=self.env, cwd=str(self.tmp))
+        run([FUNKOVERAGE, "uninstall", str(self.bin)], env=self.env)
+
+        called = self.called_functions()
+        self.assertIn(
+            "plugin_func", called,
+            f"Expected plugin_func (from dlopen'd libplugin.so) among called functions, got: {called}",
+        )
 
 
 @unittest.skipUnless(os.getenv("FUNKOVERAGE_SYSTEM_TEST"), "set FUNKOVERAGE_SYSTEM_TEST=1 to enable")

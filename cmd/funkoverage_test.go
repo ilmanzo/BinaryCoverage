@@ -12,6 +12,207 @@ import (
 	"funkoverage/internal/funkutil"
 )
 
+// --- checkKernelVersion tests ---
+
+func TestCheckKernelVersion(t *testing.T) {
+	if err := checkKernelVersion(0, 0); err != nil {
+		t.Errorf("checkKernelVersion(0, 0) should always pass on a real kernel: %v", err)
+	}
+	if err := checkKernelVersion(999, 0); err == nil {
+		t.Error("checkKernelVersion(999, 0) should fail on any real kernel")
+	}
+}
+
+// --- setupEnv test ---
+
+func TestSetupEnv(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("LOG_DIR", filepath.Join(tmp, "logs"))
+	t.Setenv("SAFE_BIN_DIR", filepath.Join(tmp, "safe"))
+
+	err := setupEnv()
+	if err != nil {
+		// Expected on machines without BTF (most CI runners) or an old kernel.
+		return
+	}
+	// If it succeeded, both directories must actually exist.
+	if _, statErr := os.Stat(funkutil.LogDir()); statErr != nil {
+		t.Errorf("setupEnv succeeded but LOG_DIR missing: %v", statErr)
+	}
+	if _, statErr := os.Stat(funkutil.SafeBinDir()); statErr != nil {
+		t.Errorf("setupEnv succeeded but SAFE_BIN_DIR missing: %v", statErr)
+	}
+}
+
+// --- FuncFilter.Sidecar tests ---
+
+func TestFuncFilterSidecar(t *testing.T) {
+	var nilFilter *FuncFilter
+	if s := nilFilter.Sidecar(); s.Include != "" || s.Exclude != "" {
+		t.Errorf("nil filter should produce empty sidecar, got %+v", s)
+	}
+
+	empty, _ := NewFuncFilter("", "")
+	if s := empty.Sidecar(); s.Include != "" || s.Exclude != "" {
+		t.Errorf("empty filter should produce empty sidecar, got %+v", s)
+	}
+
+	includeOnly, _ := NewFuncFilter("^str_", "")
+	if s := includeOnly.Sidecar(); s.Include != "^str_" || s.Exclude != "" {
+		t.Errorf("unexpected sidecar for include-only: %+v", s)
+	}
+
+	both, _ := NewFuncFilter("^math_", "is_")
+	if s := both.Sidecar(); s.Include != "^math_" || s.Exclude != "is_" {
+		t.Errorf("unexpected sidecar for both: %+v", s)
+	}
+}
+
+// --- findDebugFile tests ---
+
+func TestFindDebugFile(t *testing.T) {
+	tmp := t.TempDir()
+	direct := filepath.Join(tmp, "foo.debug")
+	if err := os.WriteFile(direct, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := findDebugFile(direct); got != direct {
+		t.Errorf("findDebugFile(direct path) = %q, want %q", got, direct)
+	}
+	if got := findDebugFile(filepath.Join(tmp, "nonexistent.debug")); got != "" {
+		t.Errorf("findDebugFile(missing) = %q, want empty", got)
+	}
+}
+
+// --- locateExternalDebugForMerge tests ---
+
+func TestLocateExternalDebugForMerge(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	if _, err := exec.LookPath("strip"); err != nil {
+		t.Skip("strip not found")
+	}
+	tmp := t.TempDir()
+	orig := globalDebugRoot
+	globalDebugRoot = tmp
+	defer func() { globalDebugRoot = orig }()
+
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(tmp, "bin_merge")
+	if out, err := exec.Command("gcc", "-g", "-Wl,--build-id", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	f, err := elf.Open(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildID, err := getBuildID(f)
+	f.Close()
+	if err != nil {
+		t.Fatalf("get build id: %v", err)
+	}
+	if out, err := exec.Command("strip", "--strip-debug", bin).CombinedOutput(); err != nil {
+		t.Fatalf("strip: %v\n%s", err, out)
+	}
+
+	// No external debug file placed yet: nothing to find.
+	if got, err := locateExternalDebugForMerge(bin); err != nil || got != "" {
+		t.Errorf("locateExternalDebugForMerge before placing debug file = (%q, %v), want (\"\", nil)", got, err)
+	}
+
+	dir := filepath.Join(tmp, ".build-id", buildID[:2])
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	debugFile := filepath.Join(dir, buildID[2:]+".debug")
+	if err := os.WriteFile(debugFile, []byte("dummy debug info"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := locateExternalDebugForMerge(bin)
+	if err != nil {
+		t.Fatalf("locateExternalDebugForMerge: %v", err)
+	}
+	if got != debugFile {
+		t.Errorf("locateExternalDebugForMerge = %q, want %q", got, debugFile)
+	}
+}
+
+// --- ParseLddLibraries tests ---
+
+func TestParseLddLibraries(t *testing.T) {
+	if _, err := exec.LookPath("ldd"); err != nil {
+		t.Skip("ldd not found")
+	}
+	shBin, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("sh not found")
+	}
+
+	libs, err := ParseLddLibraries(shBin)
+	if err != nil {
+		t.Fatalf("ParseLddLibraries: %v", err)
+	}
+	for _, l := range libs {
+		if funkutil.IsSystemLib(l) {
+			t.Errorf("system library leaked into result: %s", l)
+		}
+		if strings.Contains(l, "vdso") {
+			t.Errorf("vdso leaked into result: %s", l)
+		}
+	}
+
+	if _, err := ParseLddLibraries("/nonexistent/binary_xyz123"); err == nil {
+		t.Error("expected error for nonexistent binary")
+	}
+}
+
+// --- dwarfFunctions / enumerateDWARF tests ---
+
+func TestDwarfFunctions(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "main.c")
+	code := `
+int dwarf_add(int a, int b) { return a + b; }
+int dwarf_sub(int a, int b) { return a - b; }
+int main() { return dwarf_add(1, 2) + dwarf_sub(3, 1); }
+`
+	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(tmp, "dwarf_test")
+	if out, err := exec.Command("gcc", "-g", "-O0", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+
+	funcs, err := dwarfFunctions(bin, nil)
+	if err != nil {
+		t.Fatalf("dwarfFunctions: %v", err)
+	}
+	hasAdd, hasSub := false, false
+	for _, name := range funcs {
+		if name == "dwarf_add" {
+			hasAdd = true
+		}
+		if name == "dwarf_sub" {
+			hasSub = true
+		}
+	}
+	if !hasAdd || !hasSub {
+		t.Errorf("expected dwarf_add and dwarf_sub in DWARF-enumerated functions, got %v", funcs)
+	}
+
+	if _, err := dwarfFunctions("/nonexistent/binary_xyz123", nil); err == nil {
+		t.Error("expected error for nonexistent binary")
+	}
+}
+
 // --- isELF tests ---
 
 func TestIsELF(t *testing.T) {
@@ -224,54 +425,6 @@ func TestAnalyzeLogsMalformed(t *testing.T) {
 	}
 	if len(coverage) != 0 {
 		t.Errorf("expected empty map for malformed log, got %v", coverage)
-	}
-}
-
-// --- funcIsRelevant tests ---
-
-func TestFuncIsRelevant(t *testing.T) {
-	relevant := []string{"foo", "bar", "myFunc", "str_length", "math_add"}
-	for _, name := range relevant {
-		if !funcIsRelevant(name) {
-			t.Errorf("funcIsRelevant(%q) should be true", name)
-		}
-	}
-	irrelevant := []string{"main", "_init", "_start", "__cxa_atexit", "foo@plt", "bar@plt.got", "__libc_start_main"}
-	for _, name := range irrelevant {
-		if funcIsRelevant(name) {
-			t.Errorf("funcIsRelevant(%q) should be false", name)
-		}
-	}
-}
-
-// --- isSystemLib tests ---
-
-func TestIsSystemLib(t *testing.T) {
-	syslibs := []string{
-		"/lib64/libc.so.6",
-		"/lib64/libm.so.6",
-		"/usr/lib/x86_64-linux-gnu/libpthread.so.0",
-		"/lib64/ld-linux-x86-64.so.2",
-		"/lib64/libstdc++.so.6",
-		"/lib64/libgcc_s.so.1",
-		"/lib64/libdl.so.2",
-		"/lib64/librt.so.1",
-	}
-	for _, p := range syslibs {
-		if !isSystemLib(p) {
-			t.Errorf("isSystemLib(%q) should be true", p)
-		}
-	}
-	userlibs := []string{
-		"/usr/lib64/libssl.so.3",
-		"/usr/lib64/libcurl.so.4",
-		"/opt/foo/libmycrypto.so.1",
-		"/lib64/libz.so.1",
-	}
-	for _, p := range userlibs {
-		if isSystemLib(p) {
-			t.Errorf("isSystemLib(%q) should be false", p)
-		}
 	}
 }
 

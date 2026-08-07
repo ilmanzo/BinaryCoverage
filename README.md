@@ -5,8 +5,9 @@
 **Documentation:**
 - [docs/install.md](docs/install.md) — Fresh-system installation guide
 - [docs/design.md](docs/design.md) — Architecture diagrams and internals
+- [docs/dlopen_realworld_testing.md](docs/dlopen_realworld_testing.md) — Real-world VM validation runbook for dlopen() JIT tracing
 
-[![Build check](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml) [![Run unit tests](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml)
+[![Build check](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/build.yml) [![Run unit tests](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml/badge.svg)](https://github.com/ilmanzo/BinaryCoverage/actions/workflows/test.yml) [![codecov](https://codecov.io/gh/ilmanzo/BinaryCoverage/graph/badge.svg)](https://codecov.io/gh/ilmanzo/BinaryCoverage)
 
 ## ✅ Supported Platforms
 
@@ -91,10 +92,7 @@ Pre-captured coverage logs are available in `tests/sample_data/` to develop or t
 - **DWZ Support**: Handles compressed debug information (common in openSUSE/Fedora).
 - **Multi-Library Tracing**: Can simultaneously trace the main binary and all linked shared libraries.
 - **Function Filtering**: `--include`/`--exclude` regex filters to focus on specific namespaces.
-
-## 🚧 TODO
-
-- **`dlopen()` libraries**: Only `DT_NEEDED` libraries (resolved via `ldd` at install time) are instrumented. Libraries loaded at runtime via `dlopen()` are invisible to `ldd` and currently not traced. Possible fixes: uprobe on `dlopen()` to trigger reattach, or poll `/proc/<pid>/maps` from the parent shim.
+- **`dlopen()` Support**: Dynamically loaded libraries are traced on-the-fly via JIT instrumentation of `dlopen` calls using eBPF uretprobes and automatic maps monitoring. **Known limitation**: this only hooks the *public* `dlopen()` ELF symbol. glibc's own NSS module loading (`getpwnam`, `gethostbyname`, etc. pulling in `libnss_*.so`) goes through an internal, non-exported `__libc_dlopen_mode` instead, so NSS modules are never JIT-instrumented — verified on real hardware, see [docs/dlopen_realworld_testing.md](docs/dlopen_realworld_testing.md#7-nss-known-limitation). Everything else that calls the public `dlopen()` (PAM modules, nginx dynamic modules, application plugins, etc.) is captured correctly.
 
 ## License
 

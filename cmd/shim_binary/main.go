@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -96,10 +97,10 @@ func childMain() {
 // exits. Returns the child's exit code (or 1 with err on tracer failure).
 func runWithTracing(realBin string) (exitCode int, err error) {
 	funcs := funkutil.ReadFuncList(realBin)
-	if len(funcs) == 0 {
-		return 1, fmt.Errorf("missing or empty %s — reinstall required",
-			funkutil.FuncListPath(realBin))
+	if funcs == nil {
+		funcs = make(map[string][]string)
 	}
+	filter := funkutil.ReadFilterSidecar(realBin)
 
 	dir := funkutil.LogDir()
 	if err := os.MkdirAll(dir, 0777); err != nil {
@@ -115,8 +116,8 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	// which run in LIFO order on any error return.
 	var cleanups []func()
 	defer func() {
-		for i := len(cleanups) - 1; i >= 0; i-- {
-			cleanups[i]()
+		for _, cleanup := range slices.Backward(cleanups) {
+			cleanup()
 		}
 	}()
 	cleanups = append(cleanups, func() { pipeW.Close() })
@@ -140,7 +141,7 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	})
 
 	logPath := calledLogPath(dir, realBin)
-	tracer, err := NewTracer(funcs, logPath)
+	tracer, err := NewTracer(funcs, logPath, filter.Include, filter.Exclude)
 	if err != nil {
 		return 1, err
 	}
@@ -210,7 +211,7 @@ func cleanEnv(extra ...string) []string {
 	src := os.Environ()
 	env := make([]string, 0, len(src))
 	for _, e := range src {
-		k := strings.SplitN(e, "=", 2)[0]
+		k, _, _ := strings.Cut(e, "=")
 		if !skip[k] {
 			env = append(env, e)
 		}
