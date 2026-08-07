@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"html/template"
@@ -36,10 +37,11 @@ type HTMLReportData struct {
 
 // --- Coverage Analysis ---
 
+var safeNameRe = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
+
 var (
-	funcLineRe   = regexp.MustCompile(`^FUNC (\S+) (.+)$`)
-	calledLineRe = regexp.MustCompile(`^CALLED (\S+) (.+)$`)
-	safeNameRe   = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
+	funcPrefix   = []byte("FUNC ")
+	calledPrefix = []byte("CALLED ")
 )
 
 // safeImageName returns a filesystem-safe slug from an image path.
@@ -113,26 +115,32 @@ func scanLog(logFile, logType string, coverage map[string]*CoverageData) error {
 	}
 	defer f.Close()
 
-	re := funcLineRe
+	prefix := funcPrefix
 	if logType == "called" {
-		re = calledLineRe
+		prefix = calledPrefix
 	}
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" || line[0] == '#' {
+		line := scanner.Bytes()
+		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		m := re.FindStringSubmatch(line)
-		if m == nil {
+		if !bytes.HasPrefix(line, prefix) {
 			continue
 		}
-		image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
-		if image == "" || function == "" {
+		rest := line[len(prefix):]
+		sep := bytes.IndexAny(rest, " \t")
+		if sep == -1 {
 			continue
 		}
+		imageBytes := rest[:sep]
+		funcBytes := bytes.TrimSpace(rest[sep:])
+		if len(imageBytes) == 0 || len(funcBytes) == 0 {
+			continue
+		}
+		image, function := string(imageBytes), string(funcBytes)
 		ensureCoverage(coverage, image)
 		if logType == "functions" {
 			coverage[image].TotalFunctions[function] = struct{}{}
