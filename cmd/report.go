@@ -233,20 +233,19 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 	safeName := safeImageName(image)
 	outfile := filepath.Join(outputDir, fmt.Sprintf("coverage_%s.xml", safeName))
 
-	// Use summarizeCoverage for totals
-	coverage := map[string]*CoverageData{image: data}
-	summary := summarizeCoverage(coverage)
-
 	calledCount := len(calledList)
 	pct := 0.0
 	if totalCount > 0 {
 		pct = float64(calledCount) / float64(totalCount) * 100
 	}
+	// Totals here are a single-image report, so they're identical to the
+	// per-image numbers above (was previously recomputed via a throwaway
+	// single-entry map + summarizeCoverage call).
 	summaryText := fmt.Sprintf(
 		"Coverage Summary for %s | Total Functions: %d | Called Functions: %d | Uncalled Functions: %d | Coverage: %.2f%%\n"+
 			"Totals: Total Functions: %d | Total Called: %d | Average Coverage: %.2f%%",
 		safeName, totalCount, calledCount, skippedCount, pct,
-		summary.TotalFunctions, summary.TotalCalled, summary.AverageCoverage,
+		totalCount, calledCount, pct,
 	)
 
 	var details strings.Builder
@@ -267,7 +266,7 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 	// Add totals section to details
 	details.WriteString(fmt.Sprintf(
 		"\nTOTALS:\n  Total Functions: %d\n  Total Called: %d\n  Average Coverage: %.2f%%\n",
-		summary.TotalFunctions, summary.TotalCalled, summary.AverageCoverage,
+		totalCount, calledCount, pct,
 	))
 
 	ts := TestSuites{
