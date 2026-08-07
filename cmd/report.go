@@ -2,16 +2,21 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"html/template"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type CoverageData struct {
@@ -36,11 +41,36 @@ type HTMLReportData struct {
 
 // --- Coverage Analysis ---
 
+var safeNameRe = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
+
 var (
-	funcLineRe   = regexp.MustCompile(`^FUNC (\S+) (.+)$`)
-	calledLineRe = regexp.MustCompile(`^CALLED (\S+) (.+)$`)
-	safeNameRe   = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
+	funcPrefix   = []byte("FUNC ")
+	calledPrefix = []byte("CALLED ")
 )
+
+// Parsed once at package init instead of on every report/image — the
+// template text is a compile-time constant, so re-parsing per call was
+// pure repeated work.
+var (
+	parsedDetailedTemplate  = template.Must(template.New("report").Parse(detailedHTMLTemplateStr))
+	parsedAggregateTemplate = template.Must(template.New("aggregate").Parse(aggregateHTMLTemplate))
+)
+
+// writeBuffered creates path and passes a buffered writer to write, flushing
+// before close. Avoids the small-chunk syscalls that html/template.Execute
+// and xml.Encoder otherwise issue directly against the raw *os.File.
+func writeBuffered(path string, write func(w io.Writer) error) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	bw := bufio.NewWriter(f)
+	if err := write(bw); err != nil {
+		return err
+	}
+	return bw.Flush()
+}
 
 // safeImageName returns a filesystem-safe slug from an image path.
 func safeImageName(image string) string {
@@ -87,21 +117,49 @@ func splitCalledUncalled(data *CoverageData) (called, uncalled []string) {
 	return called, uncalled
 }
 
-// analyzeLogs processes _functions.log and _called.log files.
-// Files with unrecognized suffixes are skipped with a warning.
+// analyzeLogs processes _functions.log and _called.log files concurrently.
+// Files with unrecognized suffixes are skipped with a warning. Each file is
+// scanned into its own local map (scanLog mutates a map in place, and Go
+// maps aren't safe for concurrent writes from multiple files touching the
+// same image); results are merged sequentially once every scan completes.
 func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
+	locals := make([]map[string]*CoverageData, len(logFiles))
+
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.GOMAXPROCS(0))
+	for i, logFile := range logFiles {
+		g.Go(func() error {
+			logType := detectLogType(logFile)
+			if logType == "" {
+				fmt.Fprintf(os.Stderr, "report: skipping unrecognized log file: %s\n", logFile)
+				return nil
+			}
+			local := make(map[string]*CoverageData)
+			if err := scanLog(logFile, logType, local); err != nil {
+				return err
+			}
+			locals[i] = local
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
 	coverage := make(map[string]*CoverageData)
-	for _, logFile := range logFiles {
-		logType := detectLogType(logFile)
-		if logType == "" {
-			fmt.Fprintf(os.Stderr, "report: skipping unrecognized log file: %s\n", logFile)
-			continue
-		}
-		if err := scanLog(logFile, logType, coverage); err != nil {
-			return nil, err
-		}
+	for _, local := range locals {
+		mergeCoverage(coverage, local)
 	}
 	return coverage, nil
+}
+
+// mergeCoverage unions src's per-image function sets into dst.
+func mergeCoverage(dst, src map[string]*CoverageData) {
+	for image, data := range src {
+		ensureCoverage(dst, image)
+		maps.Copy(dst[image].TotalFunctions, data.TotalFunctions)
+		maps.Copy(dst[image].CalledFunctions, data.CalledFunctions)
+	}
 }
 
 // scanLog reads a single log file and updates coverage in place.
@@ -113,26 +171,32 @@ func scanLog(logFile, logType string, coverage map[string]*CoverageData) error {
 	}
 	defer f.Close()
 
-	re := funcLineRe
+	prefix := funcPrefix
 	if logType == "called" {
-		re = calledLineRe
+		prefix = calledPrefix
 	}
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" || line[0] == '#' {
+		line := scanner.Bytes()
+		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		m := re.FindStringSubmatch(line)
-		if m == nil {
+		if !bytes.HasPrefix(line, prefix) {
 			continue
 		}
-		image, function := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
-		if image == "" || function == "" {
+		rest := line[len(prefix):]
+		sep := bytes.IndexAny(rest, " \t")
+		if sep == -1 {
 			continue
 		}
+		imageBytes := rest[:sep]
+		funcBytes := bytes.TrimSpace(rest[sep:])
+		if len(imageBytes) == 0 || len(funcBytes) == 0 {
+			continue
+		}
+		image, function := string(imageBytes), string(funcBytes)
 		ensureCoverage(coverage, image)
 		if logType == "functions" {
 			coverage[image].TotalFunctions[function] = struct{}{}
@@ -217,20 +281,19 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 	safeName := safeImageName(image)
 	outfile := filepath.Join(outputDir, fmt.Sprintf("coverage_%s.xml", safeName))
 
-	// Use summarizeCoverage for totals
-	coverage := map[string]*CoverageData{image: data}
-	summary := summarizeCoverage(coverage)
-
 	calledCount := len(calledList)
 	pct := 0.0
 	if totalCount > 0 {
 		pct = float64(calledCount) / float64(totalCount) * 100
 	}
+	// Totals here are a single-image report, so they're identical to the
+	// per-image numbers above (was previously recomputed via a throwaway
+	// single-entry map + summarizeCoverage call).
 	summaryText := fmt.Sprintf(
 		"Coverage Summary for %s | Total Functions: %d | Called Functions: %d | Uncalled Functions: %d | Coverage: %.2f%%\n"+
 			"Totals: Total Functions: %d | Total Called: %d | Average Coverage: %.2f%%",
 		safeName, totalCount, calledCount, skippedCount, pct,
-		summary.TotalFunctions, summary.TotalCalled, summary.AverageCoverage,
+		totalCount, calledCount, pct,
 	)
 
 	var details strings.Builder
@@ -251,7 +314,7 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 	// Add totals section to details
 	details.WriteString(fmt.Sprintf(
 		"\nTOTALS:\n  Total Functions: %d\n  Total Called: %d\n  Average Coverage: %.2f%%\n",
-		summary.TotalFunctions, summary.TotalCalled, summary.AverageCoverage,
+		totalCount, calledCount, pct,
 	))
 
 	ts := TestSuites{
@@ -276,14 +339,11 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 			},
 		},
 	}
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	enc := xml.NewEncoder(f)
-	enc.Indent("", "  ")
-	return enc.Encode(ts)
+	return writeBuffered(outfile, func(w io.Writer) error {
+		enc := xml.NewEncoder(w)
+		enc.Indent("", "  ")
+		return enc.Encode(ts)
+	})
 }
 
 // AggregateData carries CoverageTotals plus the timestamp for HTML rendering.
@@ -316,17 +376,10 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 		Functions:          functions,
 		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
-	tmpl, err := template.New("report").Parse(detailedHTMLTemplateStr)
-	if err != nil {
-		return err
-	}
 	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeImageName(image)))
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return tmpl.Execute(f, reportData)
+	return writeBuffered(outfile, func(w io.Writer) error {
+		return parsedDetailedTemplate.Execute(w, reportData)
+	})
 }
 
 // generateAggregateHTMLReport generates an HTML report summarizing coverage across all images.
@@ -341,17 +394,10 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 		GeneratedAt:    time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 
-	tmpl, err := template.New("aggregate").Parse(aggregateHTMLTemplate)
-	if err != nil {
-		return err
-	}
 	outfile := filepath.Join(outputDir, "aggregate.html")
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return tmpl.Execute(f, aggData)
+	return writeBuffered(outfile, func(w io.Writer) error {
+		return parsedAggregateTemplate.Execute(w, aggData)
+	})
 }
 
 type CoverageSummary struct {
