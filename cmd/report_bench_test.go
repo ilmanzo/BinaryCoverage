@@ -119,6 +119,37 @@ func BenchmarkGenerateXUnitReport(b *testing.B) {
 	}
 }
 
+// BenchmarkEmitReportHTML/XML go through emitReport itself (not the
+// generate*Report functions directly), since that's where bottleneck C's
+// per-image concurrency actually lives.
+func BenchmarkEmitReportHTML(b *testing.B) {
+	dir := b.TempDir()
+	files := genBenchLogs(b, dir, 200, 50, 2)
+	coverage, err := analyzeLogs(files)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		outDir := b.TempDir()
+		emitReport("html", coverage, outDir)
+	}
+}
+
+func BenchmarkEmitReportXML(b *testing.B) {
+	dir := b.TempDir()
+	files := genBenchLogs(b, dir, 200, 50, 2)
+	coverage, err := analyzeLogs(files)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		outDir := b.TempDir()
+		emitReport("xml", coverage, outDir)
+	}
+}
+
 func BenchmarkEnumerateFunctions(b *testing.B) {
 	// Enumerating real libraries requires a real ELF + ldd; skip if the
 	// bench sample binary isn't available in this environment.

@@ -11,9 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type CoverageData struct {
@@ -114,21 +117,49 @@ func splitCalledUncalled(data *CoverageData) (called, uncalled []string) {
 	return called, uncalled
 }
 
-// analyzeLogs processes _functions.log and _called.log files.
-// Files with unrecognized suffixes are skipped with a warning.
+// analyzeLogs processes _functions.log and _called.log files concurrently.
+// Files with unrecognized suffixes are skipped with a warning. Each file is
+// scanned into its own local map (scanLog mutates a map in place, and Go
+// maps aren't safe for concurrent writes from multiple files touching the
+// same image); results are merged sequentially once every scan completes.
 func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
+	locals := make([]map[string]*CoverageData, len(logFiles))
+
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.GOMAXPROCS(0))
+	for i, logFile := range logFiles {
+		g.Go(func() error {
+			logType := detectLogType(logFile)
+			if logType == "" {
+				fmt.Fprintf(os.Stderr, "report: skipping unrecognized log file: %s\n", logFile)
+				return nil
+			}
+			local := make(map[string]*CoverageData)
+			if err := scanLog(logFile, logType, local); err != nil {
+				return err
+			}
+			locals[i] = local
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
 	coverage := make(map[string]*CoverageData)
-	for _, logFile := range logFiles {
-		logType := detectLogType(logFile)
-		if logType == "" {
-			fmt.Fprintf(os.Stderr, "report: skipping unrecognized log file: %s\n", logFile)
-			continue
-		}
-		if err := scanLog(logFile, logType, coverage); err != nil {
-			return nil, err
-		}
+	for _, local := range locals {
+		mergeCoverage(coverage, local)
 	}
 	return coverage, nil
+}
+
+// mergeCoverage unions src's per-image function sets into dst.
+func mergeCoverage(dst, src map[string]*CoverageData) {
+	for image, data := range src {
+		ensureCoverage(dst, image)
+		maps.Copy(dst[image].TotalFunctions, data.TotalFunctions)
+		maps.Copy(dst[image].CalledFunctions, data.CalledFunctions)
+	}
 }
 
 // scanLog reads a single log file and updates coverage in place.

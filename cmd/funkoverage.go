@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var versionString = "dev"
@@ -204,19 +207,31 @@ func emitReport(format string, coverage map[string]*CoverageData, outputDir stri
 		printTxtReport(coverage)
 	case "html":
 		_ = os.MkdirAll(outputDir, 0755)
+		g := new(errgroup.Group)
+		g.SetLimit(runtime.GOMAXPROCS(0))
 		for image, data := range coverage {
-			if err := generateHTMLReport(image, data, outputDir); err != nil {
-				fmt.Fprintln(os.Stderr, "HTML report error:", err)
-			}
+			g.Go(func() error {
+				if err := generateHTMLReport(image, data, outputDir); err != nil {
+					fmt.Fprintln(os.Stderr, "HTML report error:", err)
+				}
+				return nil
+			})
 		}
+		_ = g.Wait()
 		_ = generateAggregateHTMLReport(coverage, outputDir)
 	case "xml":
 		_ = os.MkdirAll(outputDir, 0755)
+		g := new(errgroup.Group)
+		g.SetLimit(runtime.GOMAXPROCS(0))
 		for image, data := range coverage {
-			if err := generateXUnitReport(image, data, outputDir); err != nil {
-				fmt.Fprintln(os.Stderr, "XUnit report error:", err)
-			}
+			g.Go(func() error {
+				if err := generateXUnitReport(image, data, outputDir); err != nil {
+					fmt.Fprintln(os.Stderr, "XUnit report error:", err)
+				}
+				return nil
+			})
 		}
+		_ = g.Wait()
 	}
 }
 
