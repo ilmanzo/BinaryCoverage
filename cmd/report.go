@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html/template"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -51,6 +52,22 @@ var (
 	parsedDetailedTemplate  = template.Must(template.New("report").Parse(detailedHTMLTemplateStr))
 	parsedAggregateTemplate = template.Must(template.New("aggregate").Parse(aggregateHTMLTemplate))
 )
+
+// writeBuffered creates path and passes a buffered writer to write, flushing
+// before close. Avoids the small-chunk syscalls that html/template.Execute
+// and xml.Encoder otherwise issue directly against the raw *os.File.
+func writeBuffered(path string, write func(w io.Writer) error) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	bw := bufio.NewWriter(f)
+	if err := write(bw); err != nil {
+		return err
+	}
+	return bw.Flush()
+}
 
 // safeImageName returns a filesystem-safe slug from an image path.
 func safeImageName(image string) string {
@@ -291,14 +308,11 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 			},
 		},
 	}
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	enc := xml.NewEncoder(f)
-	enc.Indent("", "  ")
-	return enc.Encode(ts)
+	return writeBuffered(outfile, func(w io.Writer) error {
+		enc := xml.NewEncoder(w)
+		enc.Indent("", "  ")
+		return enc.Encode(ts)
+	})
 }
 
 // AggregateData carries CoverageTotals plus the timestamp for HTML rendering.
@@ -332,12 +346,9 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeImageName(image)))
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return parsedDetailedTemplate.Execute(f, reportData)
+	return writeBuffered(outfile, func(w io.Writer) error {
+		return parsedDetailedTemplate.Execute(w, reportData)
+	})
 }
 
 // generateAggregateHTMLReport generates an HTML report summarizing coverage across all images.
@@ -353,12 +364,9 @@ func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir st
 	}
 
 	outfile := filepath.Join(outputDir, "aggregate.html")
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return parsedAggregateTemplate.Execute(f, aggData)
+	return writeBuffered(outfile, func(w io.Writer) error {
+		return parsedAggregateTemplate.Execute(w, aggData)
+	})
 }
 
 type CoverageSummary struct {
