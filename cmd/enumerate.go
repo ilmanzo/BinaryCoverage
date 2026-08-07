@@ -238,6 +238,7 @@ func externalDebugPath(binPath string) string {
 
 func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error) {
 	seen := make(map[string]struct{})
+	seenAddr := make(map[uint64]struct{})
 	var funcs []string
 
 	reader := dwarfData.Reader()
@@ -254,7 +255,8 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error)
 			continue
 		}
 		// Skip abstract origins without an address (inlined-only entries)
-		if entry.Val(dwarf.AttrLowpc) == nil {
+		lowpc, ok := entry.Val(dwarf.AttrLowpc).(uint64)
+		if !ok {
 			continue
 		}
 
@@ -268,9 +270,18 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error)
 			continue
 		}
 
+		// Itanium ABI complete-object/base-object ctor-dtor pairs (C1/C2,
+		// D1/D2) are distinct DIEs that alias the same low_pc whenever the
+		// class has no virtual bases. Dedup by address, not name (see the
+		// matching comment in enumerateSymtab).
+		if _, dup := seenAddr[lowpc]; dup {
+			continue
+		}
+
 		// Keep the raw (mangled) name. uprobe attach resolves it against
 		// the ELF symbol table directly; demangling happens at output time.
 		if acceptFunc(seen, raw, filter) {
+			seenAddr[lowpc] = struct{}{}
 			funcs = append(funcs, raw)
 		}
 	}
@@ -287,6 +298,7 @@ func enumerateSymtab(f *elf.File, filter *FuncFilter) ([]string, error) {
 		}
 	}
 	seen := make(map[string]struct{})
+	seenAddr := make(map[uint64]struct{})
 	var funcs []string
 	for _, sym := range symbols {
 		if elf.ST_TYPE(sym.Info) != elf.STT_FUNC {
@@ -301,7 +313,17 @@ func enumerateSymtab(f *elf.File, filter *FuncFilter) ([]string, error) {
 		if sym.Size == 0 {
 			continue
 		}
+		// Itanium ABI complete-object/base-object ctor-dtor pairs (C1/C2,
+		// D1/D2) are distinct symbols that alias the same address whenever
+		// the class has no virtual bases. Dedup by address, not name, so
+		// they count once instead of double-attaching and double-counting —
+		// this is safe even for virtual-base classes, where C1/C2 genuinely
+		// compile to different code at different addresses.
+		if _, dup := seenAddr[sym.Value]; dup {
+			continue
+		}
 		if acceptFunc(seen, sym.Name, filter) {
+			seenAddr[sym.Value] = struct{}{}
 			funcs = append(funcs, sym.Name)
 		}
 	}
