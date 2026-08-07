@@ -471,6 +471,7 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 
 	var funcs []string
 	seen := make(map[string]struct{})
+	seenAddr := make(map[uint64]struct{})
 	for _, sym := range syms {
 		if elf.ST_TYPE(sym.Info) != elf.STT_FUNC {
 			continue
@@ -481,10 +482,18 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 		if sym.Name == "" || !funkutil.FuncIsRelevant(sym.Name) {
 			continue
 		}
+		// Same symbol can appear in both .dynsym and .symtab, and Itanium
+		// ABI C1/C2 (D1/D2) ctor/dtor pairs alias one address for classes
+		// without virtual bases — dedup by address, not name, to avoid
+		// double-attaching a uprobe at the same address under two cookies.
+		if _, dup := seenAddr[sym.Value]; dup {
+			continue
+		}
 		if _, dup := seen[sym.Name]; dup {
 			continue
 		}
 		seen[sym.Name] = struct{}{}
+		seenAddr[sym.Value] = struct{}{}
 		funcs = append(funcs, sym.Name)
 	}
 	return funcs, nil
