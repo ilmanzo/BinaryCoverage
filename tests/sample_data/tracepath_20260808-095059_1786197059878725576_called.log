@@ -1,0 +1,5 @@
+CALLED /var/coverage/bin/tracepath atexit
+CALLED /var/coverage/bin/tracepath recverr
+CALLED /var/coverage/bin/tracepath print_host
+CALLED /var/coverage/bin/tracepath close_stdout
+CALLED /var/coverage/bin/tracepath close_stream

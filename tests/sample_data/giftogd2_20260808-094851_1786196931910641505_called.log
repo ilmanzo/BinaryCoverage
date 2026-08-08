@@ -1,0 +1,11 @@
+CALLED /lib64/libX11.so.6 XInitThreads
+CALLED /lib64/libgd.so.3 gdImageCreateFromGif
+CALLED /lib64/libgd.so.3 gdNewFileCtx
+CALLED /lib64/libgd.so.3 gdImageCreateFromGifCtx
+CALLED /lib64/libgd.so.3 gdImageCreate
+CALLED /lib64/libgd.so.3 gdImageSetPixel
+CALLED /lib64/libgd.so.3 gdImageColorTransparent
+CALLED /lib64/libgd.so.3 gdFree
+CALLED /lib64/libgd.so.3 gdImageGd2
+CALLED /lib64/libgd.so.3 gdImageDestroy
+CALLED /lib64/libX11.so.6 XFreeThreads

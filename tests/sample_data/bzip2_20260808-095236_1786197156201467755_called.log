@@ -1,0 +1,14 @@
+CALLED /var/coverage/bin/bzip2 copyFileName
+CALLED /var/coverage/bin/bzip2 addFlagsFromEnvVar
+CALLED /var/coverage/bin/bzip2 snocString
+CALLED /var/coverage/bin/bzip2 uncompress
+CALLED /var/coverage/bin/bzip2 uncompressStream
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzReadOpen
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzDecompressInit
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzRead
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzDecompress
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzReadGetUnused
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzReadClose
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libbz2.so.1.0.6 BZ2_bzDecompressEnd
+CALLED /var/coverage/bin/bzip2 myfeof
+CALLED /var/coverage/bin/bzip2 myfeof.cold

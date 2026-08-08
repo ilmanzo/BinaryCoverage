@@ -1,0 +1,11 @@
+CALLED /var/coverage/bin/mpstat get_cpu_nr.constprop.0
+CALLED /var/coverage/bin/mpstat get_irqcpu_nr.constprop.0
+CALLED /var/coverage/bin/mpstat salloc_mp_struct
+CALLED /var/coverage/bin/mpstat get_node_placement
+CALLED /var/coverage/bin/mpstat read_uptime
+CALLED /var/coverage/bin/mpstat read_stat_cpu.isra.0
+CALLED /var/coverage/bin/mpstat write_stats
+CALLED /var/coverage/bin/mpstat write_stats_core
+CALLED /var/coverage/bin/mpstat get_per_cpu_interval
+CALLED /var/coverage/bin/mpstat add_cpu_stats
+CALLED /var/coverage/bin/mpstat cprintf_xpc.constprop.0
