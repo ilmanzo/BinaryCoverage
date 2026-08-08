@@ -1,0 +1,15 @@
+CALLED /var/coverage/bin/cpio argp_parse
+CALLED /var/coverage/bin/cpio calc_sizes
+CALLED /var/coverage/bin/cpio convert_options
+CALLED /var/coverage/bin/cpio parse_opt
+CALLED /var/coverage/bin/cpio argp_default_parser
+CALLED /var/coverage/bin/cpio argp_version_parser
+CALLED /var/coverage/bin/cpio _getopt_internal_r.constprop.0
+CALLED /var/coverage/bin/cpio process_copy_in
+CALLED /var/coverage/bin/cpio ds_fgetstr
+CALLED /var/coverage/bin/cpio ds_resize
+CALLED /var/coverage/bin/cpio xstrdup
+CALLED /var/coverage/bin/cpio change_dir
+CALLED /var/coverage/bin/cpio safe_read
+CALLED /var/coverage/bin/cpio tape_eof
+CALLED /var/coverage/bin/cpio tape_eof.part.0

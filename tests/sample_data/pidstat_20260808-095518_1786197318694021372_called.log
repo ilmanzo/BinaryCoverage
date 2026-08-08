@@ -1,0 +1,15 @@
+CALLED /var/coverage/bin/pidstat read_uptime
+CALLED /var/coverage/bin/pidstat read_stats
+CALLED /var/coverage/bin/pidstat read_stat_cpu.constprop.0.isra.0
+CALLED /var/coverage/bin/pidstat add_list_pid.constprop.0
+CALLED /var/coverage/bin/pidstat read_proc_pid_stat
+CALLED /var/coverage/bin/pidstat read_pid_stats.part.0
+CALLED /var/coverage/bin/pidstat read_proc_pid_status
+CALLED /var/coverage/bin/pidstat sfree_pid.constprop.0
+CALLED /var/coverage/bin/pidstat write_stats
+CALLED /var/coverage/bin/pidstat write_stats_core
+CALLED /var/coverage/bin/pidstat get_pid_to_display
+CALLED /var/coverage/bin/pidstat print_line_id
+CALLED /var/coverage/bin/pidstat write_plain_pid_task_cpu_data
+CALLED /var/coverage/bin/pidstat cprintf_xpc.constprop.0
+CALLED /var/coverage/bin/pidstat print_comm

@@ -1,0 +1,2035 @@
+FUNC /lib64/libpci.so.3 pci_free_dev
+FUNC /lib64/libpci.so.3 pci_id_cache_flush
+FUNC /lib64/libpci.so.3 pci_filter_match
+FUNC /lib64/libpci.so.3 pci_get_param
+FUNC /lib64/libpci.so.3 pci_read_byte
+FUNC /lib64/libpci.so.3 pci_find_cap
+FUNC /lib64/libpci.so.3 pci_write_byte
+FUNC /lib64/libpci.so.3 pci_set_name_list_path
+FUNC /lib64/libpci.so.3 pci_read_long
+FUNC /lib64/libpci.so.3 pci_write_long
+FUNC /lib64/libpci.so.3 pci_filter_parse_slot
+FUNC /lib64/libpci.so.3 pci_alloc
+FUNC /lib64/libpci.so.3 pci_filter_init
+FUNC /lib64/libpci.so.3 pci_walk_params
+FUNC /lib64/libpci.so.3 pci_read_vpd
+FUNC /lib64/libpci.so.3 pci_get_string_property
+FUNC /lib64/libpci.so.3 pci_cleanup
+FUNC /lib64/libpci.so.3 pci_fill_info
+FUNC /lib64/libpci.so.3 pci_lookup_method
+FUNC /lib64/libpci.so.3 pci_read_block
+FUNC /lib64/libpci.so.3 pci_filter_parse_id
+FUNC /lib64/libpci.so.3 pci_load_name_list
+FUNC /lib64/libpci.so.3 pci_get_dev
+FUNC /lib64/libpci.so.3 pci_get_method_name
+FUNC /lib64/libpci.so.3 pci_free_name_list
+FUNC /lib64/libpci.so.3 pci_scan_bus
+FUNC /lib64/libpci.so.3 pci_read_word
+FUNC /lib64/libpci.so.3 pci_set_param
+FUNC /lib64/libpci.so.3 pci_lookup_name
+FUNC /lib64/libpci.so.3 pci_write_word
+FUNC /lib64/libpci.so.3 pci_init
+FUNC /lib64/libpci.so.3 pci_write_block
+FUNC /lib64/libpci.so.3 pci_find_cap_nr
+FUNC /lib64/libpci.so.3 pci_setup_cache
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateEnd
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateInit2_
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 crc32_combine_gen
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 crc32_z
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflate
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateTune
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflatePrime
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzerror
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateReset
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gztell
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzflush
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateMark
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateSyncPoint
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 adler32_z
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateSetHeader
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 crc32_combine_gen64
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateInit_
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateBackEnd
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzbuffer
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateGetDictionary
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 adler32
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzseek
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzfread
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateResetKeep
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 crc32
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 zError
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzfwrite
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 crc32_combine_op
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzread
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateCopy
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateGetHeader
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzputc
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzgetc
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzwrite
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzvprintf
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateReset
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzeof
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflate
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzopen64
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateReset2
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 crc32_combine64
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateInit_
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 zlibCompileFlags
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzdirect
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateInit2_
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflatePending
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzseek64
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzputs
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzgets
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateResetKeep
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzoffset64
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 compressBound
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateParams
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateGetDictionary
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 get_crc_table
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateBack
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzprintf
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateValidate
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateSetDictionary
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflatePrime
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 adler32_combine
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzrewind
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzclose
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzclose_r
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzdopen
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 zlibVersion
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzclearerr
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateBackInit_
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 adler32_combine64
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 compress
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzclose_w
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzopen
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateBound
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 compress2
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gztell64
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 uncompress
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzoffset
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateSetDictionary
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateCopy
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzgetc_
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 deflateEnd
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 crc32_combine
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateCodesUsed
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzsetparams
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzungetc
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 uncompress2
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateUndermine
+FUNC /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateSync
+FUNC /var/coverage/bin/powertop tab_window::cursor_enter()
+FUNC /var/coverage/bin/powertop void std::__adjust_heap<__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, long, devuser*, bool (*)(devuser*, devuser*)>(__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, long, long, devuser*, bool (*)(devuser*, devuser*))
+FUNC /var/coverage/bin/powertop device_consumer::show_events()
+FUNC /var/coverage/bin/powertop devlist_sort(devuser*, devuser*)
+FUNC /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, long, bool (*)(devuser*, devuser*)>(__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, __gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, long, bool (*)(devuser*, devuser*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop void std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::emplace_back<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+FUNC /var/coverage/bin/powertop void std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::emplace_back<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&) [clone .cold]
+FUNC /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, bool (*)(devuser*, devuser*)>(__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, __gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, bool (*)(devuser*, devuser*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop tab_window::expose()
+FUNC /var/coverage/bin/powertop tab_window::~tab_window()
+FUNC /var/coverage/bin/powertop tab_window::~tab_window()
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_get_insert_hint_unique_pos(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_hint_unique_pos(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_unique_pos(unsigned long const&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned long const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<unsigned long const&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop align_string(char*, unsigned long, unsigned long)
+FUNC /var/coverage/bin/powertop end_pci_access()
+FUNC /var/coverage/bin/powertop ui_notify_user_ncurses(char const*, ...)
+FUNC /var/coverage/bin/powertop ui_notify_user_console(char const*, ...)
+FUNC /var/coverage/bin/powertop out_of_memory()
+FUNC /var/coverage/bin/powertop checkroot() [clone .part.0]
+FUNC /var/coverage/bin/powertop burn_cpu(void*)
+FUNC /var/coverage/bin/powertop burn_disk(void*)
+FUNC /var/coverage/bin/powertop burn_cpu_wakeups(void*)
+FUNC /var/coverage/bin/powertop report_show_open_devices()
+FUNC /var/coverage/bin/powertop get_ncurses_win(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0] [clone .cold]
+FUNC /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, tab_window*, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::operator[](std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0] [clone .cold]
+FUNC /var/coverage/bin/powertop create_tab(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, tab_window*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold]
+FUNC /var/coverage/bin/powertop show_tab(unsigned int) [clone .part.0]
+FUNC /var/coverage/bin/powertop do_sleep(int) [clone .part.0]
+FUNC /var/coverage/bin/powertop measure_background_thread
+FUNC /var/coverage/bin/powertop read_kallsyms()
+FUNC /var/coverage/bin/powertop read_kallsyms() [clone .cold]
+FUNC /var/coverage/bin/powertop save_sysfs(char const*)
+FUNC /var/coverage/bin/powertop save_sysfs(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop find_all_rfkill_callback(char const*)
+FUNC /var/coverage/bin/powertop find_all_rfkill_callback(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop find_scsi_link_callback(char const*)
+FUNC /var/coverage/bin/powertop find_scsi_link_callback(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop find_all_usb_callback(char const*)
+FUNC /var/coverage/bin/powertop find_all_usb_callback(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop write_sysfs(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .cold]
+FUNC /var/coverage/bin/powertop suspend_all_usb_devices()
+FUNC /var/coverage/bin/powertop suspend_all_usb_devices() [clone .cold]
+FUNC /var/coverage/bin/powertop rfkill_all_radios()
+FUNC /var/coverage/bin/powertop rfkill_all_radios() [clone .cold]
+FUNC /var/coverage/bin/powertop unrfkill_all_radios()
+FUNC /var/coverage/bin/powertop unrfkill_all_radios() [clone .cold]
+FUNC /var/coverage/bin/powertop lower_backlight()
+FUNC /var/coverage/bin/powertop lower_backlight() [clone .cold]
+FUNC /var/coverage/bin/powertop read_sysfs(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bool*) [clone .cold]
+FUNC /var/coverage/bin/powertop find_backlight_callback(char const*)
+FUNC /var/coverage/bin/powertop find_backlight_callback(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop read_sysfs_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .cold]
+FUNC /var/coverage/bin/powertop read_sysfs_string[abi:cxx11](char const*, char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop collect_open_devices()
+FUNC /var/coverage/bin/powertop collect_open_devices() [clone .cold]
+FUNC /var/coverage/bin/powertop pretty_print(char const*, char*, int) [clone .cold]
+FUNC /var/coverage/bin/powertop powertop_init(int) [clone .part.0]
+FUNC /var/coverage/bin/powertop powertop_init(int) [clone .part.0] [clone .cold]
+FUNC /var/coverage/bin/powertop one_measurement(int, int, char*)
+FUNC /var/coverage/bin/powertop one_measurement(int, int, char*) [clone .cold]
+FUNC /var/coverage/bin/powertop wakeup_calibration(unsigned long)
+FUNC /var/coverage/bin/powertop abstract_cpu::fill_cstate_line(int, char*, char const*)
+FUNC /var/coverage/bin/powertop abstract_cpu::fill_cstate_percentage(int, char*)
+FUNC /var/coverage/bin/powertop abstract_cpu::freq_updated(unsigned long)
+FUNC /var/coverage/bin/powertop abstract_cpu::go_idle(unsigned long)
+FUNC /var/coverage/bin/powertop abstract_cpu::go_unidle(unsigned long)
+FUNC /var/coverage/bin/powertop abstract_cpu::change_freq(unsigned long, int)
+FUNC /var/coverage/bin/powertop i965_core::has_pstate_level(int)
+FUNC /var/coverage/bin/powertop cpu_core::can_collapse()
+FUNC /var/coverage/bin/powertop cpu_package::can_collapse()
+FUNC /var/coverage/bin/powertop fill_state_name(abstract_cpu*, int, int, char*)
+FUNC /var/coverage/bin/powertop fill_state_line(abstract_cpu*, int, int, char*, char const*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop cpu_package::freq_updated(unsigned long)
+FUNC /var/coverage/bin/powertop cpu_rapl_device::device_name()
+FUNC /var/coverage/bin/powertop cpu_rapl_device::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop dram_rapl_device::device_name()
+FUNC /var/coverage/bin/powertop dram_rapl_device::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop intel_util::get_byt_ahci_support()
+FUNC /var/coverage/bin/powertop i965_core::fill_pstate_line(int, char*)
+FUNC /var/coverage/bin/powertop abstract_cpu::~abstract_cpu()
+FUNC /var/coverage/bin/powertop cpu_core::~cpu_core()
+FUNC /var/coverage/bin/powertop cpu_core::~cpu_core()
+FUNC /var/coverage/bin/powertop cpu_linux::~cpu_linux()
+FUNC /var/coverage/bin/powertop cpu_linux::~cpu_linux()
+FUNC /var/coverage/bin/powertop cpu_package::~cpu_package()
+FUNC /var/coverage/bin/powertop cpu_package::~cpu_package()
+FUNC /var/coverage/bin/powertop nhm_cpu::~nhm_cpu()
+FUNC /var/coverage/bin/powertop nhm_cpu::~nhm_cpu()
+FUNC /var/coverage/bin/powertop nhm_package::~nhm_package()
+FUNC /var/coverage/bin/powertop nhm_package::~nhm_package()
+FUNC /var/coverage/bin/powertop nhm_core::~nhm_core()
+FUNC /var/coverage/bin/powertop nhm_core::~nhm_core()
+FUNC /var/coverage/bin/powertop i965_core::~i965_core()
+FUNC /var/coverage/bin/powertop i965_core::~i965_core()
+FUNC /var/coverage/bin/powertop abstract_cpu::has_cstate_level(int)
+FUNC /var/coverage/bin/powertop abstract_cpu::has_pstate_level(int)
+FUNC /var/coverage/bin/powertop nhm_cpu::has_pstate_level(int)
+FUNC /var/coverage/bin/powertop abstract_cpu::calculate_freq(unsigned long)
+FUNC /var/coverage/bin/powertop abstract_cpu::change_effective_frequency(unsigned long, unsigned long)
+FUNC /var/coverage/bin/powertop abstract_cpu::total_pstate_time()
+FUNC /var/coverage/bin/powertop abstract_cpu::validate()
+FUNC /var/coverage/bin/powertop cpudevice::~cpudevice()
+FUNC /var/coverage/bin/powertop cpudevice::~cpudevice()
+FUNC /var/coverage/bin/powertop cpu_rapl_device::~cpu_rapl_device()
+FUNC /var/coverage/bin/powertop cpu_rapl_device::~cpu_rapl_device()
+FUNC /var/coverage/bin/powertop dram_rapl_device::~dram_rapl_device()
+FUNC /var/coverage/bin/powertop dram_rapl_device::~dram_rapl_device()
+FUNC /var/coverage/bin/powertop get_cstates_num()
+FUNC /var/coverage/bin/powertop cpudevice::device_name()
+FUNC /var/coverage/bin/powertop cpudevice::utilization()
+FUNC /var/coverage/bin/powertop std::vector<abstract_cpu*, std::allocator<abstract_cpu*> >::_M_fill_append(unsigned long, abstract_cpu* const&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::vector<abstract_cpu*, std::allocator<abstract_cpu*> >::_M_fill_append(unsigned long, abstract_cpu* const&) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop abstract_cpu::insert_cstate(char const*, char const*, unsigned long, unsigned long, int, int)
+FUNC /var/coverage/bin/powertop abstract_cpu::insert_cstate(char const*, char const*, unsigned long, unsigned long, int, int) [clone .cold]
+FUNC /var/coverage/bin/powertop abstract_cpu::update_cstate(char const*, char const*, unsigned long, unsigned long, int, int)
+FUNC /var/coverage/bin/powertop abstract_cpu::finalize_cstate(char const*, unsigned long, unsigned long, int)
+FUNC /var/coverage/bin/powertop abstract_cpu::finalize_pstate(unsigned long, unsigned long, int)
+FUNC /var/coverage/bin/powertop dram_rapl_device::start_measurement()
+FUNC /var/coverage/bin/powertop dram_rapl_device::end_measurement()
+FUNC /var/coverage/bin/powertop cpu_rapl_device::start_measurement()
+FUNC /var/coverage/bin/powertop cpu_rapl_device::end_measurement()
+FUNC /var/coverage/bin/powertop intel_util::byt_has_ahci()
+FUNC /var/coverage/bin/powertop cpu_core::fill_cstate_line(int, char*, char const*)
+FUNC /var/coverage/bin/powertop cpu_core::fill_cstate_name(int, char*)
+FUNC /var/coverage/bin/powertop cpu_core::fill_pstate_name(int, char*)
+FUNC /var/coverage/bin/powertop cpu_core::fill_pstate_line(int, char*)
+FUNC /var/coverage/bin/powertop cpu_linux::fill_cstate_line(int, char*, char const*)
+FUNC /var/coverage/bin/powertop cpu_linux::fill_cstate_percentage(int, char*)
+FUNC /var/coverage/bin/powertop cpu_linux::fill_pstate_line(int, char*)
+FUNC /var/coverage/bin/powertop cpu_linux::fill_cstate_time(int, char*) [clone .part.0] [clone .constprop.0]
+FUNC /var/coverage/bin/powertop cpu_linux::fill_cstate_time(int, char*)
+FUNC /var/coverage/bin/powertop cpu_package::fill_cstate_line(int, char*, char const*)
+FUNC /var/coverage/bin/powertop cpu_package::fill_pstate_line(int, char*)
+FUNC /var/coverage/bin/powertop nhm_cpu::fill_pstate_name(int, char*)
+FUNC /var/coverage/bin/powertop i965_core::fill_cstate_line(int, char*, char const*)
+FUNC /var/coverage/bin/powertop cpudevice::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop perf_power_bundle::handle_trace_point(void*, int, unsigned long)
+FUNC /var/coverage/bin/powertop cpudevice::cpudevice(char const*, char const*, abstract_cpu*)
+FUNC /var/coverage/bin/powertop cpudevice::cpudevice(char const*, char const*, abstract_cpu*) [clone .cold]
+FUNC /var/coverage/bin/powertop get_msr(int, unsigned long) [clone .part.0]
+FUNC /var/coverage/bin/powertop get_msr(int, unsigned long)
+FUNC /var/coverage/bin/powertop nhm_core::measurement_end()
+FUNC /var/coverage/bin/powertop i965_core::measurement_end()
+FUNC /var/coverage/bin/powertop i965_core::measurement_end() [clone .cold]
+FUNC /var/coverage/bin/powertop cpu_linux::parse_cstates_start()
+FUNC /var/coverage/bin/powertop cpu_linux::parse_cstates_start() [clone .cold]
+FUNC /var/coverage/bin/powertop cpu_linux::parse_pstates_start()
+FUNC /var/coverage/bin/powertop cpu_linux::parse_pstates_start() [clone .cold]
+FUNC /var/coverage/bin/powertop cpu_linux::parse_cstates_end()
+FUNC /var/coverage/bin/powertop cpu_linux::parse_cstates_end() [clone .cold]
+FUNC /var/coverage/bin/powertop cpu_linux::parse_pstates_end()
+FUNC /var/coverage/bin/powertop cpu_linux::parse_pstates_end() [clone .cold]
+FUNC /var/coverage/bin/powertop is_intel_pstate_driver_loaded()
+FUNC /var/coverage/bin/powertop is_intel_pstate_driver_loaded() [clone .cold]
+FUNC /var/coverage/bin/powertop nhm_core::fill_pstate_line(int, char*)
+FUNC /var/coverage/bin/powertop nhm_package::fill_pstate_line(int, char*)
+FUNC /var/coverage/bin/powertop nhm_cpu::fill_pstate_line(int, char*)
+FUNC /var/coverage/bin/powertop i965_core::measurement_start()
+FUNC /var/coverage/bin/powertop i965_core::measurement_start() [clone .cold]
+FUNC /var/coverage/bin/powertop abstract_cpu::wiggle()
+FUNC /var/coverage/bin/powertop abstract_cpu::wiggle() [clone .cold]
+FUNC /var/coverage/bin/powertop void std::vector<frequency*, std::allocator<frequency*> >::_M_realloc_append<frequency* const&>(frequency* const&) [clone .cold]
+FUNC /var/coverage/bin/powertop abstract_cpu::account_freq(unsigned long, unsigned long)
+FUNC /var/coverage/bin/powertop abstract_cpu::update_pstate(unsigned long, char const*, unsigned long, int)
+FUNC /var/coverage/bin/powertop cpu_linux::measurement_end()
+FUNC /var/coverage/bin/powertop nhm_cpu::measurement_end()
+FUNC /var/coverage/bin/powertop nhm_package::measurement_end()
+FUNC /var/coverage/bin/powertop std::vector<frequency*, std::allocator<frequency*> >::_M_default_append(unsigned long) [clone .cold]
+FUNC /var/coverage/bin/powertop abstract_cpu::measurement_start() [clone .cold]
+FUNC /var/coverage/bin/powertop cpu_linux::measurement_start()
+FUNC /var/coverage/bin/powertop nhm_core::measurement_start()
+FUNC /var/coverage/bin/powertop nhm_core::measurement_start() [clone .cold]
+FUNC /var/coverage/bin/powertop nhm_package::measurement_start()
+FUNC /var/coverage/bin/powertop nhm_cpu::measurement_start()
+FUNC /var/coverage/bin/powertop nhm_cpu::measurement_start() [clone .cold]
+FUNC /var/coverage/bin/powertop perf_bundle::~perf_bundle()
+FUNC /var/coverage/bin/powertop perf_bundle::~perf_bundle()
+FUNC /var/coverage/bin/powertop perf_power_bundle::~perf_power_bundle()
+FUNC /var/coverage/bin/powertop perf_power_bundle::~perf_power_bundle()
+FUNC /var/coverage/bin/powertop report_display_cpu_cstates() [clone .cold]
+FUNC /var/coverage/bin/powertop report_display_cpu_pstates() [clone .cold]
+FUNC /var/coverage/bin/powertop void std::vector<device*, std::allocator<device*> >::_M_realloc_append<device*>(device*&&) [clone .cold]
+FUNC /var/coverage/bin/powertop enumerate_cpus() [clone .cold]
+FUNC /var/coverage/bin/powertop ahci::class_name()
+FUNC /var/coverage/bin/powertop ahci::human_name()
+FUNC /var/coverage/bin/powertop ahci::utilization()
+FUNC /var/coverage/bin/powertop ahci::device_name()
+FUNC /var/coverage/bin/powertop ahci::~ahci()
+FUNC /var/coverage/bin/powertop alsa::class_name()
+FUNC /var/coverage/bin/powertop alsa::utilization()
+FUNC /var/coverage/bin/powertop alsa::~alsa()
+FUNC /var/coverage/bin/powertop backlight::class_name()
+FUNC /var/coverage/bin/powertop backlight::human_name()
+FUNC /var/coverage/bin/powertop backlight::grouping_prio()
+FUNC /var/coverage/bin/powertop backlight::utilization()
+FUNC /var/coverage/bin/powertop backlight::~backlight()
+FUNC /var/coverage/bin/powertop devfreq::class_name()
+FUNC /var/coverage/bin/powertop devfreq::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop devfreq::utilization()
+FUNC /var/coverage/bin/powertop device::~device()
+FUNC /var/coverage/bin/powertop i915gpu::util_units()
+FUNC /var/coverage/bin/powertop network::util_units()
+FUNC /var/coverage/bin/powertop network::human_name()
+FUNC /var/coverage/bin/powertop i915gpu::end_measurement()
+FUNC /var/coverage/bin/powertop power_device_sort(device*, device*)
+FUNC /var/coverage/bin/powertop void std::__adjust_heap<__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, long, device*, bool (*)(device*, device*)>(__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, long, long, device*, bool (*)(device*, device*))
+FUNC /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, long, bool (*)(device*, device*)>(__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, __gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, long, bool (*)(device*, device*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop gpu_rapl_device::class_name()
+FUNC /var/coverage/bin/powertop gpu_rapl_device::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop i915gpu::class_name()
+FUNC /var/coverage/bin/powertop network::class_name()
+FUNC /var/coverage/bin/powertop network::utilization()
+FUNC /var/coverage/bin/powertop network::~network()
+FUNC /var/coverage/bin/powertop ahci::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop i915gpu::device_name()
+FUNC /var/coverage/bin/powertop i915gpu::utilization()
+FUNC /var/coverage/bin/powertop i915gpu::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop ahci::~ahci()
+FUNC /var/coverage/bin/powertop alsa::~alsa()
+FUNC /var/coverage/bin/powertop backlight::~backlight()
+FUNC /var/coverage/bin/powertop devfreq::~devfreq()
+FUNC /var/coverage/bin/powertop devfreq::~devfreq()
+FUNC /var/coverage/bin/powertop device::~device()
+FUNC /var/coverage/bin/powertop gpu_rapl_device::~gpu_rapl_device()
+FUNC /var/coverage/bin/powertop gpu_rapl_device::~gpu_rapl_device()
+FUNC /var/coverage/bin/powertop i915gpu::~i915gpu()
+FUNC /var/coverage/bin/powertop i915gpu::~i915gpu()
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop network::~network()
+FUNC /var/coverage/bin/powertop c_rapl_interface::get_energy_status_unit() [clone .isra.0]
+FUNC /var/coverage/bin/powertop c_rapl_interface::get_pp1_energy_status(double*)
+FUNC /var/coverage/bin/powertop c_rapl_interface::get_pp1_energy_status(double*) [clone .cold]
+FUNC /var/coverage/bin/powertop ahci::power_valid()
+FUNC /var/coverage/bin/powertop alsa::power_valid()
+FUNC /var/coverage/bin/powertop network::power_valid()
+FUNC /var/coverage/bin/powertop network::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop alsa::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop ahci::report_device_stats(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, int)
+FUNC /var/coverage/bin/powertop alsa::human_name()
+FUNC /var/coverage/bin/powertop backlight::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop devfreq::update_devfreq_freq_state(unsigned long, unsigned long)
+FUNC /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, bool (*)(device*, device*)>(__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, __gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, bool (*)(device*, device*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop void std::__final_insertion_sort<__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, bool (*)(device*, device*)>(__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, __gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, bool (*)(device*, device*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop gpu_rapl_device::start_measurement()
+FUNC /var/coverage/bin/powertop gpu_rapl_device::end_measurement()
+FUNC /var/coverage/bin/powertop net_iface_up(char const*)
+FUNC /var/coverage/bin/powertop iface_speed(char const*)
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop c_rapl_interface::c_rapl_interface(char const*, int) [clone .cold]
+FUNC /var/coverage/bin/powertop c_rapl_interface::get_dram_energy_status(double*) [clone .cold]
+FUNC /var/coverage/bin/powertop c_rapl_interface::get_pp0_energy_status(double*) [clone .cold]
+FUNC /var/coverage/bin/powertop ahci::start_measurement()
+FUNC /var/coverage/bin/powertop ahci::start_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop ahci::end_measurement()
+FUNC /var/coverage/bin/powertop ahci::end_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop alsa::start_measurement()
+FUNC /var/coverage/bin/powertop alsa::start_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop alsa::end_measurement()
+FUNC /var/coverage/bin/powertop alsa::end_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop backlight::start_measurement()
+FUNC /var/coverage/bin/powertop backlight::start_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop backlight::end_measurement()
+FUNC /var/coverage/bin/powertop backlight::end_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop devfreq::parse_devfreq_trans_stat(char*)
+FUNC /var/coverage/bin/powertop devfreq::parse_devfreq_trans_stat(char*) [clone .cold]
+FUNC /var/coverage/bin/powertop devfreq::start_measurement()
+FUNC /var/coverage/bin/powertop devfreq::end_measurement()
+FUNC /var/coverage/bin/powertop do_proc_net_dev()
+FUNC /var/coverage/bin/powertop do_proc_net_dev() [clone .cold]
+FUNC /var/coverage/bin/powertop network::start_measurement()
+FUNC /var/coverage/bin/powertop network::end_measurement()
+FUNC /var/coverage/bin/powertop rfkill::start_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop rfkill::end_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop devfreq_dev_callback(char const*) [clone .lto_priv.0] [clone .cold]
+FUNC /var/coverage/bin/powertop i915gpu::i915gpu()
+FUNC /var/coverage/bin/powertop i915gpu::i915gpu() [clone .cold]
+FUNC /var/coverage/bin/powertop network::network(char const*, char const*)
+FUNC /var/coverage/bin/powertop network::network(char const*, char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop show_report_devices() [clone .cold]
+FUNC /var/coverage/bin/powertop i915gpu::add_child(device*)
+FUNC /var/coverage/bin/powertop create_all_ahcis() [clone .cold]
+FUNC /var/coverage/bin/powertop create_all_alsa_callback(char const*) [clone .lto_priv.0] [clone .cold]
+FUNC /var/coverage/bin/powertop create_all_backlights_callback(char const*) [clone .lto_priv.0] [clone .cold]
+FUNC /var/coverage/bin/powertop create_i915_gpu() [clone .cold]
+FUNC /var/coverage/bin/powertop netdev_callback(char const*) [clone .lto_priv.0] [clone .cold]
+FUNC /var/coverage/bin/powertop rfkill::~rfkill()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::class_name()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::utilization()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::human_name()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::~runtime_pmdevice()
+FUNC /var/coverage/bin/powertop thinkpad_fan::class_name()
+FUNC /var/coverage/bin/powertop thinkpad_fan::utilization()
+FUNC /var/coverage/bin/powertop thinkpad_fan::~thinkpad_fan()
+FUNC /var/coverage/bin/powertop thinkpad_light::class_name()
+FUNC /var/coverage/bin/powertop thinkpad_light::utilization()
+FUNC /var/coverage/bin/powertop thinkpad_light::~thinkpad_light()
+FUNC /var/coverage/bin/powertop usbdevice::class_name()
+FUNC /var/coverage/bin/powertop usbdevice::grouping_prio()
+FUNC /var/coverage/bin/powertop usbdevice::utilization()
+FUNC /var/coverage/bin/powertop usbdevice::human_name()
+FUNC /var/coverage/bin/powertop usbdevice::~usbdevice()
+FUNC /var/coverage/bin/powertop acpi_power_meter::dev_capacity()
+FUNC /var/coverage/bin/powertop acpi_power_meter::power()
+FUNC /var/coverage/bin/powertop acpi_power_meter::~acpi_power_meter()
+FUNC /var/coverage/bin/powertop opal_sensors_power_meter::dev_capacity()
+FUNC /var/coverage/bin/powertop thread_proc
+FUNC /var/coverage/bin/powertop sysfs_power_meter::power()
+FUNC /var/coverage/bin/powertop sysfs_power_meter::dev_capacity()
+FUNC /var/coverage/bin/powertop sysfs_power_meter::~sysfs_power_meter()
+FUNC /var/coverage/bin/powertop opal_sensors_power_meter::~opal_sensors_power_meter()
+FUNC /var/coverage/bin/powertop event_sort_function(void*, void*)
+FUNC /var/coverage/bin/powertop void std::__adjust_heap<__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, long, void*, bool (*)(void*, void*)>(__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, long, long, void*, bool (*)(void*, void*))
+FUNC /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, long, bool (*)(void*, void*)>(__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, __gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, long, bool (*)(void*, void*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop rfkill::~rfkill()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::~runtime_pmdevice()
+FUNC /var/coverage/bin/powertop thinkpad_fan::~thinkpad_fan()
+FUNC /var/coverage/bin/powertop thinkpad_light::~thinkpad_light()
+FUNC /var/coverage/bin/powertop usbdevice::~usbdevice()
+FUNC /var/coverage/bin/powertop acpi_power_meter::~acpi_power_meter()
+FUNC /var/coverage/bin/powertop sysfs_power_meter::~sysfs_power_meter()
+FUNC /var/coverage/bin/powertop opal_sensors_power_meter::~opal_sensors_power_meter()
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop rfkill::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop runtime_pmdevice::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop thinkpad_light::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop usbdevice::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop get_param_directory(char const*)
+FUNC /var/coverage/bin/powertop thinkpad_fan::start_measurement()
+FUNC /var/coverage/bin/powertop thinkpad_fan::start_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop thinkpad_light::start_measurement()
+FUNC /var/coverage/bin/powertop thinkpad_light::start_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop sysfs_power_meter::get_sysfs_attr(char const*, int*)
+FUNC /var/coverage/bin/powertop sysfs_power_meter::get_sysfs_attr(char const*, int*) [clone .cold]
+FUNC /var/coverage/bin/powertop opal_sensors_power_meter::power()
+FUNC /var/coverage/bin/powertop opal_sensors_power_meter::power() [clone .cold]
+FUNC /var/coverage/bin/powertop thinkpad_fan::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop usbdevice::register_power_with_devlist(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop extech_read(int)
+FUNC /var/coverage/bin/powertop sysfs_power_meter::end_measurement()
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::vector<double, std::allocator<double> >::_M_fill_append(unsigned long, double const&)
+FUNC /var/coverage/bin/powertop std::vector<double, std::allocator<double> >::_M_fill_append(unsigned long, double const&) [clone .cold]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::_M_get_insert_hint_unique_pos(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<int, std::pair<int const, char*>, std::_Select1st<std::pair<int const, char*> >, std::less<int>, std::allocator<std::pair<int const, char*> > >::_M_get_insert_unique_pos(int const&) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<int const, char*> > std::_Rb_tree<int, std::pair<int const, char*>, std::_Select1st<std::pair<int const, char*> >, std::less<int>, std::allocator<std::pair<int const, char*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<int&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<int const, char*> >, std::piecewise_construct_t const&, std::tuple<int&&>&&, std::tuple<>&&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop perf_event::~perf_event()
+FUNC /var/coverage/bin/powertop perf_event::~perf_event()
+FUNC /var/coverage/bin/powertop perf_bundle_event::handle_event(perf_event_header*, void*)
+FUNC /var/coverage/bin/powertop perf_bundle_event::handle_event(perf_event_header*, void*) [clone .cold]
+FUNC /var/coverage/bin/powertop read_file(char const*)
+FUNC /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, bool (*)(void*, void*)>(__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, __gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, bool (*)(void*, void*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop runtime_pmdevice::start_measurement()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::start_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop runtime_pmdevice::end_measurement()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::end_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop usbdevice::start_measurement()
+FUNC /var/coverage/bin/powertop usbdevice::start_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop acpi_power_meter::measure()
+FUNC /var/coverage/bin/powertop acpi_power_meter::measure() [clone .cold]
+FUNC /var/coverage/bin/powertop acpi_power_meter::end_measurement()
+FUNC /var/coverage/bin/powertop device_has_runtime_pm(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop void std::vector<power_meter*, std::allocator<power_meter*> >::emplace_back<power_meter*>(power_meter*&&) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop sysfs_power_meters_callback(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop get_param_index(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop get_result_index(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop create_all_rfkills_callback(char const*) [clone .lto_priv.0] [clone .cold]
+FUNC /var/coverage/bin/powertop do_bus(char const*) [clone .lto_priv.0] [clone .cold]
+FUNC /var/coverage/bin/powertop create_thinkpad_fan() [clone .cold]
+FUNC /var/coverage/bin/powertop create_thinkpad_light() [clone .cold]
+FUNC /var/coverage/bin/powertop create_all_usb_devices_callback(char const*) [clone .lto_priv.0] [clone .cold]
+FUNC /var/coverage/bin/powertop weed_empties(parameter_bundle*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::vector<double, std::allocator<double> >::_M_default_append(unsigned long) [clone .cold]
+FUNC /var/coverage/bin/powertop thinkpad_fan::end_measurement()
+FUNC /var/coverage/bin/powertop thinkpad_fan::end_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop thinkpad_light::end_measurement()
+FUNC /var/coverage/bin/powertop thinkpad_light::end_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop usbdevice::end_measurement()
+FUNC /var/coverage/bin/powertop usbdevice::end_measurement() [clone .cold]
+FUNC /var/coverage/bin/powertop void std::vector<result_bundle*, std::allocator<result_bundle*> >::_M_realloc_append<result_bundle*>(result_bundle*&&) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop save_all_results(char const*) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop load_results(char const*) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop save_parameters(char const*) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop load_parameters(char const*) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop perf_bundle::add_event(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop process::name()
+FUNC /var/coverage/bin/powertop process::type()
+FUNC /var/coverage/bin/powertop interrupt::name()
+FUNC /var/coverage/bin/powertop interrupt::type()
+FUNC /var/coverage/bin/powertop timer::name()
+FUNC /var/coverage/bin/powertop timer::type()
+FUNC /var/coverage/bin/powertop work::name()
+FUNC /var/coverage/bin/powertop work::type()
+FUNC /var/coverage/bin/powertop change_blame(unsigned int, power_consumer*, int)
+FUNC /var/coverage/bin/powertop interrupt::end_interrupt(unsigned long)
+FUNC /var/coverage/bin/powertop interrupt::start_interrupt(unsigned long)
+FUNC /var/coverage/bin/powertop process::schedule_thread(unsigned long, int)
+FUNC /var/coverage/bin/powertop report_formatter::add(char const*)
+FUNC /var/coverage/bin/powertop void std::__adjust_heap<__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, long, power_consumer*, bool (*)(power_consumer*, power_consumer*)>(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, long, long, power_consumer*, bool (*)(power_consumer*, power_consumer*))
+FUNC /var/coverage/bin/powertop interrupt::description()
+FUNC /var/coverage/bin/powertop interrupt::usage_summary()
+FUNC /var/coverage/bin/powertop interrupt::usage_units_summary()
+FUNC /var/coverage/bin/powertop interrupt::~interrupt()
+FUNC /var/coverage/bin/powertop process::account_disk_dirty()
+FUNC /var/coverage/bin/powertop process::description()
+FUNC /var/coverage/bin/powertop process::usage_summary()
+FUNC /var/coverage/bin/powertop process::~process()
+FUNC /var/coverage/bin/powertop timer::usage_summary()
+FUNC /var/coverage/bin/powertop timer::~timer()
+FUNC /var/coverage/bin/powertop work::usage_summary()
+FUNC /var/coverage/bin/powertop work::~work()
+FUNC /var/coverage/bin/powertop work::description()
+FUNC /var/coverage/bin/powertop report_formatter::~report_formatter()
+FUNC /var/coverage/bin/powertop interrupt::~interrupt()
+FUNC /var/coverage/bin/powertop process::~process()
+FUNC /var/coverage/bin/powertop timer::~timer()
+FUNC /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, timer*>, std::_Select1st<std::pair<unsigned long const, timer*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, timer*> > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned long const, timer*> >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, unsigned long>, std::_Select1st<std::pair<unsigned long const, unsigned long> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned long const, unsigned long> >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop work::~work()
+FUNC /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, work*>, std::_Select1st<std::pair<unsigned long const, work*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, work*> > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned long const, work*> >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop report_formatter::~report_formatter()
+FUNC /var/coverage/bin/powertop report_formatter_csv::~report_formatter_csv()
+FUNC /var/coverage/bin/powertop report_formatter_csv::~report_formatter_csv()
+FUNC /var/coverage/bin/powertop report_formatter_html::~report_formatter_html()
+FUNC /var/coverage/bin/powertop report_formatter_html::~report_formatter_html()
+FUNC /var/coverage/bin/powertop process::deschedule_thread(unsigned long, int)
+FUNC /var/coverage/bin/powertop timer::description()
+FUNC /var/coverage/bin/powertop std::vector<std::vector<power_consumer*, std::allocator<power_consumer*> >, std::allocator<std::vector<power_consumer*, std::allocator<power_consumer*> > > >::_M_default_append(unsigned long) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::vector<std::vector<power_consumer*, std::allocator<power_consumer*> >, std::allocator<std::vector<power_consumer*, std::allocator<power_consumer*> > > >::_M_default_append(unsigned long) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop consumer_depth(unsigned int)
+FUNC /var/coverage/bin/powertop current_consumer(unsigned int)
+FUNC /var/coverage/bin/powertop consumer_child_time(unsigned int, unsigned long)
+FUNC /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_default_append(unsigned long)
+FUNC /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_default_append(unsigned long) [clone .cold]
+FUNC /var/coverage/bin/powertop pop_consumer(unsigned int)
+FUNC /var/coverage/bin/powertop std::vector<int, std::allocator<int> >::_M_default_append(unsigned long) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::vector<int, std::allocator<int> >::_M_default_append(unsigned long) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop set_wakeup_pending(unsigned int)
+FUNC /var/coverage/bin/powertop consume_blame(unsigned int)
+FUNC /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, bool (*)(power_consumer*, power_consumer*)>(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, __gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, bool (*)(power_consumer*, power_consumer*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop find_create_interrupt(char const*, int, int)
+FUNC /var/coverage/bin/powertop find_create_interrupt(char const*, int, int) [clone .cold]
+FUNC /var/coverage/bin/powertop timer_is_deferred(char const*)
+FUNC /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, unsigned long>, std::_Select1st<std::pair<unsigned long const, unsigned long> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::_M_get_insert_unique_pos(unsigned long const&) [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, timer*>, std::_Select1st<std::pair<unsigned long const, timer*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, timer*> > >::_M_get_insert_unique_pos(unsigned long const&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, work*>, std::_Select1st<std::pair<unsigned long const, work*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, work*> > >::_M_get_insert_unique_pos(unsigned long const&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<unsigned long const, unsigned long> > std::_Rb_tree<unsigned long, std::pair<unsigned long const, unsigned long>, std::_Select1st<std::pair<unsigned long const, unsigned long> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned long const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned long const, unsigned long> >, std::piecewise_construct_t const&, std::tuple<unsigned long const&>&&, std::tuple<>&&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::map<unsigned long, unsigned long, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::operator[](unsigned long const&)
+FUNC /var/coverage/bin/powertop timer::fire(unsigned long, unsigned long)
+FUNC /var/coverage/bin/powertop timer::done(unsigned long, unsigned long)
+FUNC /var/coverage/bin/powertop work::fire(unsigned long, unsigned long)
+FUNC /var/coverage/bin/powertop work::done(unsigned long, unsigned long)
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<unsigned long const, timer*> > std::_Rb_tree<unsigned long, std::pair<unsigned long const, timer*>, std::_Select1st<std::pair<unsigned long const, timer*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, timer*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned long const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned long const, timer*> >, std::piecewise_construct_t const&, std::tuple<unsigned long const&>&&, std::tuple<>&&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop find_create_timer(unsigned long)
+FUNC /var/coverage/bin/powertop find_create_timer(unsigned long) [clone .cold]
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<unsigned long const, work*> > std::_Rb_tree<unsigned long, std::pair<unsigned long const, work*>, std::_Select1st<std::pair<unsigned long const, work*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, work*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned long const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned long const, work*> >, std::piecewise_construct_t const&, std::tuple<unsigned long const&>&&, std::tuple<>&&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop report_formatter_string_base::add(char const*)
+FUNC /var/coverage/bin/powertop report_formatter_string_base::add(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop report_formatter_string_base::addv(char const*, __va_list_tag*)
+FUNC /var/coverage/bin/powertop report_formatter_string_base::addv(char const*, __va_list_tag*) [clone .cold]
+FUNC /var/coverage/bin/powertop report_formatter_html::escape_string[abi:cxx11](char const*)
+FUNC /var/coverage/bin/powertop report_formatter_html::escape_string[abi:cxx11](char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop report_formatter_csv::escape_string[abi:cxx11](char const*)
+FUNC /var/coverage/bin/powertop report_formatter_csv::escape_string[abi:cxx11](char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop void std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_realloc_append<power_consumer* const&>(power_consumer* const&) [clone .cold]
+FUNC /var/coverage/bin/powertop push_consumer(unsigned int, power_consumer*)
+FUNC /var/coverage/bin/powertop std::vector<int, std::allocator<int> >::_M_fill_append(unsigned long, int const&) [clone .cold]
+FUNC /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_fill_append(unsigned long, power_consumer* const&) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop process::process(char const*, int, int) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop process::process(char const*, int, int) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop find_create_process(char const*, int) [clone .cold]
+FUNC /var/coverage/bin/powertop perf_process_bundle::handle_trace_point(void*, int, unsigned long) [clone .cold]
+FUNC /var/coverage/bin/powertop double_to_string[abi:cxx11](double)
+FUNC /var/coverage/bin/powertop double_to_string[abi:cxx11](double) [clone .cold]
+FUNC /var/coverage/bin/powertop report_formatter_string_base::add_exact(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop report_formatter_string_base::addf_exact(char const*, ...)
+FUNC /var/coverage/bin/powertop report_formatter_html::add_title(tag_attr*, char const*)
+FUNC /var/coverage/bin/powertop report_formatter_csv::add_title(tag_attr*, char const*)
+FUNC /var/coverage/bin/powertop report_formatter_csv::add_summary_list(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, int)
+FUNC /var/coverage/bin/powertop report_formatter_csv::add_table(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, table_attributes*)
+FUNC /var/coverage/bin/powertop report_formatter_csv::add_table(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, table_attributes*) [clone .cold]
+FUNC /var/coverage/bin/powertop report_formatter_html::add_div(tag_attr*)
+FUNC /var/coverage/bin/powertop report_formatter_html::add_div(tag_attr*) [clone .cold]
+FUNC /var/coverage/bin/powertop report_formatter_html::add_summary_list(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, int)
+FUNC /var/coverage/bin/powertop report_formatter_html::add_table(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, table_attributes*)
+FUNC /var/coverage/bin/powertop report_formatter_html::add_table(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, table_attributes*) [clone .cold]
+FUNC /var/coverage/bin/powertop report_maker::setup_report_formatter() [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop report_process_update_display() [clone .cold]
+FUNC /var/coverage/bin/powertop report_summary() [clone .cold]
+FUNC /var/coverage/bin/powertop tunable::result_string()
+FUNC /var/coverage/bin/powertop wakeup::description()
+FUNC /var/coverage/bin/powertop bt_tunable::toggle_script()
+FUNC /var/coverage/bin/powertop bt_tunable::~bt_tunable()
+FUNC /var/coverage/bin/powertop error_handler
+FUNC /var/coverage/bin/powertop finish_handler
+FUNC /var/coverage/bin/powertop ack_handler
+FUNC /var/coverage/bin/powertop runtime_tunable::toggle_script()
+FUNC /var/coverage/bin/powertop runtime_tunable::~runtime_tunable()
+FUNC /var/coverage/bin/powertop tunable::~tunable()
+FUNC /var/coverage/bin/powertop tunable::toggle_script()
+FUNC /var/coverage/bin/powertop tuning_window::cursor_enter()
+FUNC /var/coverage/bin/powertop void std::__adjust_heap<__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, long, tunable*, bool (*)(tunable*, tunable*)>(__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, long, long, tunable*, bool (*)(tunable*, tunable*))
+FUNC /var/coverage/bin/powertop sysfs_tunable::toggle_script()
+FUNC /var/coverage/bin/powertop sysfs_tunable::~sysfs_tunable()
+FUNC /var/coverage/bin/powertop usb_tunable::toggle_script()
+FUNC /var/coverage/bin/powertop usb_tunable::~usb_tunable()
+FUNC /var/coverage/bin/powertop i2c_tunable::toggle_script()
+FUNC /var/coverage/bin/powertop i2c_tunable::~i2c_tunable()
+FUNC /var/coverage/bin/powertop wifi_tunable::~wifi_tunable()
+FUNC /var/coverage/bin/powertop wakeup::~wakeup()
+FUNC /var/coverage/bin/powertop wakeup::wakeup_string()
+FUNC /var/coverage/bin/powertop wakeup_window::cursor_enter()
+FUNC /var/coverage/bin/powertop ethernet_wakeup::~ethernet_wakeup()
+FUNC /var/coverage/bin/powertop usb_wakeup::~usb_wakeup()
+FUNC /var/coverage/bin/powertop bt_tunable::~bt_tunable()
+FUNC /var/coverage/bin/powertop runtime_tunable::~runtime_tunable()
+FUNC /var/coverage/bin/powertop tunable::~tunable()
+FUNC /var/coverage/bin/powertop std::vector<tunable*, std::allocator<tunable*> >::~vector()
+FUNC /var/coverage/bin/powertop sysfs_tunable::~sysfs_tunable()
+FUNC /var/coverage/bin/powertop usb_tunable::~usb_tunable()
+FUNC /var/coverage/bin/powertop i2c_tunable::~i2c_tunable()
+FUNC /var/coverage/bin/powertop wifi_tunable::~wifi_tunable()
+FUNC /var/coverage/bin/powertop wakeup::~wakeup()
+FUNC /var/coverage/bin/powertop std::vector<wakeup*, std::allocator<wakeup*> >::~vector()
+FUNC /var/coverage/bin/powertop ethernet_wakeup::~ethernet_wakeup()
+FUNC /var/coverage/bin/powertop usb_wakeup::~usb_wakeup()
+FUNC /var/coverage/bin/powertop bt_tunable::good_bad()
+FUNC /var/coverage/bin/powertop bt_tunable::toggle()
+FUNC /var/coverage/bin/powertop void std::vector<tunable*, std::allocator<tunable*> >::emplace_back<tunable*>(tunable*&&)
+FUNC /var/coverage/bin/powertop void std::vector<tunable*, std::allocator<tunable*> >::emplace_back<tunable*>(tunable*&&) [clone .cold]
+FUNC /var/coverage/bin/powertop void std::vector<wakeup*, std::allocator<wakeup*> >::_M_realloc_append<wakeup*>(wakeup*&&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop void std::vector<wakeup*, std::allocator<wakeup*> >::_M_realloc_append<wakeup*>(wakeup*&&) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop print_power_save_handler
+FUNC /var/coverage/bin/powertop runtime_tunable::good_bad()
+FUNC /var/coverage/bin/powertop runtime_tunable::good_bad() [clone .cold]
+FUNC /var/coverage/bin/powertop usb_tunable::good_bad()
+FUNC /var/coverage/bin/powertop usb_tunable::good_bad() [clone .cold]
+FUNC /var/coverage/bin/powertop i2c_tunable::good_bad()
+FUNC /var/coverage/bin/powertop i2c_tunable::good_bad() [clone .cold]
+FUNC /var/coverage/bin/powertop ethernet_wakeup::wakeup_value()
+FUNC /var/coverage/bin/powertop ethernet_wakeup::wakeup_value() [clone .cold]
+FUNC /var/coverage/bin/powertop usb_wakeup::wakeup_value()
+FUNC /var/coverage/bin/powertop usb_wakeup::wakeup_value() [clone .cold]
+FUNC /var/coverage/bin/powertop runtime_tunable::toggle()
+FUNC /var/coverage/bin/powertop runtime_tunable::toggle() [clone .cold]
+FUNC /var/coverage/bin/powertop sysfs_tunable::toggle()
+FUNC /var/coverage/bin/powertop sysfs_tunable::toggle() [clone .cold]
+FUNC /var/coverage/bin/powertop usb_tunable::toggle()
+FUNC /var/coverage/bin/powertop usb_tunable::toggle() [clone .cold]
+FUNC /var/coverage/bin/powertop i2c_tunable::toggle()
+FUNC /var/coverage/bin/powertop i2c_tunable::toggle() [clone .cold]
+FUNC /var/coverage/bin/powertop ethernet_wakeup::wakeup_toggle()
+FUNC /var/coverage/bin/powertop ethernet_wakeup::wakeup_toggle() [clone .cold]
+FUNC /var/coverage/bin/powertop usb_wakeup::wakeup_toggle()
+FUNC /var/coverage/bin/powertop usb_wakeup::wakeup_toggle() [clone .cold]
+FUNC /var/coverage/bin/powertop tunable::tunable(char const*, double, char const*, char const*, char const*)
+FUNC /var/coverage/bin/powertop add_sysfs_tunable(char const*, char const*, char const*)
+FUNC /var/coverage/bin/powertop add_sata_tunables_callback(char const*)
+FUNC /var/coverage/bin/powertop wakeup_window::window_refresh()
+FUNC /var/coverage/bin/powertop wakeup_eth_callback(char const*)
+FUNC /var/coverage/bin/powertop wakeup_usb_callback(char const*)
+FUNC /var/coverage/bin/powertop tuning_window::~tuning_window()
+FUNC /var/coverage/bin/powertop tuning_window::~tuning_window()
+FUNC /var/coverage/bin/powertop wakeup_window::~wakeup_window()
+FUNC /var/coverage/bin/powertop wakeup_window::~wakeup_window()
+FUNC /var/coverage/bin/powertop tunables_sort(tunable*, tunable*)
+FUNC /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, long, bool (*)(tunable*, tunable*)>(__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, __gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, long, bool (*)(tunable*, tunable*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, bool (*)(tunable*, tunable*)>(__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, __gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, bool (*)(tunable*, tunable*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop get_type
+FUNC /var/coverage/bin/powertop extend_token
+FUNC /var/coverage/bin/powertop eval_type_str.constprop.0
+FUNC /var/coverage/bin/powertop system_info()
+FUNC /var/coverage/bin/powertop system_info() [clone .cold]
+FUNC /var/coverage/bin/powertop runtime_tunable::runtime_tunable(char const*, char const*, char const*, char const*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop runtime_tunable::runtime_tunable(char const*, char const*, char const*, char const*) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop add_runtime_tunables(char const*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop add_runtime_tunables(char const*) [clone .constprop.0] [clone .cold]
+FUNC /var/coverage/bin/powertop sysfs_tunable::good_bad()
+FUNC /var/coverage/bin/powertop sysfs_tunable::good_bad() [clone .cold]
+FUNC /var/coverage/bin/powertop add_usb_callback(char const*)
+FUNC /var/coverage/bin/powertop add_usb_callback(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop add_i2c_callback(char const*)
+FUNC /var/coverage/bin/powertop add_i2c_callback(char const*) [clone .cold]
+FUNC /var/coverage/bin/powertop init_report_output(char*, int) [clone .cold]
+FUNC /var/coverage/bin/powertop wifi_tunable::good_bad()
+FUNC /var/coverage/bin/powertop wifi_tunable::toggle()
+FUNC /var/coverage/bin/powertop wifi_tunable::toggle_script()
+FUNC /var/coverage/bin/powertop initialize_tuning() [clone .cold]
+FUNC /var/coverage/bin/powertop initialize_wakeup() [clone .cold]
+FUNC /var/coverage/bin/powertop tuning_update_display() [clone .cold]
+FUNC /var/coverage/bin/powertop force_token.constprop.0
+FUNC /var/coverage/bin/powertop warning.cold
+FUNC /var/coverage/bin/powertop get_op_prio
+FUNC /var/coverage/bin/powertop arg_num_eval
+FUNC /var/coverage/bin/powertop arg_eval
+FUNC /var/coverage/bin/powertop process_fields
+FUNC /var/coverage/bin/powertop _sub_I_65535_0.0
+FUNC /var/coverage/bin/powertop enumerate_cpus()
+FUNC /var/coverage/bin/powertop read_token_item.lto_priv.0
+FUNC /var/coverage/bin/powertop perf_bundle::process()
+FUNC /var/coverage/bin/powertop nl80211_init.lto_priv.0
+FUNC /var/coverage/bin/powertop do_bus(char const*) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop void std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_realloc_append<power_consumer* const&>(power_consumer* const&)
+FUNC /var/coverage/bin/powertop report_display_cpu_pstates()
+FUNC /var/coverage/bin/powertop report_maker::setup_report_formatter() [clone .constprop.0]
+FUNC /var/coverage/bin/powertop c_rapl_interface::get_pp0_energy_status(double*)
+FUNC /var/coverage/bin/powertop pretty_print(char const*, char*, int)
+FUNC /var/coverage/bin/powertop std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::compare(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const [clone .isra.0]
+FUNC /var/coverage/bin/powertop perf_bundle::clear()
+FUNC /var/coverage/bin/powertop tuning_update_display()
+FUNC /var/coverage/bin/powertop pevent_free
+FUNC /var/coverage/bin/powertop compute_bundle(parameter_bundle*, result_bundle*) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop clear_interrupts()
+FUNC /var/coverage/bin/powertop global_power_valid()
+FUNC /var/coverage/bin/powertop report_formatter_string_base::add_exact(char const*)
+FUNC /var/coverage/bin/powertop report_devices()
+FUNC /var/coverage/bin/powertop report_process_update_display()
+FUNC /var/coverage/bin/powertop void std::__final_insertion_sort<__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, bool (*)(power_consumer*, power_consumer*)>(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, __gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, bool (*)(power_consumer*, power_consumer*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop get_result_index(char const*)
+FUNC /var/coverage/bin/powertop c_rapl_interface::c_rapl_interface(char const*, int)
+FUNC /var/coverage/bin/powertop void std::vector<device*, std::allocator<device*> >::_M_realloc_append<device*>(device*&&)
+FUNC /var/coverage/bin/powertop perf_bundle::stop()
+FUNC /var/coverage/bin/powertop pevent_read_number
+FUNC /var/coverage/bin/powertop device::register_sysfs_path(char const*)
+FUNC /var/coverage/bin/powertop clone_results(result_bundle*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop report_display_cpu_cstates()
+FUNC /var/coverage/bin/powertop perf_bundle::add_event(char const*)
+FUNC /var/coverage/bin/powertop sysfs_opal_sensors_callback(char const*)
+FUNC /var/coverage/bin/powertop load_results(char const*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop global_power()
+FUNC /var/coverage/bin/powertop void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<true>(char const*, unsigned long)
+FUNC /var/coverage/bin/powertop impl_w_display_cpu_states(int)
+FUNC /var/coverage/bin/powertop reset_display()
+FUNC /var/coverage/bin/powertop write_sysfs(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+FUNC /var/coverage/bin/powertop clear_consumers() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop pevent_find_any_field
+FUNC /var/coverage/bin/powertop fmt_prefix(double, char*)
+FUNC /var/coverage/bin/powertop std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::~vector() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop read_sysfs_string[abi:cxx11](char const*, char const*)
+FUNC /var/coverage/bin/powertop clear_processes()
+FUNC /var/coverage/bin/powertop abstract_cpu::~abstract_cpu()
+FUNC /var/coverage/bin/powertop create_tab(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, tab_window*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+FUNC /var/coverage/bin/powertop std::_Rb_tree<int, std::pair<int const, char*>, std::_Select1st<std::pair<int const, char*> >, std::less<int>, std::allocator<std::pair<int const, char*> > >::_M_erase(std::_Rb_tree_node<std::pair<int const, char*> >*) [clone .isra.0]
+FUNC /var/coverage/bin/powertop process_directory(char const*, void (*)(char const*))
+FUNC /var/coverage/bin/powertop create_thinkpad_fan()
+FUNC /var/coverage/bin/powertop perf_event::create_perf_event(char*, int) [clone .isra.0]
+FUNC /var/coverage/bin/powertop c_rapl_interface::get_dram_energy_status(double*)
+FUNC /var/coverage/bin/powertop abstract_cpu::reset_pstate_data()
+FUNC /var/coverage/bin/powertop global_sample_power()
+FUNC /var/coverage/bin/powertop initialize_tuning()
+FUNC /var/coverage/bin/powertop test_type_token.lto_priv.0
+FUNC /var/coverage/bin/powertop kernel_function(unsigned long)
+FUNC /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_fill_append(unsigned long, power_consumer* const&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop device_has_runtime_pm(char const*)
+FUNC /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, long, bool (*)(power_consumer*, power_consumer*)>(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, __gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, long, bool (*)(power_consumer*, power_consumer*)) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::vector<process*, std::allocator<process*> >::_M_erase(__gnu_cxx::__normal_iterator<process**, std::vector<process*, std::allocator<process*> > >) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop pevent_find_event
+FUNC /var/coverage/bin/powertop create_i915_gpu()
+FUNC /var/coverage/bin/powertop pevent_data_type
+FUNC /var/coverage/bin/powertop event_read_fields.lto_priv.0
+FUNC /var/coverage/bin/powertop report_summary()
+FUNC /var/coverage/bin/powertop find_create_process(char const*, int)
+FUNC /var/coverage/bin/powertop dump_parameter_bundle(parameter_bundle*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop pevent_get_field_val.constprop.0
+FUNC /var/coverage/bin/powertop warning
+FUNC /var/coverage/bin/powertop learn_parameters(int, int)
+FUNC /var/coverage/bin/powertop learn_parameters(int, int) [clone .part.0]
+FUNC /var/coverage/bin/powertop device::device()
+FUNC /var/coverage/bin/powertop abstract_cpu::measurement_end()
+FUNC /var/coverage/bin/powertop report_maker::add_title(tag_attr*, char const*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop get_param_index(char const*)
+FUNC /var/coverage/bin/powertop pr_stat.constprop.0
+FUNC /var/coverage/bin/powertop init_report_output(char*, int)
+FUNC /var/coverage/bin/powertop create_all_ahcis()
+FUNC /var/coverage/bin/powertop pevent_get_common_field_val.constprop.0
+FUNC /var/coverage/bin/powertop free_arg.lto_priv.0
+FUNC /var/coverage/bin/powertop process_op.lto_priv.0
+FUNC /var/coverage/bin/powertop std::vector<int, std::allocator<int> >::_M_fill_append(unsigned long, int const&)
+FUNC /var/coverage/bin/powertop save_parameters(char const*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop initialize_wakeup()
+FUNC /var/coverage/bin/powertop get_wifi_power_saving
+FUNC /var/coverage/bin/powertop hz_to_human(unsigned long, char*, int)
+FUNC /var/coverage/bin/powertop clear_tuning()
+FUNC /var/coverage/bin/powertop report_maker::add_table(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, table_attributes*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop sort_tunables() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop save_all_results(char const*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&) [clone .part.0] [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop get_parameter_value(unsigned int, parameter_bundle*)
+FUNC /var/coverage/bin/powertop display_devfreq_devices()
+FUNC /var/coverage/bin/powertop load_parameters(char const*) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop read_sysfs_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+FUNC /var/coverage/bin/powertop register_devpower(char const*, double, device*)
+FUNC /var/coverage/bin/powertop process_arg.lto_priv.0
+FUNC /var/coverage/bin/powertop total_cpu_time()
+FUNC /var/coverage/bin/powertop utilization_power_valid(int)
+FUNC /var/coverage/bin/powertop std::vector<double, std::allocator<double> >::_M_default_append(unsigned long)
+FUNC /var/coverage/bin/powertop process_arg_token.lto_priv.0
+FUNC /var/coverage/bin/powertop void std::vector<result_bundle*, std::allocator<result_bundle*> >::_M_realloc_append<result_bundle*>(result_bundle*&&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop create_thinkpad_light()
+FUNC /var/coverage/bin/powertop void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char const*>(char const*, char const*, std::forward_iterator_tag) [clone .isra.0]
+FUNC /var/coverage/bin/powertop register_parameter(char const*, double, double)
+FUNC /var/coverage/bin/powertop get_ncurses_win(char const*)
+FUNC /var/coverage/bin/powertop pevent_free_format
+FUNC /var/coverage/bin/powertop format_watts(double, char*, unsigned int)
+FUNC /var/coverage/bin/powertop init_tuning() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop void std::vector<frequency*, std::allocator<frequency*> >::_M_realloc_append<frequency* const&>(frequency* const&)
+FUNC /var/coverage/bin/powertop void std::vector<power_meter*, std::allocator<power_meter*> >::emplace_back<power_meter*>(power_meter*&&) [clone .constprop.0]
+FUNC /var/coverage/bin/powertop end_process_data()
+FUNC /var/coverage/bin/powertop power_cpu_sort(power_consumer*, power_consumer*) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop read_sysfs(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bool*)
+FUNC /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop abstract_cpu::measurement_start()
+FUNC /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_erase(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, __gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >) [clone .constprop.0] [clone .isra.0]
+FUNC /var/coverage/bin/powertop show_report_devices()
+FUNC /var/coverage/bin/powertop read_msr(int, unsigned long, unsigned long*)
+FUNC /var/coverage/bin/powertop devfreq_dev_callback(char const*) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop parameter_bundle::~parameter_bundle()
+FUNC /var/coverage/bin/powertop device_consumer::usage_units()
+FUNC /var/coverage/bin/powertop result_bundle::~result_bundle()
+FUNC /var/coverage/bin/powertop report_formatter::addv(char const*, __va_list_tag*)
+FUNC /var/coverage/bin/powertop std::vector<result_bundle*, std::allocator<result_bundle*> >::~vector()
+FUNC /var/coverage/bin/powertop i915gpu::show_in_list()
+FUNC /var/coverage/bin/powertop power_consumer::show_events()
+FUNC /var/coverage/bin/powertop extech_power_meter::power()
+FUNC /var/coverage/bin/powertop rfkill::device_name()
+FUNC /var/coverage/bin/powertop power_consumer::Witts()
+FUNC /var/coverage/bin/powertop report_formatter_csv::add_header()
+FUNC /var/coverage/bin/powertop perf_process_bundle::handle_trace_point(void*, int, unsigned long)
+FUNC /var/coverage/bin/powertop report_formatter_string_base::clear_result()
+FUNC /var/coverage/bin/powertop device_consumer::Witts()
+FUNC /var/coverage/bin/powertop perf_bundle_event::~perf_bundle_event() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop device_consumer::type()
+FUNC /var/coverage/bin/powertop acpi_power_meters_callback(char const*)
+FUNC /var/coverage/bin/powertop std::vector<std::vector<power_consumer*, std::allocator<power_consumer*> >, std::allocator<std::vector<power_consumer*, std::allocator<power_consumer*> > > >::~vector()
+FUNC /var/coverage/bin/powertop std::vector<int, std::allocator<int> >::~vector()
+FUNC /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::~map()
+FUNC /var/coverage/bin/powertop add_work(std::pair<unsigned long, work*> const&) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop std::map<unsigned long, unsigned long, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::~map()
+FUNC /var/coverage/bin/powertop device::util_units()
+FUNC /var/coverage/bin/powertop wakeup::wakeup_toggle_script()
+FUNC /var/coverage/bin/powertop std::vector<devfreq*, std::allocator<devfreq*> >::~vector()
+FUNC /var/coverage/bin/powertop report_maker::~report_maker()
+FUNC /var/coverage/bin/powertop device::device_name()
+FUNC /var/coverage/bin/powertop devfreq::util_units()
+FUNC /var/coverage/bin/powertop perf_process_bundle::~perf_process_bundle() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop std::vector<power_meter*, std::allocator<power_meter*> >::~vector() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop create_all_rfkills_callback(char const*) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop report_formatter_html::add_header()
+FUNC /var/coverage/bin/powertop rfkill::class_name()
+FUNC /var/coverage/bin/powertop thinkpad_fan::power_valid()
+FUNC /var/coverage/bin/powertop device::start_measurement()
+FUNC /var/coverage/bin/powertop std::vector<devpower*, std::allocator<devpower*> >::~vector()
+FUNC /var/coverage/bin/powertop std::vector<devuser*, std::allocator<devuser*> >::~vector() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop device_consumer::usage()
+FUNC /var/coverage/bin/powertop alsa::register_power_with_devlist(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop create_all_alsa_callback(char const*) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop std::map<unsigned long, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::~map() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::~vector() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop extech_power_meter::~extech_power_meter()
+FUNC /var/coverage/bin/powertop device_consumer::~device_consumer() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop power_consumer::events()
+FUNC /var/coverage/bin/powertop tuning_window::repaint()
+FUNC /var/coverage/bin/powertop device::power_usage(result_bundle*, parameter_bundle*)
+FUNC /var/coverage/bin/powertop report_formatter_csv::add_logo()
+FUNC /var/coverage/bin/powertop rfkill::human_name()
+FUNC /var/coverage/bin/powertop report_formatter_csv::add_div(tag_attr*)
+FUNC /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, tab_window*, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::~map()
+FUNC /var/coverage/bin/powertop std::vector<abstract_cpu*, std::allocator<abstract_cpu*> >::~vector()
+FUNC /var/coverage/bin/powertop perf_process_bundle::~perf_process_bundle()
+FUNC /var/coverage/bin/powertop power_meter::is_discharging()
+FUNC /var/coverage/bin/powertop power_consumer::type()
+FUNC /var/coverage/bin/powertop power_consumer::~power_consumer() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop power_consumer::usage()
+FUNC /var/coverage/bin/powertop perf_bundle::release()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::power_valid()
+FUNC /var/coverage/bin/powertop cpudevice::class_name()
+FUNC /var/coverage/bin/powertop rfkill::utilization()
+FUNC /var/coverage/bin/powertop report_formatter_html::end_div()
+FUNC /var/coverage/bin/powertop thinkpad_light::power_valid()
+FUNC /var/coverage/bin/powertop report_formatter_html::end_header()
+FUNC /var/coverage/bin/powertop std::vector<interrupt*, std::allocator<interrupt*> >::~vector()
+FUNC /var/coverage/bin/powertop std::vector<ahci*, std::allocator<ahci*> >::~vector()
+FUNC /var/coverage/bin/powertop device::show_in_list()
+FUNC /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::~map() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop extech_power_meter::end_measurement()
+FUNC /var/coverage/bin/powertop extech_power_meter::~extech_power_meter() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop power_consumer::description()
+FUNC /var/coverage/bin/powertop rfkill::end_measurement()
+FUNC /var/coverage/bin/powertop power_consumer::~power_consumer()
+FUNC /var/coverage/bin/powertop device_consumer::name()
+FUNC /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, network*, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > >::~map()
+FUNC /var/coverage/bin/powertop rfkill::power_valid()
+FUNC /var/coverage/bin/powertop report_formatter::get_result()
+FUNC /var/coverage/bin/powertop rfkill::grouping_prio()
+FUNC /var/coverage/bin/powertop thinkpad_fan::device_name()
+FUNC /var/coverage/bin/powertop thinkpad_fan::human_name()
+FUNC /var/coverage/bin/powertop runtime_pmdevice::device_name()
+FUNC /var/coverage/bin/powertop power_consumer::usage_units()
+FUNC /var/coverage/bin/powertop ethernet_wakeup::wakeup_toggle_script()
+FUNC /var/coverage/bin/powertop report_formatter_html::add_logo()
+FUNC /var/coverage/bin/powertop report_formatter_html::finish_report()
+FUNC /var/coverage/bin/powertop wakeup_window::repaint()
+FUNC /var/coverage/bin/powertop netdev_callback(char const*) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop usbdevice::power_valid()
+FUNC /var/coverage/bin/powertop create_all_backlights_callback(char const*) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop report_formatter_html::add_navigation()
+FUNC /var/coverage/bin/powertop perf_bundle::handle_trace_point(void*, int, unsigned long)
+FUNC /var/coverage/bin/powertop device::human_name()
+FUNC /var/coverage/bin/powertop wakeup_window::expose()
+FUNC /var/coverage/bin/powertop usb_wakeup::wakeup_toggle_script()
+FUNC /var/coverage/bin/powertop extech_power_meter::sample()
+FUNC /var/coverage/bin/powertop extech_power_meter::start_measurement()
+FUNC /var/coverage/bin/powertop power_consumer::usage_summary()
+FUNC /var/coverage/bin/powertop tab_window::cursor_up()
+FUNC /var/coverage/bin/powertop std::map<unsigned long, work*, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, work*> > >::~map()
+FUNC /var/coverage/bin/powertop tuning_window::expose()
+FUNC /var/coverage/bin/powertop device_consumer::~device_consumer()
+FUNC /var/coverage/bin/powertop std::vector<process*, std::allocator<process*> >::~vector()
+FUNC /var/coverage/bin/powertop thinkpad_light::device_name()
+FUNC /var/coverage/bin/powertop std::vector<device_consumer*, std::allocator<device_consumer*> >::~vector() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop tab_window::cursor_down()
+FUNC /var/coverage/bin/powertop std::map<unsigned long, timer*, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, timer*> > >::~map() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop rfkill::start_measurement()
+FUNC /var/coverage/bin/powertop create_all_usb_devices_callback(char const*) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop sysfs_power_meters_callback(char const*)
+FUNC /var/coverage/bin/powertop std::vector<frequency*, std::allocator<frequency*> >::_M_default_append(unsigned long)
+FUNC /var/coverage/bin/powertop device_consumer::description()
+FUNC /var/coverage/bin/powertop tuning_window::window_refresh()
+FUNC /var/coverage/bin/powertop power_meter::set_discharging(bool)
+FUNC /var/coverage/bin/powertop std::vector<device*, std::allocator<device*> >::~vector() [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop thinkpad_light::human_name()
+FUNC /var/coverage/bin/powertop add_timer(std::pair<unsigned long, timer*> const&) [clone .lto_priv.0]
+FUNC /var/coverage/bin/powertop report_formatter_string_base::get_result()
+FUNC /var/coverage/bin/powertop power_consumer::usage_units_summary()
+FUNC /var/coverage/bin/powertop report_formatter::add_summary_list(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, int)
+FUNC /var/coverage/bin/powertop perf_bundle_event::~perf_bundle_event()
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_user_data
+FUNC /lib64/libnl-genl-3.so.200 genl_mngt_resolve
+FUNC /lib64/libnl-genl-3.so.200 genl_send_simple
+FUNC /lib64/libnl-genl-3.so.200 genl_family_add_op
+FUNC /lib64/libnl-genl-3.so.200 genl_family_set_name
+FUNC /lib64/libnl-genl-3.so.200 genl_ctrl_search_by_name
+FUNC /lib64/libnl-genl-3.so.200 genl_family_get_hdrsize
+FUNC /lib64/libnl-genl-3.so.200 genl_unregister_family
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_len
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_data
+FUNC /lib64/libnl-genl-3.so.200 genl_family_add_grp
+FUNC /lib64/libnl-genl-3.so.200 genl_ctrl_resolve
+FUNC /lib64/libnl-genl-3.so.200 genl_handle_msg
+FUNC /lib64/libnl-genl-3.so.200 genl_ops_resolve
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_parse
+FUNC /lib64/libnl-genl-3.so.200 genl_family_get_name
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_user_datalen
+FUNC /lib64/libnl-genl-3.so.200 genl_register
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_put
+FUNC /lib64/libnl-genl-3.so.200 genl_op2name
+FUNC /lib64/libnl-genl-3.so.200 genl_ctrl_alloc_cache
+FUNC /lib64/libnl-genl-3.so.200 genl_ctrl_search
+FUNC /lib64/libnl-genl-3.so.200 genl_family_set_id
+FUNC /lib64/libnl-genl-3.so.200 genl_family_set_maxattr
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_user_hdr
+FUNC /lib64/libnl-genl-3.so.200 genl_family_set_version
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_validate
+FUNC /lib64/libnl-genl-3.so.200 genl_family_get_id
+FUNC /lib64/libnl-genl-3.so.200 genl_register_family
+FUNC /lib64/libnl-genl-3.so.200 genl_connect
+FUNC /lib64/libnl-genl-3.so.200 genl_ctrl_resolve_grp
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_valid_hdr
+FUNC /lib64/libnl-genl-3.so.200 genl_unregister
+FUNC /lib64/libnl-genl-3.so.200 genl_family_set_hdrsize
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_attrlen
+FUNC /lib64/libnl-genl-3.so.200 genl_family_get_maxattr
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_hdr
+FUNC /lib64/libnl-genl-3.so.200 genl_resolve_id
+FUNC /lib64/libnl-genl-3.so.200 genl_family_alloc
+FUNC /lib64/libnl-genl-3.so.200 genl_family_get_version
+FUNC /lib64/libnl-genl-3.so.200 genl_family_put
+FUNC /lib64/libnl-genl-3.so.200 genlmsg_attrdata
+FUNC /lib64/libnl-3.so.200 nlmsg_expand
+FUNC /lib64/libnl-3.so.200 nl_socket_set_peer_groups
+FUNC /lib64/libnl-3.so.200 nl_cache_mngt_unprovide
+FUNC /lib64/libnl-3.so.200 nl_socket_modify_err_cb
+FUNC /lib64/libnl-3.so.200 nl_socket_set_nonblocking
+FUNC /lib64/libnl-3.so.200 nla_get_sint
+FUNC /lib64/libnl-3.so.200 nl_cache_mark_all
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_data_ready
+FUNC /lib64/libnl-3.so.200 nl_complete_msg
+FUNC /lib64/libnl-3.so.200 nla_get_s16
+FUNC /lib64/libnl-3.so.200 nl_data_append
+FUNC /lib64/libnl-3.so.200 nl_addr_alloc
+FUNC /lib64/libnl-3.so.200 nlmsg_ok
+FUNC /lib64/libnl-3.so.200 nl_cache_clone
+FUNC /lib64/libnl-3.so.200 nlmsg_total_size
+FUNC /lib64/libnl-3.so.200 nlmsg_inherit
+FUNC /lib64/libnl-3.so.200 nla_put_s64
+FUNC /lib64/libnl-3.so.200 nla_nest_cancel
+FUNC /lib64/libnl-3.so.200 nl_hash_table_add
+FUNC /lib64/libnl-3.so.200 nl_data_get
+FUNC /lib64/libnl-3.so.200 nl_cache_clear
+FUNC /lib64/libnl-3.so.200 nl_object_alloc
+FUNC /lib64/libnl-3.so.200 nl_addr_get_len
+FUNC /lib64/libnl-3.so.200 nla_put_addr
+FUNC /lib64/libnl-3.so.200 nl_object_get_msgtype
+FUNC /lib64/libnl-3.so.200 nl_get_psched_hz
+FUNC /lib64/libnl-3.so.200 nl_cache_alloc_name
+FUNC /lib64/libnl-3.so.200 nl_object_get_id_attrs
+FUNC /lib64/libnl-3.so.200 nl_object_get_type
+FUNC /lib64/libnl-3.so.200 nlmsg_set_creds
+FUNC /lib64/libnl-3.so.200 nl_sendto
+FUNC /lib64/libnl-3.so.200 nl_object_is_marked
+FUNC /lib64/libnl-3.so.200 nl_pickup_keep_syserr
+FUNC /lib64/libnl-3.so.200 nlmsg_get_creds
+FUNC /lib64/libnl-3.so.200 nl_object_mark
+FUNC /lib64/libnl-3.so.200 nl_cb_set_all
+FUNC /lib64/libnl-3.so.200 nl_cancel_down_us
+FUNC /lib64/libnl-3.so.200 nl_cache_foreach
+FUNC /lib64/libnl-3.so.200 nl_cb_overwrite_recvmsgs
+FUNC /lib64/libnl-3.so.200 nl_socket_set_cb
+FUNC /lib64/libnl-3.so.200 nl_nlmsgtype2str
+FUNC /lib64/libnl-3.so.200 nl_cache_search
+FUNC /lib64/libnl-3.so.200 nla_next
+FUNC /lib64/libnl-3.so.200 nl_sendmsg
+FUNC /lib64/libnl-3.so.200 nla_put_u8
+FUNC /lib64/libnl-3.so.200 nl_cache_get_ops
+FUNC /lib64/libnl-3.so.200 nl_cache_ops_lookup
+FUNC /lib64/libnl-3.so.200 nl_has_capability
+FUNC /lib64/libnl-3.so.200 nlmsg_set_proto
+FUNC /lib64/libnl-3.so.200 nl_str2ether_proto
+FUNC /lib64/libnl-3.so.200 nla_strlcpy
+FUNC /lib64/libnl-3.so.200 nlmsg_get_proto
+FUNC /lib64/libnl-3.so.200 nl_str2llproto
+FUNC /lib64/libnl-3.so.200 nlmsg_alloc
+FUNC /lib64/libnl-3.so.200 nl_strerror_l
+FUNC /lib64/libnl-3.so.200 nlmsg_attrdata
+FUNC /lib64/libnl-3.so.200 nla_len
+FUNC /lib64/libnl-3.so.200 nl_object_match_filter
+FUNC /lib64/libnl-3.so.200 nl_recvmsgs
+FUNC /lib64/libnl-3.so.200 nl_socket_set_peer_port
+FUNC /lib64/libnl-3.so.200 nl_cache_add
+FUNC /lib64/libnl-3.so.200 nl_cache_get_last
+FUNC /lib64/libnl-3.so.200 nl_str2ip_proto
+FUNC /lib64/libnl-3.so.200 nl_cb_alloc
+FUNC /lib64/libnl-3.so.200 nl_socket_get_fd
+FUNC /lib64/libnl-3.so.200 nla_put_msecs
+FUNC /lib64/libnl-3.so.200 nl_join_groups
+FUNC /lib64/libnl-3.so.200 nl_cache_pickup
+FUNC /lib64/libnl-3.so.200 nl_cache_ops_lookup_safe
+FUNC /lib64/libnl-3.so.200 nl_addr2str
+FUNC /lib64/libnl-3.so.200 nl_cache_nitems_filter
+FUNC /lib64/libnl-3.so.200 nl_addr_get_binary_addr
+FUNC /lib64/libnl-3.so.200 nla_memcpy
+FUNC /lib64/libnl-3.so.200 nl_cache_get
+FUNC /lib64/libnl-3.so.200 nl_recvmsgs_default
+FUNC /lib64/libnl-3.so.200 nl_ether_proto2str
+FUNC /lib64/libnl-3.so.200 nl_addr_build
+FUNC /lib64/libnl-3.so.200 nl_msec2str
+FUNC /lib64/libnl-3.so.200 nl_addr_fill_sockaddr
+FUNC /lib64/libnl-3.so.200 nl_object_shared
+FUNC /lib64/libnl-3.so.200 nla_find
+FUNC /lib64/libnl-3.so.200 nl_socket_enable_msg_peek
+FUNC /lib64/libnl-3.so.200 nl_object_get_refcnt
+FUNC /lib64/libnl-3.so.200 nl_object_diff64
+FUNC /lib64/libnl-3.so.200 nl_cache_mngt_require_safe
+FUNC /lib64/libnl-3.so.200 nl_send_sync
+FUNC /lib64/libnl-3.so.200 nl_addr_set_family
+FUNC /lib64/libnl-3.so.200 nl_cb_put
+FUNC /lib64/libnl-3.so.200 nlmsg_get
+FUNC /lib64/libnl-3.so.200 nl_object_get
+FUNC /lib64/libnl-3.so.200 nl_str2msec
+FUNC /lib64/libnl-3.so.200 nl_dump
+FUNC /lib64/libnl-3.so.200 nla_get_s32
+FUNC /lib64/libnl-3.so.200 nla_nest_start
+FUNC /lib64/libnl-3.so.200 nl_cache_resync
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_add
+FUNC /lib64/libnl-3.so.200 nlmsg_hdr
+FUNC /lib64/libnl-3.so.200 nl_socket_disable_seq_check
+FUNC /lib64/libnl-3.so.200 nl_addr_resolve
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_poll
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_get_fd
+FUNC /lib64/libnl-3.so.200 nl_cache_include_v2
+FUNC /lib64/libnl-3.so.200 nl_str2af
+FUNC /lib64/libnl-3.so.200 nl_addr_get_prefixlen
+FUNC /lib64/libnl-3.so.200 nl_socket_drop_memberships
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_add_cache_v2
+FUNC /lib64/libnl-3.so.200 nl_str2nlfamily
+FUNC /lib64/libnl-3.so.200 nl_socket_get_peer_groups
+FUNC /lib64/libnl-3.so.200 nla_get_uint
+FUNC /lib64/libnl-3.so.200 nla_get_u16
+FUNC /lib64/libnl-3.so.200 nl_addr_get_family
+FUNC /lib64/libnl-3.so.200 nla_put_u64
+FUNC /lib64/libnl-3.so.200 nlmsg_get_max_size
+FUNC /lib64/libnl-3.so.200 nl_cache_alloc
+FUNC /lib64/libnl-3.so.200 nl_addr_cmp_prefix
+FUNC /lib64/libnl-3.so.200 nl_cb_err
+FUNC /lib64/libnl-3.so.200 nl_object_keygen
+FUNC /lib64/libnl-3.so.200 nl_connect
+FUNC /lib64/libnl-3.so.200 nl_rate2str
+FUNC /lib64/libnl-3.so.200 nl_object_free
+FUNC /lib64/libnl-3.so.200 nl_cache_include
+FUNC /lib64/libnl-3.so.200 nl_cache_ops_set_flags
+FUNC /lib64/libnl-3.so.200 nl_geterror
+FUNC /lib64/libnl-3.so.200 nl_send_iovec
+FUNC /lib64/libnl-3.so.200 nl_socket_get_local_port
+FUNC /lib64/libnl-3.so.200 nl_addr_guess_family
+FUNC /lib64/libnl-3.so.200 nl_cache_ops_get
+FUNC /lib64/libnl-3.so.200 nl_msg_parse
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_free
+FUNC /lib64/libnl-3.so.200 nl_socket_set_passcred
+FUNC /lib64/libnl-3.so.200 nlmsg_validate
+FUNC /lib64/libnl-3.so.200 nl_prob2int
+FUNC /lib64/libnl-3.so.200 nl_cache_alloc_and_fill
+FUNC /lib64/libnl-3.so.200 nlmsg_size
+FUNC /lib64/libnl-3.so.200 nl_socket_modify_cb
+FUNC /lib64/libnl-3.so.200 nl_socket_disable_auto_ack
+FUNC /lib64/libnl-3.so.200 nl_addr_parse
+FUNC /lib64/libnl-3.so.200 nl_cache_get_prev
+FUNC /lib64/libnl-3.so.200 nl_addr_iszero
+FUNC /lib64/libnl-3.so.200 nl_cache_ops_foreach
+FUNC /lib64/libnl-3.so.200 nl_cache_ops_associate
+FUNC /lib64/libnl-3.so.200 nla_get_flag
+FUNC /lib64/libnl-3.so.200 nl_object_get_cache
+FUNC /lib64/libnl-3.so.200 nlmsg_next
+FUNC /lib64/libnl-3.so.200 nl_object_attr_list
+FUNC /lib64/libnl-3.so.200 nla_put_s16
+FUNC /lib64/libnl-3.so.200 nl_cb_active_type
+FUNC /lib64/libnl-3.so.200 nlmsg_valid_hdr
+FUNC /lib64/libnl-3.so.200 nlmsg_alloc_simple
+FUNC /lib64/libnl-3.so.200 nl_data_clone
+FUNC /lib64/libnl-3.so.200 nla_parse_nested
+FUNC /lib64/libnl-3.so.200 nl_cancel_down_bytes
+FUNC /lib64/libnl-3.so.200 nl_cache_refill
+FUNC /lib64/libnl-3.so.200 nl_cb_overwrite_send
+FUNC /lib64/libnl-3.so.200 nlmsg_set_src
+FUNC /lib64/libnl-3.so.200 nl_send_auto_complete
+FUNC /lib64/libnl-3.so.200 nl_ticks2us
+FUNC /lib64/libnl-3.so.200 nl_cache_mngt_provide
+FUNC /lib64/libnl-3.so.200 nl_data_cmp
+FUNC /lib64/libnl-3.so.200 nla_ok
+FUNC /lib64/libnl-3.so.200 nla_total_size
+FUNC /lib64/libnl-3.so.200 nl_object_identical
+FUNC /lib64/libnl-3.so.200 nl_msg_dump
+FUNC /lib64/libnl-3.so.200 nla_parse
+FUNC /lib64/libnl-3.so.200 nl_cache_subset
+FUNC /lib64/libnl-3.so.200 nl_cb_overwrite_recv
+FUNC /lib64/libnl-3.so.200 nl_cache_put
+FUNC /lib64/libnl-3.so.200 nl_socket_set_fd
+FUNC /lib64/libnl-3.so.200 nla_nest_end_keep_empty
+FUNC /lib64/libnl-3.so.200 nla_put_data
+FUNC /lib64/libnl-3.so.200 nl_us2ticks
+FUNC /lib64/libnl-3.so.200 nl_cancel_down_bits
+FUNC /lib64/libnl-3.so.200 nl_addr_valid
+FUNC /lib64/libnl-3.so.200 nl_object_dump
+FUNC /lib64/libnl-3.so.200 nla_get_string
+FUNC /lib64/libnl-3.so.200 nl_cache_find
+FUNC /lib64/libnl-3.so.200 nl_socket_get_peer_port
+FUNC /lib64/libnl-3.so.200 nlmsg_put
+FUNC /lib64/libnl-3.so.200 nl_object_put
+FUNC /lib64/libnl-3.so.200 nlmsg_set_dst
+FUNC /lib64/libnl-3.so.200 nl_object_alloc_name
+FUNC /lib64/libnl-3.so.200 nlmsg_parse
+FUNC /lib64/libnl-3.so.200 nla_get_u32
+FUNC /lib64/libnl-3.so.200 nla_reserve
+FUNC /lib64/libnl-3.so.200 nl_data_get_size
+FUNC /lib64/libnl-3.so.200 nl_socket_alloc_cb
+FUNC /lib64/libnl-3.so.200 nl_socket_get_msg_buf_size
+FUNC /lib64/libnl-3.so.200 nl_dump_line
+FUNC /lib64/libnl-3.so.200 nl_addr_get
+FUNC /lib64/libnl-3.so.200 nla_data
+FUNC /lib64/libnl-3.so.200 nlmsg_padlen
+FUNC /lib64/libnl-3.so.200 nl_socket_recv_pktinfo
+FUNC /lib64/libnl-3.so.200 nl_addr_info
+FUNC /lib64/libnl-3.so.200 nl_str2nlmsgtype
+FUNC /lib64/libnl-3.so.200 nla_put_sint
+FUNC /lib64/libnl-3.so.200 nl_socket_use_seq
+FUNC /lib64/libnl-3.so.200 nl_hash_table_lookup
+FUNC /lib64/libnl-3.so.200 nl_socket_free
+FUNC /lib64/libnl-3.so.200 nla_is_nested
+FUNC /lib64/libnl-3.so.200 nla_attr_size
+FUNC /lib64/libnl-3.so.200 nla_get_msecs
+FUNC /lib64/libnl-3.so.200 nl_hash_table_del
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_alloc_ex
+FUNC /lib64/libnl-3.so.200 nlmsg_attrlen
+FUNC /lib64/libnl-3.so.200 nlmsg_datalen
+FUNC /lib64/libnl-3.so.200 nla_get_s8
+FUNC /lib64/libnl-3.so.200 nl_pickup
+FUNC /lib64/libnl-3.so.200 nl_hash_table_alloc
+FUNC /lib64/libnl-3.so.200 nl_cache_ops_put
+FUNC /lib64/libnl-3.so.200 nl_hash_any
+FUNC /lib64/libnl-3.so.200 nla_get_s64
+FUNC /lib64/libnl-3.so.200 nl_get_user_hz
+FUNC /lib64/libnl-3.so.200 nla_put_s32
+FUNC /lib64/libnl-3.so.200 nl_data_alloc_attr
+FUNC /lib64/libnl-3.so.200 nlmsg_free
+FUNC /lib64/libnl-3.so.200 nl_cache_get_next
+FUNC /lib64/libnl-3.so.200 nl_cache_free
+FUNC /lib64/libnl-3.so.200 nl_cb_set
+FUNC /lib64/libnl-3.so.200 nlmsg_get_src
+FUNC /lib64/libnl-3.so.200 nl_cache_mngt_register
+FUNC /lib64/libnl-3.so.200 nl_cache_is_empty
+FUNC /lib64/libnl-3.so.200 nl_perror
+FUNC /lib64/libnl-3.so.200 nl_recvmsgs_report
+FUNC /lib64/libnl-3.so.200 nl_cache_parse
+FUNC /lib64/libnl-3.so.200 nla_put_u16
+FUNC /lib64/libnl-3.so.200 nl_socket_set_msg_buf_size
+FUNC /lib64/libnl-3.so.200 nl_socket_disable_msg_peek
+FUNC /lib64/libnl-3.so.200 nl_auto_complete
+FUNC /lib64/libnl-3.so.200 nl_data_alloc
+FUNC /lib64/libnl-3.so.200 nl_send
+FUNC /lib64/libnl-3.so.200 nl_object_dump_buf
+FUNC /lib64/libnl-3.so.200 nl_msgtype_lookup
+FUNC /lib64/libnl-3.so.200 nlmsg_set_default_size
+FUNC /lib64/libnl-3.so.200 nl_addr_alloc_attr
+FUNC /lib64/libnl-3.so.200 nla_type
+FUNC /lib64/libnl-3.so.200 nl_hash
+FUNC /lib64/libnl-3.so.200 nl_cache_nitems
+FUNC /lib64/libnl-3.so.200 nl_addr_clone
+FUNC /lib64/libnl-3.so.200 nla_strcmp
+FUNC /lib64/libnl-3.so.200 nl_cache_dump_filter
+FUNC /lib64/libnl-3.so.200 nl_nlfamily2str
+FUNC /lib64/libnl-3.so.200 nlmsg_get_dst
+FUNC /lib64/libnl-3.so.200 nl_cache_set_arg1
+FUNC /lib64/libnl-3.so.200 nl_object_clone
+FUNC /lib64/libnl-3.so.200 nl_socket_set_buffer_size
+FUNC /lib64/libnl-3.so.200 nl_size2int
+FUNC /lib64/libnl-3.so.200 nl_cache_set_arg2
+FUNC /lib64/libnl-3.so.200 nl_cache_get_first
+FUNC /lib64/libnl-3.so.200 nl_socket_drop_membership
+FUNC /lib64/libnl-3.so.200 nl_object_attrs2str
+FUNC /lib64/libnl-3.so.200 nl_recv
+FUNC /lib64/libnl-3.so.200 nla_put
+FUNC /lib64/libnl-3.so.200 nla_validate
+FUNC /lib64/libnl-3.so.200 nla_padlen
+FUNC /lib64/libnl-3.so.200 nl_wait_for_ack
+FUNC /lib64/libnl-3.so.200 nlmsg_tail
+FUNC /lib64/libnl-3.so.200 nla_memcmp
+FUNC /lib64/libnl-3.so.200 nl_ip_proto2str
+FUNC /lib64/libnl-3.so.200 nl_socket_get_cb
+FUNC /lib64/libnl-3.so.200 nl_addr_set_prefixlen
+FUNC /lib64/libnl-3.so.200 nl_socket_alloc
+FUNC /lib64/libnl-3.so.200 nl_nlmsg_flags2str
+FUNC /lib64/libnl-3.so.200 nlmsg_convert
+FUNC /lib64/libnl-3.so.200 nl_socket_set_local_port
+FUNC /lib64/libnl-3.so.200 nlmsg_append
+FUNC /lib64/libnl-3.so.200 nl_close
+FUNC /lib64/libnl-3.so.200 nlmsg_find_attr
+FUNC /lib64/libnl-3.so.200 nl_addr_put
+FUNC /lib64/libnl-3.so.200 nl_object_update
+FUNC /lib64/libnl-3.so.200 nlmsg_data
+FUNC /lib64/libnl-3.so.200 nl_cache_dump
+FUNC /lib64/libnl-3.so.200 nla_put_string
+FUNC /lib64/libnl-3.so.200 nl_data_free
+FUNC /lib64/libnl-3.so.200 nla_put_uint
+FUNC /lib64/libnl-3.so.200 nlmsg_reserve
+FUNC /lib64/libnl-3.so.200 nl_cache_move
+FUNC /lib64/libnl-3.so.200 nla_get_u8
+FUNC /lib64/libnl-3.so.200 nl_cache_resync_v2
+FUNC /lib64/libnl-3.so.200 nl_cache_foreach_filter
+FUNC /lib64/libnl-3.so.200 nl_llproto2str
+FUNC /lib64/libnl-3.so.200 nla_put_s8
+FUNC /lib64/libnl-3.so.200 nla_strdup
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_info
+FUNC /lib64/libnl-3.so.200 nl_af2str
+FUNC /lib64/libnl-3.so.200 nl_object_get_ops
+FUNC /lib64/libnl-3.so.200 nl_cb_clone
+FUNC /lib64/libnl-3.so.200 nl_cache_set_flags
+FUNC /lib64/libnl-3.so.200 nl_cache_mngt_unregister
+FUNC /lib64/libnl-3.so.200 nl_size2str
+FUNC /lib64/libnl-3.so.200 nl_object_diff
+FUNC /lib64/libnl-3.so.200 nl_send_auto
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_add_cache
+FUNC /lib64/libnl-3.so.200 nl_socket_enable_auto_ack
+FUNC /lib64/libnl-3.so.200 nla_get_u64
+FUNC /lib64/libnl-3.so.200 nla_nest_end
+FUNC /lib64/libnl-3.so.200 nl_addr_set_binary_addr
+FUNC /lib64/libnl-3.so.200 nl_socket_add_membership
+FUNC /lib64/libnl-3.so.200 nl_socket_add_memberships
+FUNC /lib64/libnl-3.so.200 nla_put_u32
+FUNC /lib64/libnl-3.so.200 nla_put_nested
+FUNC /lib64/libnl-3.so.200 nl_cache_pickup_checkdup
+FUNC /lib64/libnl-3.so.200 nl_cache_mngr_alloc
+FUNC /lib64/libnl-3.so.200 nl_hash_table_free
+FUNC /lib64/libnl-3.so.200 nl_cache_ops_associate_safe
+FUNC /lib64/libnl-3.so.200 nla_put_flag
+FUNC /lib64/libnl-3.so.200 nl_cache_parse_and_add
+FUNC /lib64/libnl-3.so.200 nl_cache_mngt_require
+FUNC /lib64/libnl-3.so.200 nl_send_simple
+FUNC /lib64/libnl-3.so.200 nl_syserr2nlerr
+FUNC /lib64/libnl-3.so.200 nl_cb_get
+FUNC /lib64/libnl-3.so.200 nlmsg_alloc_size
+FUNC /lib64/libnl-3.so.200 nl_addr_cmp
+FUNC /lib64/libnl-3.so.200 nl_addr_shared
+FUNC /lib64/libnl-3.so.200 nl_new_line
+FUNC /lib64/libnl-3.so.200 nl_object_unmark
+FUNC /lib64/libnl-3.so.200 nl_cache_remove
+FUNC /lib64/libncursesw.so.6 getmaxx
+FUNC /lib64/libncursesw.so.6 getmaxy
+FUNC /lib64/libncursesw.so.6 wunctrl
+FUNC /lib64/libncursesw.so.6 attrset
+FUNC /lib64/libncursesw.so.6 is_leaveok
+FUNC /lib64/libncursesw.so.6 wbkgdset
+FUNC /lib64/libncursesw.so.6 mvgetstr
+FUNC /lib64/libncursesw.so.6 wclrtobot
+FUNC /lib64/libncursesw.so.6 setcchar
+FUNC /lib64/libncursesw.so.6 free_pair
+FUNC /lib64/libncursesw.so.6 is_nodelay
+FUNC /lib64/libncursesw.so.6 _nc_free_and_exit
+FUNC /lib64/libncursesw.so.6 is_immedok
+FUNC /lib64/libncursesw.so.6 mvcur
+FUNC /lib64/libncursesw.so.6 vidputs
+FUNC /lib64/libncursesw.so.6 wscanw
+FUNC /lib64/libncursesw.so.6 alloc_pair_sp
+FUNC /lib64/libncursesw.so.6 slk_attr
+FUNC /lib64/libncursesw.so.6 in_wchstr
+FUNC /lib64/libncursesw.so.6 wgetstr
+FUNC /lib64/libncursesw.so.6 wchgat
+FUNC /lib64/libncursesw.so.6 slk_attr_set
+FUNC /lib64/libncursesw.so.6 mvwgetch
+FUNC /lib64/libncursesw.so.6 overwrite
+FUNC /lib64/libncursesw.so.6 slk_set_sp
+FUNC /lib64/libncursesw.so.6 pair_content_sp
+FUNC /lib64/libncursesw.so.6 extended_color_content
+FUNC /lib64/libncursesw.so.6 getmouse
+FUNC /lib64/libncursesw.so.6 box_set
+FUNC /lib64/libncursesw.so.6 has_colors
+FUNC /lib64/libncursesw.so.6 wdeleteln
+FUNC /lib64/libncursesw.so.6 set_term
+FUNC /lib64/libncursesw.so.6 mvgetnstr
+FUNC /lib64/libncursesw.so.6 getch
+FUNC /lib64/libncursesw.so.6 killwchar
+FUNC /lib64/libncursesw.so.6 mvwin_wchnstr
+FUNC /lib64/libncursesw.so.6 wscrl
+FUNC /lib64/libncursesw.so.6 subpad
+FUNC /lib64/libncursesw.so.6 getbkgd
+FUNC /lib64/libncursesw.so.6 mvinchstr
+FUNC /lib64/libncursesw.so.6 wclear
+FUNC /lib64/libncursesw.so.6 mvdelch
+FUNC /lib64/libncursesw.so.6 wattrset
+FUNC /lib64/libncursesw.so.6 vwscanw
+FUNC /lib64/libncursesw.so.6 free_pair_sp
+FUNC /lib64/libncursesw.so.6 restartterm_sp
+FUNC /lib64/libncursesw.so.6 copywin
+FUNC /lib64/libncursesw.so.6 mvwscanw
+FUNC /lib64/libncursesw.so.6 unget_wch
+FUNC /lib64/libncursesw.so.6 reset_color_pairs_sp
+FUNC /lib64/libncursesw.so.6 insnstr
+FUNC /lib64/libncursesw.so.6 mvwchgat
+FUNC /lib64/libncursesw.so.6 getparx
+FUNC /lib64/libncursesw.so.6 getpary
+FUNC /lib64/libncursesw.so.6 can_change_color
+FUNC /lib64/libncursesw.so.6 ins_nwstr
+FUNC /lib64/libncursesw.so.6 scanw
+FUNC /lib64/libncursesw.so.6 wmouse_trafo
+FUNC /lib64/libncursesw.so.6 noecho_sp
+FUNC /lib64/libncursesw.so.6 chgat
+FUNC /lib64/libncursesw.so.6 _nc_COLORS
+FUNC /lib64/libncursesw.so.6 mvwaddstr
+FUNC /lib64/libncursesw.so.6 key_name
+FUNC /lib64/libncursesw.so.6 resizeterm
+FUNC /lib64/libncursesw.so.6 slk_restore
+FUNC /lib64/libncursesw.so.6 is_term_resized_sp
+FUNC /lib64/libncursesw.so.6 wtouchln
+FUNC /lib64/libncursesw.so.6 inchnstr
+FUNC /lib64/libncursesw.so.6 wborder_set
+FUNC /lib64/libncursesw.so.6 wbkgrnd
+FUNC /lib64/libncursesw.so.6 wdelch
+FUNC /lib64/libncursesw.so.6 COLOR_PAIR
+FUNC /lib64/libncursesw.so.6 isendwin
+FUNC /lib64/libncursesw.so.6 mvaddch
+FUNC /lib64/libncursesw.so.6 deleteln
+FUNC /lib64/libncursesw.so.6 win_wchstr
+FUNC /lib64/libncursesw.so.6 move
+FUNC /lib64/libncursesw.so.6 clear
+FUNC /lib64/libncursesw.so.6 mvaddwstr
+FUNC /lib64/libncursesw.so.6 endwin_sp
+FUNC /lib64/libncursesw.so.6 doupdate
+FUNC /lib64/libncursesw.so.6 attr_set
+FUNC /lib64/libncursesw.so.6 wgetscrreg
+FUNC /lib64/libncursesw.so.6 init_extended_color
+FUNC /lib64/libncursesw.so.6 term_attrs
+FUNC /lib64/libncursesw.so.6 winsnstr
+FUNC /lib64/libncursesw.so.6 ripoffline_sp
+FUNC /lib64/libncursesw.so.6 mvwin_wchstr
+FUNC /lib64/libncursesw.so.6 mvinstr
+FUNC /lib64/libncursesw.so.6 ungetch
+FUNC /lib64/libncursesw.so.6 use_default_colors_sp
+FUNC /lib64/libncursesw.so.6 mvwins_wch
+FUNC /lib64/libncursesw.so.6 scr_restore
+FUNC /lib64/libncursesw.so.6 mvcur_sp
+FUNC /lib64/libncursesw.so.6 wborder
+FUNC /lib64/libncursesw.so.6 flash_sp
+FUNC /lib64/libncursesw.so.6 find_pair
+FUNC /lib64/libncursesw.so.6 ins_wstr
+FUNC /lib64/libncursesw.so.6 echochar
+FUNC /lib64/libncursesw.so.6 killwchar_sp
+FUNC /lib64/libncursesw.so.6 wattr_get
+FUNC /lib64/libncursesw.so.6 extended_pair_content
+FUNC /lib64/libncursesw.so.6 slk_init_sp
+FUNC /lib64/libncursesw.so.6 vidputs_sp
+FUNC /lib64/libncursesw.so.6 mvwdelch
+FUNC /lib64/libncursesw.so.6 mvaddchnstr
+FUNC /lib64/libncursesw.so.6 scr_dump
+FUNC /lib64/libncursesw.so.6 extended_slk_color
+FUNC /lib64/libncursesw.so.6 scr_restore_sp
+FUNC /lib64/libncursesw.so.6 syncok
+FUNC /lib64/libncursesw.so.6 mvaddnstr
+FUNC /lib64/libncursesw.so.6 mousemask
+FUNC /lib64/libncursesw.so.6 winsdelln
+FUNC /lib64/libncursesw.so.6 waddch
+FUNC /lib64/libncursesw.so.6 mvwinsstr
+FUNC /lib64/libncursesw.so.6 delch
+FUNC /lib64/libncursesw.so.6 mvinchnstr
+FUNC /lib64/libncursesw.so.6 PAIR_NUMBER
+FUNC /lib64/libncursesw.so.6 waddnwstr
+FUNC /lib64/libncursesw.so.6 wbkgrndset
+FUNC /lib64/libncursesw.so.6 winstr
+FUNC /lib64/libncursesw.so.6 wadd_wchstr
+FUNC /lib64/libncursesw.so.6 mvwins_nwstr
+FUNC /lib64/libncursesw.so.6 mcprint
+FUNC /lib64/libncursesw.so.6 alloc_pair
+FUNC /lib64/libncursesw.so.6 pnoutrefresh
+FUNC /lib64/libncursesw.so.6 mvwget_wstr
+FUNC /lib64/libncursesw.so.6 insertln
+FUNC /lib64/libncursesw.so.6 ungetmouse_sp
+FUNC /lib64/libncursesw.so.6 scr_init_sp
+FUNC /lib64/libncursesw.so.6 mcprint_sp
+FUNC /lib64/libncursesw.so.6 mvwin_wch
+FUNC /lib64/libncursesw.so.6 overlay
+FUNC /lib64/libncursesw.so.6 border_set
+FUNC /lib64/libncursesw.so.6 erasewchar
+FUNC /lib64/libncursesw.so.6 resizeterm_sp
+FUNC /lib64/libncursesw.so.6 slk_label
+FUNC /lib64/libncursesw.so.6 putwin
+FUNC /lib64/libncursesw.so.6 use_legacy_coding
+FUNC /lib64/libncursesw.so.6 vidattr
+FUNC /lib64/libncursesw.so.6 mvhline_set
+FUNC /lib64/libncursesw.so.6 is_pad
+FUNC /lib64/libncursesw.so.6 mvwadd_wchstr
+FUNC /lib64/libncursesw.so.6 getcchar
+FUNC /lib64/libncursesw.so.6 mvins_wstr
+FUNC /lib64/libncursesw.so.6 attroff
+FUNC /lib64/libncursesw.so.6 getnstr
+FUNC /lib64/libncursesw.so.6 newwin_sp
+FUNC /lib64/libncursesw.so.6 wget_wch
+FUNC /lib64/libncursesw.so.6 mvwaddch
+FUNC /lib64/libncursesw.so.6 mvwin
+FUNC /lib64/libncursesw.so.6 slk_set
+FUNC /lib64/libncursesw.so.6 clrtoeol
+FUNC /lib64/libncursesw.so.6 get_wstr
+FUNC /lib64/libncursesw.so.6 slk_refresh
+FUNC /lib64/libncursesw.so.6 scr_init
+FUNC /lib64/libncursesw.so.6 addch
+FUNC /lib64/libncursesw.so.6 mvwinstr
+FUNC /lib64/libncursesw.so.6 inchstr
+FUNC /lib64/libncursesw.so.6 slk_attr_off
+FUNC /lib64/libncursesw.so.6 extended_color_content_sp
+FUNC /lib64/libncursesw.so.6 newpad
+FUNC /lib64/libncursesw.so.6 color_content_sp
+FUNC /lib64/libncursesw.so.6 init_extended_color_sp
+FUNC /lib64/libncursesw.so.6 instr
+FUNC /lib64/libncursesw.so.6 _nc_wcrtomb
+FUNC /lib64/libncursesw.so.6 wsyncdown
+FUNC /lib64/libncursesw.so.6 mouseinterval_sp
+FUNC /lib64/libncursesw.so.6 ungetch_sp
+FUNC /lib64/libncursesw.so.6 mvwinnwstr
+FUNC /lib64/libncursesw.so.6 unget_wch_sp
+FUNC /lib64/libncursesw.so.6 mvaddstr
+FUNC /lib64/libncursesw.so.6 use_window
+FUNC /lib64/libncursesw.so.6 whline_set
+FUNC /lib64/libncursesw.so.6 wunctrl_sp
+FUNC /lib64/libncursesw.so.6 is_linetouched
+FUNC /lib64/libncursesw.so.6 addnwstr
+FUNC /lib64/libncursesw.so.6 box
+FUNC /lib64/libncursesw.so.6 slk_attr_on
+FUNC /lib64/libncursesw.so.6 newpad_sp
+FUNC /lib64/libncursesw.so.6 nofilter_sp
+FUNC /lib64/libncursesw.so.6 pair_content
+FUNC /lib64/libncursesw.so.6 waddstr
+FUNC /lib64/libncursesw.so.6 slk_init
+FUNC /lib64/libncursesw.so.6 wattroff
+FUNC /lib64/libncursesw.so.6 attron
+FUNC /lib64/libncursesw.so.6 mvwprintw
+FUNC /lib64/libncursesw.so.6 mvwinch
+FUNC /lib64/libncursesw.so.6 _nc_freeall
+FUNC /lib64/libncursesw.so.6 wbkgd
+FUNC /lib64/libncursesw.so.6 wnoutrefresh
+FUNC /lib64/libncursesw.so.6 mvwget_wch
+FUNC /lib64/libncursesw.so.6 dupwin
+FUNC /lib64/libncursesw.so.6 insstr
+FUNC /lib64/libncursesw.so.6 add_wch
+FUNC /lib64/libncursesw.so.6 touchwin
+FUNC /lib64/libncursesw.so.6 winchstr
+FUNC /lib64/libncursesw.so.6 scr_set_sp
+FUNC /lib64/libncursesw.so.6 flash
+FUNC /lib64/libncursesw.so.6 timeout
+FUNC /lib64/libncursesw.so.6 win_wchnstr
+FUNC /lib64/libncursesw.so.6 mvinch
+FUNC /lib64/libncursesw.so.6 winchnstr
+FUNC /lib64/libncursesw.so.6 mvgetn_wstr
+FUNC /lib64/libncursesw.so.6 vwprintw
+FUNC /lib64/libncursesw.so.6 mvins_wch
+FUNC /lib64/libncursesw.so.6 in_wch
+FUNC /lib64/libncursesw.so.6 filter
+FUNC /lib64/libncursesw.so.6 wattr_set
+FUNC /lib64/libncursesw.so.6 standend
+FUNC /lib64/libncursesw.so.6 scrl
+FUNC /lib64/libncursesw.so.6 derwin
+FUNC /lib64/libncursesw.so.6 mvaddnwstr
+FUNC /lib64/libncursesw.so.6 start_color_sp
+FUNC /lib64/libncursesw.so.6 vidattr_sp
+FUNC /lib64/libncursesw.so.6 mvhline
+FUNC /lib64/libncursesw.so.6 getcurx
+FUNC /lib64/libncursesw.so.6 mvwaddchstr
+FUNC /lib64/libncursesw.so.6 pecho_wchar
+FUNC /lib64/libncursesw.so.6 getcury
+FUNC /lib64/libncursesw.so.6 use_default_colors
+FUNC /lib64/libncursesw.so.6 attr_off
+FUNC /lib64/libncursesw.so.6 mvinsstr
+FUNC /lib64/libncursesw.so.6 _nc_ripoffline
+FUNC /lib64/libncursesw.so.6 wins_wstr
+FUNC /lib64/libncursesw.so.6 slk_attroff_sp
+FUNC /lib64/libncursesw.so.6 get_escdelay
+FUNC /lib64/libncursesw.so.6 wechochar
+FUNC /lib64/libncursesw.so.6 wadd_wch
+FUNC /lib64/libncursesw.so.6 ripoffline
+FUNC /lib64/libncursesw.so.6 nl
+FUNC /lib64/libncursesw.so.6 slk_attron
+FUNC /lib64/libncursesw.so.6 winsstr
+FUNC /lib64/libncursesw.so.6 init_pair
+FUNC /lib64/libncursesw.so.6 mvin_wch
+FUNC /lib64/libncursesw.so.6 resize_term_sp
+FUNC /lib64/libncursesw.so.6 bkgrndset
+FUNC /lib64/libncursesw.so.6 wecho_wchar
+FUNC /lib64/libncursesw.so.6 slk_attr_set_sp
+FUNC /lib64/libncursesw.so.6 reset_color_pairs
+FUNC /lib64/libncursesw.so.6 werase
+FUNC /lib64/libncursesw.so.6 redrawwin
+FUNC /lib64/libncursesw.so.6 init_color
+FUNC /lib64/libncursesw.so.6 _nc_panelhook_sp
+FUNC /lib64/libncursesw.so.6 win_wch
+FUNC /lib64/libncursesw.so.6 slk_attr_sp
+FUNC /lib64/libncursesw.so.6 slk_noutrefresh
+FUNC /lib64/libncursesw.so.6 slk_attrset_sp
+FUNC /lib64/libncursesw.so.6 whline
+FUNC /lib64/libncursesw.so.6 winsertln
+FUNC /lib64/libncursesw.so.6 winch
+FUNC /lib64/libncursesw.so.6 printw
+FUNC /lib64/libncursesw.so.6 vw_printw
+FUNC /lib64/libncursesw.so.6 in_wchnstr
+FUNC /lib64/libncursesw.so.6 wsyncup
+FUNC /lib64/libncursesw.so.6 mvvline_set
+FUNC /lib64/libncursesw.so.6 _nc_COLOR_PAIRS
+FUNC /lib64/libncursesw.so.6 wenclose
+FUNC /lib64/libncursesw.so.6 mvin_wchnstr
+FUNC /lib64/libncursesw.so.6 is_syncok
+FUNC /lib64/libncursesw.so.6 beep_sp
+FUNC /lib64/libncursesw.so.6 slk_restore_sp
+FUNC /lib64/libncursesw.so.6 prefresh
+FUNC /lib64/libncursesw.so.6 is_idlok
+FUNC /lib64/libncursesw.so.6 vid_attr_sp
+FUNC /lib64/libncursesw.so.6 mvwadd_wch
+FUNC /lib64/libncursesw.so.6 standout
+FUNC /lib64/libncursesw.so.6 mvinsch
+FUNC /lib64/libncursesw.so.6 nonl_sp
+FUNC /lib64/libncursesw.so.6 nofilter
+FUNC /lib64/libncursesw.so.6 wclrtoeol
+FUNC /lib64/libncursesw.so.6 has_mouse_sp
+FUNC /lib64/libncursesw.so.6 init_pair_sp
+FUNC /lib64/libncursesw.so.6 wget_wstr
+FUNC /lib64/libncursesw.so.6 mvinnwstr
+FUNC /lib64/libncursesw.so.6 beep
+FUNC /lib64/libncursesw.so.6 mouseinterval
+FUNC /lib64/libncursesw.so.6 untouchwin
+FUNC /lib64/libncursesw.so.6 is_keypad
+FUNC /lib64/libncursesw.so.6 mvwhline
+FUNC /lib64/libncursesw.so.6 erase
+FUNC /lib64/libncursesw.so.6 getstr
+FUNC /lib64/libncursesw.so.6 vid_puts
+FUNC /lib64/libncursesw.so.6 is_cleared
+FUNC /lib64/libncursesw.so.6 mvprintw
+FUNC /lib64/libncursesw.so.6 can_change_color_sp
+FUNC /lib64/libncursesw.so.6 hline_set
+FUNC /lib64/libncursesw.so.6 _nc_ESCDELAY
+FUNC /lib64/libncursesw.so.6 wcursyncup
+FUNC /lib64/libncursesw.so.6 hline
+FUNC /lib64/libncursesw.so.6 ungetmouse
+FUNC /lib64/libncursesw.so.6 scr_set
+FUNC /lib64/libncursesw.so.6 exit_curses
+FUNC /lib64/libncursesw.so.6 mvget_wch
+FUNC /lib64/libncursesw.so.6 wprintw
+FUNC /lib64/libncursesw.so.6 is_notimeout
+FUNC /lib64/libncursesw.so.6 refresh
+FUNC /lib64/libncursesw.so.6 slk_wset
+FUNC /lib64/libncursesw.so.6 scrollok
+FUNC /lib64/libncursesw.so.6 echo
+FUNC /lib64/libncursesw.so.6 start_color
+FUNC /lib64/libncursesw.so.6 nl_sp
+FUNC /lib64/libncursesw.so.6 set_escdelay_sp
+FUNC /lib64/libncursesw.so.6 wresize
+FUNC /lib64/libncursesw.so.6 winsch
+FUNC /lib64/libncursesw.so.6 erasewchar_sp
+FUNC /lib64/libncursesw.so.6 init_extended_pair
+FUNC /lib64/libncursesw.so.6 doupdate_sp
+FUNC /lib64/libncursesw.so.6 mvwinsnstr
+FUNC /lib64/libncursesw.so.6 initscr
+FUNC /lib64/libncursesw.so.6 ins_wch
+FUNC /lib64/libncursesw.so.6 mvwinwstr
+FUNC /lib64/libncursesw.so.6 wgetbkgrnd
+FUNC /lib64/libncursesw.so.6 waddchnstr
+FUNC /lib64/libncursesw.so.6 restartterm
+FUNC /lib64/libncursesw.so.6 is_wintouched
+FUNC /lib64/libncursesw.so.6 attr_on
+FUNC /lib64/libncursesw.so.6 slk_refresh_sp
+FUNC /lib64/libncursesw.so.6 extended_slk_color_sp
+FUNC /lib64/libncursesw.so.6 subwin
+FUNC /lib64/libncursesw.so.6 mouse_trafo
+FUNC /lib64/libncursesw.so.6 mvwaddchnstr
+FUNC /lib64/libncursesw.so.6 clearok
+FUNC /lib64/libncursesw.so.6 slk_label_sp
+FUNC /lib64/libncursesw.so.6 wrefresh
+FUNC /lib64/libncursesw.so.6 find_pair_sp
+FUNC /lib64/libncursesw.so.6 mvwinsch
+FUNC /lib64/libncursesw.so.6 vid_puts_sp
+FUNC /lib64/libncursesw.so.6 slk_attron_sp
+FUNC /lib64/libncursesw.so.6 wstandend
+FUNC /lib64/libncursesw.so.6 bkgrnd
+FUNC /lib64/libncursesw.so.6 mvvline
+FUNC /lib64/libncursesw.so.6 wadd_wchnstr
+FUNC /lib64/libncursesw.so.6 slk_attrset
+FUNC /lib64/libncursesw.so.6 slk_noutrefresh_sp
+FUNC /lib64/libncursesw.so.6 termattrs
+FUNC /lib64/libncursesw.so.6 insch
+FUNC /lib64/libncursesw.so.6 getwin_sp
+FUNC /lib64/libncursesw.so.6 wattr_off
+FUNC /lib64/libncursesw.so.6 mvwinnstr
+FUNC /lib64/libncursesw.so.6 color_set
+FUNC /lib64/libncursesw.so.6 assume_default_colors_sp
+FUNC /lib64/libncursesw.so.6 vw_scanw
+FUNC /lib64/libncursesw.so.6 getn_wstr
+FUNC /lib64/libncursesw.so.6 echo_sp
+FUNC /lib64/libncursesw.so.6 mvin_wchstr
+FUNC /lib64/libncursesw.so.6 wins_wch
+FUNC /lib64/libncursesw.so.6 mvwinchnstr
+FUNC /lib64/libncursesw.so.6 mvwhline_set
+FUNC /lib64/libncursesw.so.6 bkgd
+FUNC /lib64/libncursesw.so.6 border
+FUNC /lib64/libncursesw.so.6 leaveok
+FUNC /lib64/libncursesw.so.6 add_wchstr
+FUNC /lib64/libncursesw.so.6 wattr_on
+FUNC /lib64/libncursesw.so.6 wgetnstr
+FUNC /lib64/libncursesw.so.6 _nc_panelhook
+FUNC /lib64/libncursesw.so.6 touchline
+FUNC /lib64/libncursesw.so.6 slk_touch
+FUNC /lib64/libncursesw.so.6 mvadd_wchstr
+FUNC /lib64/libncursesw.so.6 clrtobot
+FUNC /lib64/libncursesw.so.6 immedok
+FUNC /lib64/libncursesw.so.6 waddchstr
+FUNC /lib64/libncursesw.so.6 endwin
+FUNC /lib64/libncursesw.so.6 mvget_wstr
+FUNC /lib64/libncursesw.so.6 wsetscrreg
+FUNC /lib64/libncursesw.so.6 is_scrollok
+FUNC /lib64/libncursesw.so.6 noecho
+FUNC /lib64/libncursesw.so.6 wvline
+FUNC /lib64/libncursesw.so.6 addwstr
+FUNC /lib64/libncursesw.so.6 mvadd_wch
+FUNC /lib64/libncursesw.so.6 mvwins_wstr
+FUNC /lib64/libncursesw.so.6 filter_sp
+FUNC /lib64/libncursesw.so.6 wredrawln
+FUNC /lib64/libncursesw.so.6 slk_clear_sp
+FUNC /lib64/libncursesw.so.6 mvwgetstr
+FUNC /lib64/libncursesw.so.6 mvins_nwstr
+FUNC /lib64/libncursesw.so.6 innwstr
+FUNC /lib64/libncursesw.so.6 wmove
+FUNC /lib64/libncursesw.so.6 inwstr
+FUNC /lib64/libncursesw.so.6 term_attrs_sp
+FUNC /lib64/libncursesw.so.6 has_colors_sp
+FUNC /lib64/libncursesw.so.6 delwin
+FUNC /lib64/libncursesw.so.6 slk_touch_sp
+FUNC /lib64/libncursesw.so.6 wstandout
+FUNC /lib64/libncursesw.so.6 slk_clear
+FUNC /lib64/libncursesw.so.6 slk_color_sp
+FUNC /lib64/libncursesw.so.6 wattron
+FUNC /lib64/libncursesw.so.6 mvwgetnstr
+FUNC /lib64/libncursesw.so.6 vid_attr
+FUNC /lib64/libncursesw.so.6 mvwvline
+FUNC /lib64/libncursesw.so.6 addnstr
+FUNC /lib64/libncursesw.so.6 init_color_sp
+FUNC /lib64/libncursesw.so.6 vline_set
+FUNC /lib64/libncursesw.so.6 wcolor_set
+FUNC /lib64/libncursesw.so.6 get_wch
+FUNC /lib64/libncursesw.so.6 wgetn_wstr
+FUNC /lib64/libncursesw.so.6 mvwinchstr
+FUNC /lib64/libncursesw.so.6 getmouse_sp
+FUNC /lib64/libncursesw.so.6 vline
+FUNC /lib64/libncursesw.so.6 get_escdelay_sp
+FUNC /lib64/libncursesw.so.6 waddwstr
+FUNC /lib64/libncursesw.so.6 newterm_sp
+FUNC /lib64/libncursesw.so.6 mvinsnstr
+FUNC /lib64/libncursesw.so.6 mvwgetn_wstr
+FUNC /lib64/libncursesw.so.6 use_screen
+FUNC /lib64/libncursesw.so.6 innstr
+FUNC /lib64/libncursesw.so.6 addchstr
+FUNC /lib64/libncursesw.so.6 wins_nwstr
+FUNC /lib64/libncursesw.so.6 mvinwstr
+FUNC /lib64/libncursesw.so.6 mvderwin
+FUNC /lib64/libncursesw.so.6 delscreen
+FUNC /lib64/libncursesw.so.6 color_content
+FUNC /lib64/libncursesw.so.6 winnwstr
+FUNC /lib64/libncursesw.so.6 inch
+FUNC /lib64/libncursesw.so.6 mousemask_sp
+FUNC /lib64/libncursesw.so.6 is_idcok
+FUNC /lib64/libncursesw.so.6 add_wchnstr
+FUNC /lib64/libncursesw.so.6 winwstr
+FUNC /lib64/libncursesw.so.6 getbkgrnd
+FUNC /lib64/libncursesw.so.6 is_term_resized
+FUNC /lib64/libncursesw.so.6 addchnstr
+FUNC /lib64/libncursesw.so.6 extended_pair_content_sp
+FUNC /lib64/libncursesw.so.6 newterm
+FUNC /lib64/libncursesw.so.6 mvgetch
+FUNC /lib64/libncursesw.so.6 assume_default_colors
+FUNC /lib64/libncursesw.so.6 addstr
+FUNC /lib64/libncursesw.so.6 newwin
+FUNC /lib64/libncursesw.so.6 waddnstr
+FUNC /lib64/libncursesw.so.6 scroll
+FUNC /lib64/libncursesw.so.6 set_escdelay
+FUNC /lib64/libncursesw.so.6 mvadd_wchnstr
+FUNC /lib64/libncursesw.so.6 getwin
+FUNC /lib64/libncursesw.so.6 termattrs_sp
+FUNC /lib64/libncursesw.so.6 slk_color
+FUNC /lib64/libncursesw.so.6 mvwadd_wchnstr
+FUNC /lib64/libncursesw.so.6 mvinnstr
+FUNC /lib64/libncursesw.so.6 mvwaddnwstr
+FUNC /lib64/libncursesw.so.6 wgetparent
+FUNC /lib64/libncursesw.so.6 bkgdset
+FUNC /lib64/libncursesw.so.6 mvwaddwstr
+FUNC /lib64/libncursesw.so.6 init_extended_pair_sp
+FUNC /lib64/libncursesw.so.6 wgetdelay
+FUNC /lib64/libncursesw.so.6 winnstr
+FUNC /lib64/libncursesw.so.6 attr_get
+FUNC /lib64/libncursesw.so.6 mvaddchstr
+FUNC /lib64/libncursesw.so.6 mvscanw
+FUNC /lib64/libncursesw.so.6 pechochar
+FUNC /lib64/libncursesw.so.6 mvchgat
+FUNC /lib64/libncursesw.so.6 insdelln
+FUNC /lib64/libncursesw.so.6 wvline_set
+FUNC /lib64/libncursesw.so.6 echo_wchar
+FUNC /lib64/libncursesw.so.6 wgetch
+FUNC /lib64/libncursesw.so.6 is_subwin
+FUNC /lib64/libncursesw.so.6 mvwvline_set
+FUNC /lib64/libncursesw.so.6 slk_attroff
+FUNC /lib64/libncursesw.so.6 nonl
+FUNC /lib64/libncursesw.so.6 getbegx
+FUNC /lib64/libncursesw.so.6 getbegy
+FUNC /lib64/libncursesw.so.6 isendwin_sp
+FUNC /lib64/libncursesw.so.6 resize_term
+FUNC /lib64/libncursesw.so.6 getattrs
+FUNC /lib64/libncursesw.so.6 has_mouse
+FUNC /lib64/libncursesw.so.6 mvwaddnstr
+FUNC /lib64/libncursesw.so.6 use_legacy_coding_sp
+FUNC /lib64/libncursesw.so.6 setscrreg
+FUNC /lib64/libtinfo.so.6 noraw
+FUNC /lib64/libtinfo.so.6 keyname_sp
+FUNC /lib64/libtinfo.so.6 new_prescr
+FUNC /lib64/libtinfo.so.6 _nc_sigprocmask
+FUNC /lib64/libtinfo.so.6 _nc_outch_sp
+FUNC /lib64/libtinfo.so.6 resetty_sp
+FUNC /lib64/libtinfo.so.6 tgetstr
+FUNC /lib64/libtinfo.so.6 noqiflush_sp
+FUNC /lib64/libtinfo.so.6 key_defined_sp
+FUNC /lib64/libtinfo.so.6 del_curterm
+FUNC /lib64/libtinfo.so.6 _nc_pathlast
+FUNC /lib64/libtinfo.so.6 is_cbreak_sp
+FUNC /lib64/libtinfo.so.6 raw_sp
+FUNC /lib64/libtinfo.so.6 _nc_TABSIZE
+FUNC /lib64/libtinfo.so.6 meta
+FUNC /lib64/libtinfo.so.6 has_il_sp
+FUNC /lib64/libtinfo.so.6 tigetstr
+FUNC /lib64/libtinfo.so.6 _nc_init_acs_sp
+FUNC /lib64/libtinfo.so.6 _nc_trim_sgr0
+FUNC /lib64/libtinfo.so.6 _nc_find_user_entry
+FUNC /lib64/libtinfo.so.6 def_shell_mode
+FUNC /lib64/libtinfo.so.6 _nc_fallback2
+FUNC /lib64/libtinfo.so.6 killchar_sp
+FUNC /lib64/libtinfo.so.6 _nc_export_termtype2
+FUNC /lib64/libtinfo.so.6 longname
+FUNC /lib64/libtinfo.so.6 _nc_set_source
+FUNC /lib64/libtinfo.so.6 intrflush
+FUNC /lib64/libtinfo.so.6 termname
+FUNC /lib64/libtinfo.so.6 _nc_get_hash_table
+FUNC /lib64/libtinfo.so.6 _nc_syserr_abort
+FUNC /lib64/libtinfo.so.6 delay_output_sp
+FUNC /lib64/libtinfo.so.6 nocbreak_sp
+FUNC /lib64/libtinfo.so.6 _nc_str_init
+FUNC /lib64/libtinfo.so.6 tparm
+FUNC /lib64/libtinfo.so.6 use_extended_names
+FUNC /lib64/libtinfo.so.6 def_shell_mode_sp
+FUNC /lib64/libtinfo.so.6 tiscan_s
+FUNC /lib64/libtinfo.so.6 use_env
+FUNC /lib64/libtinfo.so.6 _nc_ttytype
+FUNC /lib64/libtinfo.so.6 _nc_ptr_Lines
+FUNC /lib64/libtinfo.so.6 define_key_sp
+FUNC /lib64/libtinfo.so.6 _nc_first_db
+FUNC /lib64/libtinfo.so.6 _nc_visbuf
+FUNC /lib64/libtinfo.so.6 _nc_set_type
+FUNC /lib64/libtinfo.so.6 _nc_newscr
+FUNC /lib64/libtinfo.so.6 set_tabsize_sp
+FUNC /lib64/libtinfo.so.6 keyok_sp
+FUNC /lib64/libtinfo.so.6 termname_sp
+FUNC /lib64/libtinfo.so.6 _nc_str_copy
+FUNC /lib64/libtinfo.so.6 _nc_err_abort
+FUNC /lib64/libtinfo.so.6 _nc_find_type_entry
+FUNC /lib64/libtinfo.so.6 _nc_cur_term
+FUNC /lib64/libtinfo.so.6 _nc_acs_map
+FUNC /lib64/libtinfo.so.6 longname_sp
+FUNC /lib64/libtinfo.so.6 _nc_free_entries
+FUNC /lib64/libtinfo.so.6 keybound
+FUNC /lib64/libtinfo.so.6 set_curterm
+FUNC /lib64/libtinfo.so.6 key_defined
+FUNC /lib64/libtinfo.so.6 _nc_boolcodes
+FUNC /lib64/libtinfo.so.6 _nc_tiparm
+FUNC /lib64/libtinfo.so.6 _nc_copy_termtype
+FUNC /lib64/libtinfo.so.6 idlok
+FUNC /lib64/libtinfo.so.6 erasechar
+FUNC /lib64/libtinfo.so.6 _nc_outc_wrapper
+FUNC /lib64/libtinfo.so.6 _nc_timed_wait
+FUNC /lib64/libtinfo.so.6 _nc_strcodes
+FUNC /lib64/libtinfo.so.6 intrflush_sp
+FUNC /lib64/libtinfo.so.6 _nc_free_tparm
+FUNC /lib64/libtinfo.so.6 _nc_putchar
+FUNC /lib64/libtinfo.so.6 _nc_outch
+FUNC /lib64/libtinfo.so.6 is_echo_sp
+FUNC /lib64/libtinfo.so.6 noqiflush
+FUNC /lib64/libtinfo.so.6 _nc_init_termtype
+FUNC /lib64/libtinfo.so.6 is_echo
+FUNC /lib64/libtinfo.so.6 tgetnum_sp
+FUNC /lib64/libtinfo.so.6 _nc_access
+FUNC /lib64/libtinfo.so.6 _nc_get_type
+FUNC /lib64/libtinfo.so.6 _nc_add_to_try
+FUNC /lib64/libtinfo.so.6 typeahead
+FUNC /lib64/libtinfo.so.6 noraw_sp
+FUNC /lib64/libtinfo.so.6 tputs_sp
+FUNC /lib64/libtinfo.so.6 tgetflag_sp
+FUNC /lib64/libtinfo.so.6 _nc_ptr_Cols
+FUNC /lib64/libtinfo.so.6 _nc_numcodes
+FUNC /lib64/libtinfo.so.6 _nc_forget_prescr
+FUNC /lib64/libtinfo.so.6 keyname
+FUNC /lib64/libtinfo.so.6 has_ic
+FUNC /lib64/libtinfo.so.6 _nc_reset_tparm
+FUNC /lib64/libtinfo.so.6 _nc_rootname
+FUNC /lib64/libtinfo.so.6 savetty_sp
+FUNC /lib64/libtinfo.so.6 _nc_fallback
+FUNC /lib64/libtinfo.so.6 _nc_warning
+FUNC /lib64/libtinfo.so.6 _nc_is_file_path
+FUNC /lib64/libtinfo.so.6 tigetstr_sp
+FUNC /lib64/libtinfo.so.6 has_il
+FUNC /lib64/libtinfo.so.6 _nc_name_match
+FUNC /lib64/libtinfo.so.6 baudrate_sp
+FUNC /lib64/libtinfo.so.6 set_tabsize
+FUNC /lib64/libtinfo.so.6 _nc_putp
+FUNC /lib64/libtinfo.so.6 qiflush
+FUNC /lib64/libtinfo.so.6 _nc_cookie_init
+FUNC /lib64/libtinfo.so.6 use_env_sp
+FUNC /lib64/libtinfo.so.6 killchar
+FUNC /lib64/libtinfo.so.6 _nc_visbuf2
+FUNC /lib64/libtinfo.so.6 _nc_handle_sigwinch
+FUNC /lib64/libtinfo.so.6 _nc_tic_dir
+FUNC /lib64/libtinfo.so.6 flushinp
+FUNC /lib64/libtinfo.so.6 _nc_init_acs
+FUNC /lib64/libtinfo.so.6 qiflush_sp
+FUNC /lib64/libtinfo.so.6 _nc_boolnames
+FUNC /lib64/libtinfo.so.6 reset_shell_mode_sp
+FUNC /lib64/libtinfo.so.6 _nc_keypad
+FUNC /lib64/libtinfo.so.6 tiparm
+FUNC /lib64/libtinfo.so.6 typeahead_sp
+FUNC /lib64/libtinfo.so.6 _nc_find_prescr
+FUNC /lib64/libtinfo.so.6 is_raw_sp
+FUNC /lib64/libtinfo.so.6 tgetent_sp
+FUNC /lib64/libtinfo.so.6 _nc_update_screensize
+FUNC /lib64/libtinfo.so.6 keybound_sp
+FUNC /lib64/libtinfo.so.6 tgetnum
+FUNC /lib64/libtinfo.so.6 use_tioctl
+FUNC /lib64/libtinfo.so.6 _nc_strnames
+FUNC /lib64/libtinfo.so.6 define_key
+FUNC /lib64/libtinfo.so.6 is_nl_sp
+FUNC /lib64/libtinfo.so.6 _nc_set_tty_mode_sp
+FUNC /lib64/libtinfo.so.6 _nc_getenv_num
+FUNC /lib64/libtinfo.so.6 tigetnum
+FUNC /lib64/libtinfo.so.6 napms
+FUNC /lib64/libtinfo.so.6 _nc_mutex_lock
+FUNC /lib64/libtinfo.so.6 _nc_visbufn
+FUNC /lib64/libtinfo.so.6 _nc_get_tty_mode_sp
+FUNC /lib64/libtinfo.so.6 def_prog_mode_sp
+FUNC /lib64/libtinfo.so.6 _nc_set_tty_mode
+FUNC /lib64/libtinfo.so.6 savetty
+FUNC /lib64/libtinfo.so.6 _nc_get_source
+FUNC /lib64/libtinfo.so.6 _nc_flush
+FUNC /lib64/libtinfo.so.6 _nc_putp_flush_sp
+FUNC /lib64/libtinfo.so.6 _nc_putchar_sp
+FUNC /lib64/libtinfo.so.6 erasechar_sp
+FUNC /lib64/libtinfo.so.6 _nc_set_buffer
+FUNC /lib64/libtinfo.so.6 _nc_read_entry
+FUNC /lib64/libtinfo.so.6 _nc_get_locale
+FUNC /lib64/libtinfo.so.6 cbreak
+FUNC /lib64/libtinfo.so.6 use_tioctl_sp
+FUNC /lib64/libtinfo.so.6 tigetflag
+FUNC /lib64/libtinfo.so.6 tigetflag_sp
+FUNC /lib64/libtinfo.so.6 reset_shell_mode
+FUNC /lib64/libtinfo.so.6 _nc_read_entry2
+FUNC /lib64/libtinfo.so.6 delay_output
+FUNC /lib64/libtinfo.so.6 _nc_numnames
+FUNC /lib64/libtinfo.so.6 _nc_unicode_locale
+FUNC /lib64/libtinfo.so.6 _nc_setupterm
+FUNC /lib64/libtinfo.so.6 nodelay
+FUNC /lib64/libtinfo.so.6 nocbreak
+FUNC /lib64/libtinfo.so.6 curs_set
+FUNC /lib64/libtinfo.so.6 unctrl_sp
+FUNC /lib64/libtinfo.so.6 _nc_safe_strcpy
+FUNC /lib64/libtinfo.so.6 _nc_str_null
+FUNC /lib64/libtinfo.so.6 has_ic_sp
+FUNC /lib64/libtinfo.so.6 baudrate
+FUNC /lib64/libtinfo.so.6 _nc_doalloc
+FUNC /lib64/libtinfo.so.6 _nc_get_alias_table
+FUNC /lib64/libtinfo.so.6 _nc_first_name
+FUNC /lib64/libtinfo.so.6 _nc_numfnames
+FUNC /lib64/libtinfo.so.6 tputs
+FUNC /lib64/libtinfo.so.6 _nc_boolfnames
+FUNC /lib64/libtinfo.so.6 tgetflag
+FUNC /lib64/libtinfo.so.6 _nc_keep_tic_dir
+FUNC /lib64/libtinfo.so.6 _nc_mutex_trylock
+FUNC /lib64/libtinfo.so.6 _nc_flush_sp
+FUNC /lib64/libtinfo.so.6 keypad
+FUNC /lib64/libtinfo.so.6 halfdelay_sp
+FUNC /lib64/libtinfo.so.6 putp_sp
+FUNC /lib64/libtinfo.so.6 exit_terminfo
+FUNC /lib64/libtinfo.so.6 _nc_align_termtype
+FUNC /lib64/libtinfo.so.6 unctrl
+FUNC /lib64/libtinfo.so.6 _nc_set_no_padding
+FUNC /lib64/libtinfo.so.6 set_curterm_sp
+FUNC /lib64/libtinfo.so.6 tgoto
+FUNC /lib64/libtinfo.so.6 raw
+FUNC /lib64/libtinfo.so.6 keyok
+FUNC /lib64/libtinfo.so.6 _nc_basename
+FUNC /lib64/libtinfo.so.6 _nc_mutex_unlock
+FUNC /lib64/libtinfo.so.6 _nc_is_abs_path
+FUNC /lib64/libtinfo.so.6 _nc_LINES
+FUNC /lib64/libtinfo.so.6 curs_set_sp
+FUNC /lib64/libtinfo.so.6 _nc_safe_strcat
+FUNC /lib64/libtinfo.so.6 is_cbreak
+FUNC /lib64/libtinfo.so.6 tigetnum_sp
+FUNC /lib64/libtinfo.so.6 curses_version
+FUNC /lib64/libtinfo.so.6 del_curterm_sp
+FUNC /lib64/libtinfo.so.6 _nc_set_buffer_sp
+FUNC /lib64/libtinfo.so.6 _nc_safe_open3
+FUNC /lib64/libtinfo.so.6 _nc_get_tty_mode
+FUNC /lib64/libtinfo.so.6 has_key_sp
+FUNC /lib64/libtinfo.so.6 _nc_stdscr
+FUNC /lib64/libtinfo.so.6 _nc_read_termtype
+FUNC /lib64/libtinfo.so.6 tgetent
+FUNC /lib64/libtinfo.so.6 _nc_copy_termtype2
+FUNC /lib64/libtinfo.so.6 flushinp_sp
+FUNC /lib64/libtinfo.so.6 _nc_next_db
+FUNC /lib64/libtinfo.so.6 _nc_locale_breaks_acs
+FUNC /lib64/libtinfo.so.6 _nc_is_dir_path
+FUNC /lib64/libtinfo.so.6 reset_prog_mode
+FUNC /lib64/libtinfo.so.6 def_prog_mode
+FUNC /lib64/libtinfo.so.6 notimeout
+FUNC /lib64/libtinfo.so.6 napms_sp
+FUNC /lib64/libtinfo.so.6 _nc_cookie_allowed
+FUNC /lib64/libtinfo.so.6 _nc_leaks_tinfo
+FUNC /lib64/libtinfo.so.6 curses_trace
+FUNC /lib64/libtinfo.so.6 _nc_is_path_found
+FUNC /lib64/libtinfo.so.6 wtimeout
+FUNC /lib64/libtinfo.so.6 _nc_strfnames
+FUNC /lib64/libtinfo.so.6 _nc_free_termtype2
+FUNC /lib64/libtinfo.so.6 reset_prog_mode_sp
+FUNC /lib64/libtinfo.so.6 _nc_get_screensize
+FUNC /lib64/libtinfo.so.6 _nc_COLS
+FUNC /lib64/libtinfo.so.6 _nc_init_pthreads
+FUNC /lib64/libtinfo.so.6 tgetstr_sp
+FUNC /lib64/libtinfo.so.6 is_nl
+FUNC /lib64/libtinfo.so.6 has_key
+FUNC /lib64/libtinfo.so.6 halfdelay
+FUNC /lib64/libtinfo.so.6 _nc_free_termtype
+FUNC /lib64/libtinfo.so.6 idcok
+FUNC /lib64/libtinfo.so.6 _nc_home_terminfo
+FUNC /lib64/libtinfo.so.6 is_raw
+FUNC /lib64/libtinfo.so.6 cbreak_sp
+FUNC /lib64/libtinfo.so.6 _nc_safe_fopen
+FUNC /lib64/libtinfo.so.6 putp
+FUNC /lib64/libtinfo.so.6 _nc_last_db
+FUNC /lib64/libtinfo.so.6 _nc_env_access
+FUNC /lib64/libtinfo.so.6 resetty
+FUNC /lib64/libtinfo.so.6 _nc_putp_sp
+FUNC /lib64/libtinfo.so.6 setupterm
+FUNC /lib64/libtinfo.so.6 _nc_screen_of
+FUNC /lib64/libtinfo.so.6 _nc_curscr
+FUNC /lib64/libtinfo.so.6 _nc_read_file_entry
+FUNC /lib64/libtinfo.so.6 tiparm_s
+FUNC /lib64/libtinfo.so.6 _nc_get_table
+FUNC /lib64/libtinfo.so.6 _nc_tparm_analyze
+FUNC /lib64/libtinfo.so.6 _nc_find_entry

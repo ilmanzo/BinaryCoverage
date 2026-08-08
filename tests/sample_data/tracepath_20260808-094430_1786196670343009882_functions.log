@@ -1,0 +1,7 @@
+FUNC /var/coverage/bin/tracepath print_host
+FUNC /var/coverage/bin/tracepath recverr
+FUNC /var/coverage/bin/tracepath usage
+FUNC /var/coverage/bin/tracepath close_stream
+FUNC /var/coverage/bin/tracepath close_stdout
+FUNC /var/coverage/bin/tracepath strtol_or_err.constprop.0
+FUNC /var/coverage/bin/tracepath atexit

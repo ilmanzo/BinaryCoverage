@@ -1,0 +1,10 @@
+CALLED /var/coverage/bin/sysctl atexit
+CALLED /var/coverage/bin/sysctl parse_setting_line
+CALLED /var/coverage/bin/sysctl rstrip
+CALLED /var/coverage/bin/sysctl slashdot
+CALLED /var/coverage/bin/sysctl WriteSetting.part.0
+CALLED /var/coverage/bin/sysctl fprocopen
+CALLED /var/coverage/bin/sysctl close_stream
+CALLED /var/coverage/bin/sysctl proc_write
+CALLED /var/coverage/bin/sysctl proc_close
+CALLED /var/coverage/bin/sysctl close_stdout

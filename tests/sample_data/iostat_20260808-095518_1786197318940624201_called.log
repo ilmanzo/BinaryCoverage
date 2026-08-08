@@ -1,0 +1,12 @@
+CALLED /var/coverage/bin/iostat is_iso_time_fmt
+CALLED /var/coverage/bin/iostat read_stat_cpu.constprop.0.isra.0
+CALLED /var/coverage/bin/iostat read_sysfs_all_devices_stat_work.isra.0
+CALLED /var/coverage/bin/iostat read_sysfs_file_stat_work
+CALLED /var/coverage/bin/iostat add_list_device.part.0.constprop.0
+CALLED /var/coverage/bin/iostat is_device.constprop.0
+CALLED /var/coverage/bin/iostat get_major_minor_nr
+CALLED /var/coverage/bin/iostat write_stats
+CALLED /var/coverage/bin/iostat cprintf_xpc.constprop.0
+CALLED /var/coverage/bin/iostat cprintf_f.constprop.0
+CALLED /var/coverage/bin/iostat cprintf_f.constprop.1
+CALLED /var/coverage/bin/iostat cprintf_u64.constprop.0

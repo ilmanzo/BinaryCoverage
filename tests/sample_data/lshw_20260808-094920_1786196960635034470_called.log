@@ -1,0 +1,268 @@
+CALLED /var/coverage/bin/lshw _sub_I_65535_0.0
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > std::operator+<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, char const*) [clone .isra.0]
+CALLED /var/coverage/bin/lshw disable(char const*)
+CALLED /var/coverage/bin/lshw lowercase(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw std::pair<std::_Rb_tree_iterator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, bool> std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::_Identity<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::_M_insert_unique<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+CALLED /var/coverage/bin/lshw decltype ((__char_traits_cmp_cat<std::char_traits<char> >)(0)) std::operator<=><char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw enable(char const*)
+CALLED /var/coverage/bin/lshw disabled(char const*)
+CALLED /var/coverage/bin/lshw std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::_Identity<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw alias(char const*, char const*)
+CALLED /var/coverage/bin/lshw std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_hint_unique_pos(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_S_copy(char*, char const*, unsigned long) [clone .part.0] [clone .lto_priv.1]
+CALLED /var/coverage/bin/lshw parse_options(int&, char**)
+CALLED /var/coverage/bin/lshw enabled(char const*)
+CALLED /var/coverage/bin/lshw hwNode::hwNode(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hw::hwClass, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw cleanupId(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hw::strip(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<true>(char const*, unsigned long)
+CALLED /var/coverage/bin/lshw status(char const*)
+CALLED /var/coverage/bin/lshw scan_dmi_sysfs(hwNode&) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw std::vector<unsigned char, std::allocator<unsigned char> >::vector(unsigned long, std::allocator<unsigned char> const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw smbios_entry_point(unsigned char const*, unsigned long, hwNode&, unsigned short&, unsigned short&, unsigned short&, unsigned int&, unsigned long&) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > std::operator+<char, std::char_traits<char>, std::allocator<char> >(char const*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+CALLED /var/coverage/bin/lshw hwNode::addCapability(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::isCapable(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >& std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::emplace_back<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw dmi_table(unsigned char const*, int, hwNode&, int, int, int) [clone .isra.0]
+CALLED /var/coverage/bin/lshw dmi_handle(unsigned short) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw hwNode::getChild(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::addChild(hwNode const&)
+CALLED /var/coverage/bin/lshw hwNode::getId[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::getPhysId[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw bool std::operator==<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, char const*)
+CALLED /var/coverage/bin/lshw generateId(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, int)
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > std::operator+<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&)
+CALLED /var/coverage/bin/lshw hwNode::hwNode(hwNode const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode_i::operator=(hwNode_i const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::vector<hwNode, std::allocator<hwNode> >::operator=(std::vector<hwNode, std::allocator<hwNode> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::operator=(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::operator=(std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::~hwNode() [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode_i::~hwNode_i()
+CALLED /var/coverage/bin/lshw hwNode::setHandle(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw dmi_string(dmi_header*, unsigned char) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw hwNode::setVendor(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::setVendor(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .part.0]
+CALLED /var/coverage/bin/lshw hwNode::setProduct(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::setProduct(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .part.0]
+CALLED /var/coverage/bin/lshw hwNode::setVersion(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::setSerial(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::setConfig(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::operator[](std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::getVendor[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::getProduct[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::getVersion[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::getSerial[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw dmi_chassis(unsigned char, hwNode&)
+CALLED /var/coverage/bin/lshw hwNode::getDescription[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::setDescription(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::setDescription(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .part.0]
+CALLED /var/coverage/bin/lshw hwNode::setBusInfo(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::setSlot(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hw::value::value(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::addHint(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hw::value const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/lshw hw::value::operator=(hw::value const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hw::value::~value()
+CALLED /var/coverage/bin/lshw hwNode::setPhysId(long)
+CALLED /var/coverage/bin/lshw hwNode::attractHandle(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::setConfig(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, unsigned long long)
+CALLED /var/coverage/bin/lshw tostring[abi:cxx11](unsigned long long)
+CALLED /var/coverage/bin/lshw std::_Rb_tree_node_base* std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_copy<false, std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_Reuse_or_alloc_node>(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >*, std::_Rb_tree_node_base*, std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_Reuse_or_alloc_node&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >* std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_Reuse_or_alloc_node::operator()<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > const&>(std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > const&)
+CALLED /var/coverage/bin/lshw std::_Rb_tree_node_base* std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> > >::_M_copy<false, std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> > >::_Reuse_or_alloc_node>(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >*, std::_Rb_tree_node_base*, std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> > >::_Reuse_or_alloc_node&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >* std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> > >::_Reuse_or_alloc_node::operator()<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> const&>(std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> const&)
+CALLED /var/coverage/bin/lshw std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, hw::value> >*) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >*) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::assign(char const*) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::attractsHandle(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const [clone .isra.0]
+CALLED /var/coverage/bin/lshw dmi_memory_device_detail(unsigned short) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw hwNode::findChildByHandle(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw dmi_bios_features(unsigned int, unsigned int, hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw dmi_bios_features_ext(unsigned char const*, int, hwNode&) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw std::_Vector_base<unsigned char, std::allocator<unsigned char> >::~_Vector_base() [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_smp(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw get_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw matches(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, int) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_parisc(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw pushd(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw pwd[abi:cxx11]()
+CALLED /var/coverage/bin/lshw scan_device_tree(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw exists(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_spd(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw selecteeprom(dirent const*)
+CALLED /var/coverage/bin/lshw popd[abi:cxx11]()
+CALLED /var/coverage/bin/lshw get_hotplug_size() [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw sysfs::entries_by_bus(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw selectlink(dirent const*)
+CALLED /var/coverage/bin/lshw sysfs::entry::byBus(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+CALLED /var/coverage/bin/lshw sysfs::entry::entry(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw realpath(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw std::vector<sysfs::entry, std::allocator<sysfs::entry> >::push_back(sysfs::entry const&)
+CALLED /var/coverage/bin/lshw sysfs::entry::~entry() [clone .isra.0]
+CALLED /var/coverage/bin/lshw sysfs::entry::hex_attr(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, unsigned long long) const [clone .constprop.0]
+CALLED /var/coverage/bin/lshw sysfs::entry::string_attr(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::claim(bool) [clone .constprop.1]
+CALLED /var/coverage/bin/lshw hwNode::claim(bool) [clone .part.0]
+CALLED /var/coverage/bin/lshw hwNode::getChild(unsigned int) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_cpuinfo(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw splitlines(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >&, char)
+CALLED /var/coverage/bin/lshw cpuinfo_x86(hwNode&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw getcpu(hwNode&, int) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw hwNode::findChildByBusInfo(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::getHint(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::describeCapability(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw long long __gnu_cxx::__stoa<long long, long long, char, int>(long long (*)(char const*, char**, int), char const*, char const*, unsigned long*, int) [clone .constprop.0]
+CALLED /var/coverage/bin/lshw hw::value::value(long long)
+CALLED /var/coverage/bin/lshw hw::value::asInteger() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::~vector()
+CALLED /var/coverage/bin/lshw scan_pci(hwNode&)
+CALLED /var/coverage/bin/lshw load_pcidb() [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw loadfile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >&)
+CALLED /var/coverage/bin/lshw scan_pci_dev(pci_dev&, hwNode&)
+CALLED /var/coverage/bin/lshw get_class_description(long, long) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw find_best_match(std::vector<pci_entry, std::allocator<pci_entry> >&, pci_entry&, long, long, long, long) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/lshw get_device_description(long, long, long, long) [clone .constprop.0]
+CALLED /var/coverage/bin/lshw pci_bushandle(unsigned char, unsigned short) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw addHints(hwNode&, long, long, long, long, long) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw scan_resources(hwNode&, pci_dev&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw guessBusInfo(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > std::operator+<char, std::char_traits<char>, std::allocator<char> >(char const*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw sysfs::entry::modalias[abi:cxx11]() const
+CALLED /var/coverage/bin/lshw readlink(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw shortname(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw get_number(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, long)
+CALLED /var/coverage/bin/lshw hw::resource::irq(unsigned int)
+CALLED /var/coverage/bin/lshw hwNode::addResource(hw::resource const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hw::resource::~resource()
+CALLED /var/coverage/bin/lshw scan_pnp(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw ISAbridge(hwNode const&)
+CALLED /var/coverage/bin/lshw hwNode::findChild(bool (*)(hwNode const&))
+CALLED /var/coverage/bin/lshw sysfs::entry::driver[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw load_pnpdb()
+CALLED /var/coverage/bin/lshw std::vector<sysfs::entry, std::allocator<sysfs::entry> >::~vector()
+CALLED /var/coverage/bin/lshw lookup_dev(char const*) [clone .lto_priv.1]
+CALLED /var/coverage/bin/lshw scan_virtio(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw sysfs::entry::businfo[abi:cxx11]() const
+CALLED /var/coverage/bin/lshw sysfstobusinfo(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw selectdir(dirent const*)
+CALLED /var/coverage/bin/lshw sysfs::entry::name_in_class(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const
+CALLED /var/coverage/bin/lshw sysfs::entry::parent() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw dirname(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::setLogicalName(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw get_devid(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_disk(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::getLogicalName[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_partitions(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw detect_gpt(source&, hwNode&)
+CALLED /var/coverage/bin/lshw readlogicalblocks(source&, void*, long long, long long)
+CALLED /var/coverage/bin/lshw le_longlong(void const*)
+CALLED /var/coverage/bin/lshw be_long(void const*)
+CALLED /var/coverage/bin/lshw le_long(void const*)
+CALLED /var/coverage/bin/lshw read_efi_guid(unsigned char*)
+CALLED /var/coverage/bin/lshw tostring(efi_guid_t const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw operator==(efi_guid_t const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw guess_logicalname(source&, hwNode const&, unsigned int, hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::getBusInfo[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw partitionname(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, unsigned int)
+CALLED /var/coverage/bin/lshw open_dev(unsigned long, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw scan_volume(hwNode&, source&)
+CALLED /var/coverage/bin/lshw detect_fat(hwNode&, source&)
+CALLED /var/coverage/bin/lshw void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char const*>(char const*, char const*, std::forward_iterator_tag) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, unsigned long, std::allocator<char> const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw get_attr_volume_id(vfat_dir_entry*, int)
+CALLED /var/coverage/bin/lshw hwNode::getConfig(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const [clone .isra.0]
+CALLED /var/coverage/bin/lshw detect_ntfs(hwNode&, source&)
+CALLED /var/coverage/bin/lshw detect_ext2(hwNode&, source&)
+CALLED /var/coverage/bin/lshw detect_reiserfs(hwNode&, source&)
+CALLED /var/coverage/bin/lshw detect_hfsx(hwNode&, source&)
+CALLED /var/coverage/bin/lshw detect_hfs(hwNode&, source&)
+CALLED /var/coverage/bin/lshw detect_apfs(hwNode&, source&)
+CALLED /var/coverage/bin/lshw detect_luks(hwNode&, source&)
+CALLED /var/coverage/bin/lshw detect_swap(hwNode&, source&)
+CALLED /var/coverage/bin/lshw scan_lvm(hwNode&, source&)
+CALLED /var/coverage/bin/lshw uuid(unsigned char const*)
+CALLED /var/coverage/bin/lshw scan_vio(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_usb(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree_iterator<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<unsigned short, std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned short>, std::allocator<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned short&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<unsigned short&&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree<unsigned short, std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned short>, std::allocator<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_unique_pos(unsigned short const&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree<unsigned int, std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned int>, std::allocator<std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_hint_unique_pos(std::_Rb_tree_const_iterator<std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, unsigned int const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree<unsigned int, std::pair<unsigned int const, chip_vpd_data*>, std::_Select1st<std::pair<unsigned int const, chip_vpd_data*> >, std::less<unsigned int>, std::allocator<std::pair<unsigned int const, chip_vpd_data*> > >::_M_get_insert_unique_pos(unsigned int const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::operator=(hwNode const&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw setUSBClass(hwNode&, unsigned int, unsigned int, unsigned int) [clone .isra.0]
+CALLED /var/coverage/bin/lshw addUSBChild(hwNode&, hwNode&, unsigned int, unsigned int, unsigned int) [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::setPhysId(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .part.0]
+CALLED /var/coverage/bin/lshw scan_ide(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw probe_port(unsigned int, unsigned int, hwNode&) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw scan_devices() [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw scsi_handle(unsigned int, int, int, int)
+CALLED /var/coverage/bin/lshw scan_sg(hwNode&) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw host_logicalname(int)
+CALLED /var/coverage/bin/lshw scsi_businfo(int, int, int, int)
+CALLED /var/coverage/bin/lshw host_kname(int)
+CALLED /var/coverage/bin/lshw sysfs::entry::byClass(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+CALLED /var/coverage/bin/lshw do_inq(int, int, int, unsigned int, void*, int, int) [clone .constprop.0]
+CALLED /var/coverage/bin/lshw sg_err_category(int, int, int, unsigned char const*, int)
+CALLED /var/coverage/bin/lshw scan_cdrom(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_hosts(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_nvme(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw sysfs::entries_by_class(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw scan_mmc(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_sound(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw sysfs::entry::leaf() const
+CALLED /var/coverage/bin/lshw sysfs::entry::hassubdir(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const [clone .isra.0]
+CALLED /var/coverage/bin/lshw sysfs::entry::devices() const
+CALLED /var/coverage/bin/lshw scan_graphics(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_input(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_ccw(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw process_mount(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw unescape(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+CALLED /var/coverage/bin/lshw update_mount_status(hwNode&, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&)
+CALLED /var/coverage/bin/lshw hwNode::getLogicalNames[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_network(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::_M_erase(__gnu_cxx::__normal_iterator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >) [clone .isra.0]
+CALLED /var/coverage/bin/lshw getmac(unsigned char const*, unsigned int) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw hwname(int) [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw hwNode::findChildByLogicalName(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw updateCapabilities(hwNode&, unsigned int, unsigned int, unsigned int, unsigned char, unsigned char, unsigned char)
+CALLED /var/coverage/bin/lshw hwNode::merge(hwNode const&)
+CALLED /var/coverage/bin/lshw hwNode::getHandle[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_fb(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_display(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_cpufreq(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw scan_abi(hwNode&) [clone .isra.0]
+CALLED /var/coverage/bin/lshw selectfile(dirent const*)
+CALLED /var/coverage/bin/lshw hwNode::assignPhysIds() [clone .part.0]
+CALLED /var/coverage/bin/lshw hwNode::fixInconsistencies()
+CALLED /var/coverage/bin/lshw jedec_resolve(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw print(hwNode&, bool, int)
+CALLED /var/coverage/bin/lshw hwNode::getConfigValues(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const
+CALLED /var/coverage/bin/lshw hwNode::getResources(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const
+CALLED /var/coverage/bin/lshw hwNode::getClassName() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw visible(char const*)
+CALLED /var/coverage/bin/lshw tab(int, bool) [clone .constprop.0]
+CALLED /var/coverage/bin/lshw hwNode::claimed() const
+CALLED /var/coverage/bin/lshw hwNode::claimed() const [clone .part.0]
+CALLED /var/coverage/bin/lshw escape(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::getDate[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::getSlot[abi:cxx11]() const [clone .isra.0]
+CALLED /var/coverage/bin/lshw hwNode::getCapabilities[abi:cxx11]() const
+CALLED /var/coverage/bin/lshw std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::push_back(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/lshw hwNode::getCapabilityDescription(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const
+CALLED /var/coverage/bin/lshw decimalkilos[abi:cxx11](unsigned long long)
+CALLED /var/coverage/bin/lshw kilobytes[abi:cxx11](unsigned long long)
+CALLED /var/coverage/bin/lshw std::stack<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::deque<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::~stack()
+CALLED /var/coverage/bin/lshw std::vector<pci_entry, std::allocator<pci_entry> >::~vector() [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::~map() [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw std::set<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::~set() [clone .lto_priv.0]
+CALLED /var/coverage/bin/lshw std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::_Identity<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::_M_erase(std::_Rb_tree_node<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >*) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::map<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<unsigned int>, std::allocator<std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::~map()
+CALLED /var/coverage/bin/lshw std::_Rb_tree<unsigned int, std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned int>, std::allocator<std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned int const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >*) [clone .isra.0]
+CALLED /var/coverage/bin/lshw std::map<unsigned short, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<unsigned short>, std::allocator<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::~map()
+CALLED /var/coverage/bin/lshw std::_Rb_tree<unsigned short, std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned short>, std::allocator<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned short const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >*) [clone .isra.0]
+CALLED /var/coverage/bin/lshw sysfs_t::~sysfs_t()

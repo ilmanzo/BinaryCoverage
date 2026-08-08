@@ -1,0 +1,447 @@
+CALLED /lib64/libnl-genl-3.so.200 genl_register
+CALLED /lib64/libnl-genl-3.so.200 genl_register_family
+CALLED /lib64/libnl-3.so.200 nl_cache_mngt_register
+CALLED /var/coverage/bin/powertop _sub_I_65535_0.0
+CALLED /var/coverage/bin/powertop report_maker::setup_report_formatter() [clone .constprop.0]
+CALLED /var/coverage/bin/powertop tab_window::cursor_enter()
+CALLED /var/coverage/bin/powertop powertop_init(int) [clone .part.0]
+CALLED /var/coverage/bin/powertop load_results(char const*) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop get_param_directory(char const*)
+CALLED /var/coverage/bin/powertop load_parameters(char const*) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop enumerate_cpus()
+CALLED /var/coverage/bin/powertop std::vector<abstract_cpu*, std::allocator<abstract_cpu*> >::_M_fill_append(unsigned long, abstract_cpu* const&) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop cpudevice::cpudevice(char const*, char const*, abstract_cpu*)
+CALLED /var/coverage/bin/powertop device::device()
+CALLED /var/coverage/bin/powertop get_param_index(char const*)
+CALLED /var/coverage/bin/powertop void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<char const*>(char const*, char const*, std::forward_iterator_tag) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::_M_get_insert_hint_unique_pos(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/powertop get_result_index(char const*)
+CALLED /var/coverage/bin/powertop void std::vector<device*, std::allocator<device*> >::_M_realloc_append<device*>(device*&&)
+CALLED /var/coverage/bin/powertop c_rapl_interface::c_rapl_interface(char const*, int)
+CALLED /var/coverage/bin/powertop read_msr(int, unsigned long, unsigned long*)
+CALLED /var/coverage/bin/powertop c_rapl_interface::get_energy_status_unit() [clone .isra.0]
+CALLED /var/coverage/bin/powertop c_rapl_interface::get_pp0_energy_status(double*)
+CALLED /var/coverage/bin/powertop c_rapl_interface::get_dram_energy_status(double*)
+CALLED /var/coverage/bin/powertop perf_bundle::add_event(char const*)
+CALLED /var/coverage/bin/powertop read_sysfs_string[abi:cxx11](char const*, char const*)
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<int const, char*> > std::_Rb_tree<int, std::pair<int const, char*>, std::_Select1st<std::pair<int const, char*> >, std::less<int>, std::allocator<std::pair<int const, char*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<int&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<int const, char*> >, std::piecewise_construct_t const&, std::tuple<int&&>&&, std::tuple<>&&) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<int, std::pair<int const, char*>, std::_Select1st<std::pair<int const, char*> >, std::less<int>, std::allocator<std::pair<int const, char*> > >::_M_get_insert_unique_pos(int const&) [clone .isra.0]
+CALLED /var/coverage/bin/powertop read_file(char const*)
+CALLED /var/coverage/bin/powertop get_type
+CALLED /var/coverage/bin/powertop extend_token
+CALLED /var/coverage/bin/powertop test_type_token.lto_priv.0
+CALLED /var/coverage/bin/powertop event_read_fields.lto_priv.0
+CALLED /var/coverage/bin/powertop process_arg_token.lto_priv.0
+CALLED /var/coverage/bin/powertop process_arg.lto_priv.0
+CALLED /var/coverage/bin/powertop read_token_item.lto_priv.0
+CALLED /var/coverage/bin/powertop process_directory(char const*, void (*)(char const*))
+CALLED /var/coverage/bin/powertop register_parameter(char const*, double, double)
+CALLED /var/coverage/bin/powertop std::vector<double, std::allocator<double> >::_M_fill_append(unsigned long, double const&)
+CALLED /var/coverage/bin/powertop std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::compare(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) const [clone .isra.0]
+CALLED /var/coverage/bin/powertop create_all_usb_devices_callback(char const*) [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop cpudevice::device_name()
+CALLED /var/coverage/bin/powertop cpu_rapl_device::device_name()
+CALLED /var/coverage/bin/powertop dram_rapl_device::device_name()
+CALLED /var/coverage/bin/powertop device::register_sysfs_path(char const*)
+CALLED /var/coverage/bin/powertop pretty_print(char const*, char*, int)
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_hint_unique_pos(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .isra.0]
+CALLED /var/coverage/bin/powertop rfkill::device_name()
+CALLED /var/coverage/bin/powertop create_all_ahcis()
+CALLED /var/coverage/bin/powertop create_all_alsa_callback(char const*) [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop create_i915_gpu()
+CALLED /var/coverage/bin/powertop create_thinkpad_fan()
+CALLED /var/coverage/bin/powertop create_thinkpad_light()
+CALLED /var/coverage/bin/powertop netdev_callback(char const*) [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop network::network(char const*, char const*)
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop do_bus(char const*) [clone .lto_priv.0]
+CALLED /lib64/libpci.so.3 pci_alloc
+CALLED /lib64/libpci.so.3 pci_set_name_list_path
+CALLED /lib64/libpci.so.3 pci_init
+CALLED /lib64/libpci.so.3 pci_get_param
+CALLED /lib64/libpci.so.3 pci_lookup_name
+CALLED /lib64/libpci.so.3 pci_load_name_list
+CALLED /lib64/libpci.so.3 pci_free_name_list
+CALLED /lib64/libpci.so.3 pci_id_cache_flush
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzopen
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzgets
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateInit2_
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateReset2
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateReset
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateResetKeep
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzerror
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzclose
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 gzclose_r
+CALLED /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1 inflateEnd
+CALLED /var/coverage/bin/powertop one_measurement(int, int, char*)
+CALLED /var/coverage/bin/powertop device::start_measurement()
+CALLED /var/coverage/bin/powertop cpu_rapl_device::start_measurement()
+CALLED /var/coverage/bin/powertop dram_rapl_device::start_measurement()
+CALLED /var/coverage/bin/powertop usbdevice::start_measurement()
+CALLED /var/coverage/bin/powertop alsa::start_measurement()
+CALLED /var/coverage/bin/powertop network::start_measurement()
+CALLED /var/coverage/bin/powertop iface_speed(char const*)
+CALLED /var/coverage/bin/powertop net_iface_up(char const*)
+CALLED /var/coverage/bin/powertop do_proc_net_dev()
+CALLED /var/coverage/bin/powertop runtime_pmdevice::start_measurement()
+CALLED /var/coverage/bin/powertop process_op.lto_priv.0
+CALLED /var/coverage/bin/powertop get_op_prio
+CALLED /var/coverage/bin/powertop pevent_find_any_field
+CALLED /var/coverage/bin/powertop process_fields
+CALLED /var/coverage/bin/powertop arg_eval
+CALLED /var/coverage/bin/powertop free_arg.lto_priv.0
+CALLED /var/coverage/bin/powertop perf_bundle_event::~perf_bundle_event()
+CALLED /var/coverage/bin/powertop pevent_free
+CALLED /var/coverage/bin/powertop perf_event::create_perf_event(char*, int) [clone .isra.0]
+CALLED /var/coverage/bin/powertop abstract_cpu::measurement_start()
+CALLED /var/coverage/bin/powertop cpu_linux::measurement_start()
+CALLED /var/coverage/bin/powertop cpu_linux::parse_cstates_start()
+CALLED /var/coverage/bin/powertop cpu_linux::parse_pstates_start()
+CALLED /var/coverage/bin/powertop abstract_cpu::account_freq(unsigned long, unsigned long)
+CALLED /var/coverage/bin/powertop void std::vector<frequency*, std::allocator<frequency*> >::_M_realloc_append<frequency* const&>(frequency* const&)
+CALLED /var/coverage/bin/powertop hz_to_human(unsigned long, char*, int)
+CALLED /var/coverage/bin/powertop abstract_cpu::wiggle()
+CALLED /var/coverage/bin/powertop global_sample_power()
+CALLED /var/coverage/bin/powertop global_power()
+CALLED /var/coverage/bin/powertop abstract_cpu::measurement_end()
+CALLED /var/coverage/bin/powertop cpu_linux::measurement_end()
+CALLED /var/coverage/bin/powertop cpu_linux::parse_cstates_end()
+CALLED /var/coverage/bin/powertop cpu_linux::parse_pstates_end()
+CALLED /var/coverage/bin/powertop abstract_cpu::update_pstate(unsigned long, char const*, unsigned long, int)
+CALLED /var/coverage/bin/powertop abstract_cpu::finalize_pstate(unsigned long, unsigned long, int)
+CALLED /var/coverage/bin/powertop perf_bundle::stop()
+CALLED /var/coverage/bin/powertop collect_open_devices()
+CALLED /var/coverage/bin/powertop i915gpu::end_measurement()
+CALLED /var/coverage/bin/powertop cpu_rapl_device::end_measurement()
+CALLED /var/coverage/bin/powertop dram_rapl_device::end_measurement()
+CALLED /var/coverage/bin/powertop usbdevice::end_measurement()
+CALLED /var/coverage/bin/powertop std::vector<double, std::allocator<double> >::_M_default_append(unsigned long)
+CALLED /var/coverage/bin/powertop alsa::end_measurement()
+CALLED /var/coverage/bin/powertop network::end_measurement()
+CALLED /var/coverage/bin/powertop get_wifi_power_saving
+CALLED /var/coverage/bin/powertop nl80211_init.lto_priv.0
+CALLED /lib64/libnl-3.so.200 nl_socket_alloc
+CALLED /lib64/libnl-3.so.200 nl_cb_alloc
+CALLED /lib64/libnl-3.so.200 nl_cb_set
+CALLED /lib64/libnl-3.so.200 nl_cb_err
+CALLED /lib64/libnl-3.so.200 nl_cb_get
+CALLED /lib64/libnl-3.so.200 nl_cb_put
+CALLED /lib64/libnl-genl-3.so.200 genl_connect
+CALLED /lib64/libnl-3.so.200 nl_connect
+CALLED /lib64/libnl-3.so.200 nl_socket_set_buffer_size
+CALLED /lib64/libnl-genl-3.so.200 genl_ctrl_alloc_cache
+CALLED /lib64/libnl-3.so.200 nl_cache_alloc_and_fill
+CALLED /lib64/libnl-3.so.200 nl_cache_alloc
+CALLED /lib64/libnl-3.so.200 nl_cache_refill
+CALLED /lib64/libnl-3.so.200 nl_cache_clear
+CALLED /lib64/libnl-genl-3.so.200 genl_send_simple
+CALLED /lib64/libnl-3.so.200 nl_send_simple
+CALLED /lib64/libnl-3.so.200 nlmsg_alloc_simple
+CALLED /lib64/libnl-3.so.200 nlmsg_inherit
+CALLED /lib64/libnl-3.so.200 nlmsg_alloc
+CALLED /lib64/libnl-3.so.200 nlmsg_total_size
+CALLED /lib64/libnl-3.so.200 nlmsg_size
+CALLED /lib64/libnl-3.so.200 nlmsg_append
+CALLED /lib64/libnl-3.so.200 nlmsg_reserve
+CALLED /lib64/libnl-3.so.200 nl_send_auto
+CALLED /lib64/libnl-3.so.200 nl_complete_msg
+CALLED /lib64/libnl-3.so.200 nlmsg_hdr
+CALLED /lib64/libnl-3.so.200 nl_socket_get_local_port
+CALLED /lib64/libnl-3.so.200 nl_socket_use_seq
+CALLED /lib64/libnl-3.so.200 nl_send
+CALLED /lib64/libnl-3.so.200 nl_send_iovec
+CALLED /lib64/libnl-3.so.200 nlmsg_get_dst
+CALLED /lib64/libnl-3.so.200 nlmsg_get_creds
+CALLED /lib64/libnl-3.so.200 nl_sendmsg
+CALLED /lib64/libnl-3.so.200 nlmsg_set_src
+CALLED /lib64/libnl-3.so.200 nlmsg_free
+CALLED /lib64/libnl-3.so.200 nl_cache_pickup
+CALLED /lib64/libnl-3.so.200 nl_cb_clone
+CALLED /lib64/libnl-3.so.200 nl_recvmsgs
+CALLED /lib64/libnl-3.so.200 nl_recvmsgs_report
+CALLED /lib64/libnl-3.so.200 nl_recv
+CALLED /lib64/libnl-3.so.200 nlmsg_ok
+CALLED /lib64/libnl-3.so.200 nlmsg_convert
+CALLED /lib64/libnl-3.so.200 nlmsg_set_proto
+CALLED /lib64/libnl-3.so.200 nl_cache_parse
+CALLED /lib64/libnl-3.so.200 nlmsg_valid_hdr
+CALLED /lib64/libnl-genl-3.so.200 genlmsg_hdr
+CALLED /lib64/libnl-3.so.200 nlmsg_data
+CALLED /lib64/libnl-3.so.200 nlmsg_parse
+CALLED /lib64/libnl-3.so.200 nlmsg_attrlen
+CALLED /lib64/libnl-3.so.200 nlmsg_datalen
+CALLED /lib64/libnl-3.so.200 nlmsg_attrdata
+CALLED /lib64/libnl-3.so.200 nla_parse
+CALLED /lib64/libnl-3.so.200 nla_ok
+CALLED /lib64/libnl-3.so.200 nla_type
+CALLED /lib64/libnl-3.so.200 nla_len
+CALLED /lib64/libnl-3.so.200 nla_data
+CALLED /lib64/libnl-3.so.200 nla_next
+CALLED /lib64/libnl-genl-3.so.200 genlmsg_user_hdr
+CALLED /lib64/libnl-genl-3.so.200 genlmsg_data
+CALLED /lib64/libnl-genl-3.so.200 genl_family_alloc
+CALLED /lib64/libnl-3.so.200 nl_object_alloc
+CALLED /lib64/libnl-3.so.200 nla_get_u16
+CALLED /lib64/libnl-genl-3.so.200 genl_family_set_id
+CALLED /lib64/libnl-3.so.200 nla_get_string
+CALLED /lib64/libnl-genl-3.so.200 genl_family_set_name
+CALLED /lib64/libnl-3.so.200 nla_get_u32
+CALLED /lib64/libnl-genl-3.so.200 genl_family_set_version
+CALLED /lib64/libnl-genl-3.so.200 genl_family_set_hdrsize
+CALLED /lib64/libnl-genl-3.so.200 genl_family_set_maxattr
+CALLED /lib64/libnl-3.so.200 nla_parse_nested
+CALLED /lib64/libnl-genl-3.so.200 genl_family_add_op
+CALLED /lib64/libnl-genl-3.so.200 genl_family_add_grp
+CALLED /lib64/libnl-3.so.200 nl_cache_add
+CALLED /lib64/libnl-3.so.200 nl_object_get
+CALLED /lib64/libnl-genl-3.so.200 genl_family_put
+CALLED /lib64/libnl-3.so.200 nl_object_put
+CALLED /lib64/libnl-3.so.200 nlmsg_next
+CALLED /lib64/libnl-genl-3.so.200 genl_ctrl_search_by_name
+CALLED /lib64/libnl-3.so.200 nl_cache_free
+CALLED /lib64/libnl-3.so.200 nl_cache_remove
+CALLED /lib64/libnl-3.so.200 nl_object_free
+CALLED /lib64/libnl-3.so.200 nl_socket_free
+CALLED /var/coverage/bin/powertop runtime_pmdevice::end_measurement()
+CALLED /var/coverage/bin/powertop usbdevice::register_power_with_devlist(result_bundle*, parameter_bundle*)
+CALLED /var/coverage/bin/powertop register_devpower(char const*, double, device*)
+CALLED /var/coverage/bin/powertop alsa::power_usage(result_bundle*, parameter_bundle*)
+CALLED /var/coverage/bin/powertop abstract_cpu::reset_pstate_data()
+CALLED /var/coverage/bin/powertop perf_bundle::process()
+CALLED /var/coverage/bin/powertop perf_bundle_event::handle_event(perf_event_header*, void*)
+CALLED /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, long, bool (*)(void*, void*)>(__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, __gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, long, bool (*)(void*, void*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, bool (*)(void*, void*)>(__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, __gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, bool (*)(void*, void*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop pevent_read_number
+CALLED /var/coverage/bin/powertop pevent_find_event
+CALLED /var/coverage/bin/powertop pevent_get_field_val.constprop.0
+CALLED /var/coverage/bin/powertop perf_power_bundle::handle_trace_point(void*, int, unsigned long)
+CALLED /var/coverage/bin/powertop pevent_data_type
+CALLED /var/coverage/bin/powertop abstract_cpu::freq_updated(unsigned long)
+CALLED /var/coverage/bin/powertop abstract_cpu::calculate_freq(unsigned long)
+CALLED /var/coverage/bin/powertop cpu_package::freq_updated(unsigned long)
+CALLED /var/coverage/bin/powertop abstract_cpu::change_effective_frequency(unsigned long, unsigned long)
+CALLED /var/coverage/bin/powertop abstract_cpu::validate()
+CALLED /var/coverage/bin/powertop clear_processes()
+CALLED /var/coverage/bin/powertop clear_interrupts()
+CALLED /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_erase(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, __gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop clear_consumers() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::vector<int, std::allocator<int> >::_M_fill_append(unsigned long, int const&)
+CALLED /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_fill_append(unsigned long, power_consumer* const&) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop perf_process_bundle::handle_trace_point(void*, int, unsigned long)
+CALLED /var/coverage/bin/powertop pevent_get_common_field_val.constprop.0
+CALLED /var/coverage/bin/powertop current_consumer(unsigned int)
+CALLED /var/coverage/bin/powertop std::vector<std::vector<power_consumer*, std::allocator<power_consumer*> >, std::allocator<std::vector<power_consumer*, std::allocator<power_consumer*> > > >::_M_default_append(unsigned long) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop find_create_process(char const*, int)
+CALLED /var/coverage/bin/powertop process::process(char const*, int, int) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop consumer_depth(unsigned int)
+CALLED /var/coverage/bin/powertop push_consumer(unsigned int, power_consumer*)
+CALLED /var/coverage/bin/powertop void std::vector<power_consumer*, std::allocator<power_consumer*> >::_M_realloc_append<power_consumer* const&>(power_consumer* const&)
+CALLED /var/coverage/bin/powertop change_blame(unsigned int, power_consumer*, int)
+CALLED /var/coverage/bin/powertop consume_blame(unsigned int)
+CALLED /var/coverage/bin/powertop pop_consumer(unsigned int)
+CALLED /var/coverage/bin/powertop find_create_interrupt(char const*, int, int)
+CALLED /var/coverage/bin/powertop process::name()
+CALLED /var/coverage/bin/powertop consumer_child_time(unsigned int, unsigned long)
+CALLED /var/coverage/bin/powertop find_create_timer(unsigned long)
+CALLED /var/coverage/bin/powertop kernel_function(unsigned long)
+CALLED /var/coverage/bin/powertop read_kallsyms()
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned long const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<unsigned long const&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_get_insert_unique_pos(unsigned long const&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop timer_is_deferred(char const*)
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<unsigned long const, timer*> > std::_Rb_tree<unsigned long, std::pair<unsigned long const, timer*>, std::_Select1st<std::pair<unsigned long const, timer*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, timer*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned long const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned long const, timer*> >, std::piecewise_construct_t const&, std::tuple<unsigned long const&>&&, std::tuple<>&&) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, timer*>, std::_Select1st<std::pair<unsigned long const, timer*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, timer*> > >::_M_get_insert_unique_pos(unsigned long const&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::map<unsigned long, unsigned long, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::operator[](unsigned long const&)
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<unsigned long const, unsigned long> > std::_Rb_tree<unsigned long, std::pair<unsigned long const, unsigned long>, std::_Select1st<std::pair<unsigned long const, unsigned long> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned long const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned long const, unsigned long> >, std::piecewise_construct_t const&, std::tuple<unsigned long const&>&&, std::tuple<>&&) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, unsigned long>, std::_Select1st<std::pair<unsigned long const, unsigned long> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::_M_get_insert_unique_pos(unsigned long const&) [clone .isra.0]
+CALLED /var/coverage/bin/powertop timer::done(unsigned long, unsigned long)
+CALLED /var/coverage/bin/powertop set_wakeup_pending(unsigned int)
+CALLED /var/coverage/bin/powertop timer::name()
+CALLED /var/coverage/bin/powertop interrupt::name()
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<unsigned long const, work*> > std::_Rb_tree<unsigned long, std::pair<unsigned long const, work*>, std::_Select1st<std::pair<unsigned long const, work*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, work*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<unsigned long const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<unsigned long const, work*> >, std::piecewise_construct_t const&, std::tuple<unsigned long const&>&&, std::tuple<>&&) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, work*>, std::_Select1st<std::pair<unsigned long const, work*> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, work*> > >::_M_get_insert_unique_pos(unsigned long const&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop work::fire(unsigned long, unsigned long)
+CALLED /var/coverage/bin/powertop work::done(unsigned long, unsigned long)
+CALLED /var/coverage/bin/powertop perf_bundle::clear()
+CALLED /var/coverage/bin/powertop usbdevice::power_usage(result_bundle*, parameter_bundle*)
+CALLED /var/coverage/bin/powertop usbdevice::grouping_prio()
+CALLED /var/coverage/bin/powertop device_consumer::show_events()
+CALLED /var/coverage/bin/powertop network::power_usage(result_bundle*, parameter_bundle*)
+CALLED /var/coverage/bin/powertop utilization_power_valid(int)
+CALLED /var/coverage/bin/powertop backlight::grouping_prio()
+CALLED /var/coverage/bin/powertop runtime_pmdevice::power_usage(result_bundle*, parameter_bundle*)
+CALLED /var/coverage/bin/powertop power_consumer::show_events()
+CALLED /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, long, bool (*)(power_consumer*, power_consumer*)>(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, __gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, long, bool (*)(power_consumer*, power_consumer*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop power_cpu_sort(power_consumer*, power_consumer*) [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop power_consumer::Witts()
+CALLED /var/coverage/bin/powertop void std::__final_insertion_sort<__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, bool (*)(power_consumer*, power_consumer*)>(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, __gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, bool (*)(power_consumer*, power_consumer*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, bool (*)(power_consumer*, power_consumer*)>(__gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, __gnu_cxx::__normal_iterator<power_consumer**, std::vector<power_consumer*, std::allocator<power_consumer*> > >, bool (*)(power_consumer*, power_consumer*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop global_power_valid()
+CALLED /var/coverage/bin/powertop get_ncurses_win(char const*)
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_get_insert_hint_unique_pos(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_get_insert_unique_pos(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop report_summary()
+CALLED /var/coverage/bin/powertop double_to_string[abi:cxx11](double)
+CALLED /var/coverage/bin/powertop total_cpu_time()
+CALLED /var/coverage/bin/powertop format_watts(double, char*, unsigned int)
+CALLED /var/coverage/bin/powertop fmt_prefix(double, char*)
+CALLED /var/coverage/bin/powertop align_string(char*, unsigned long, unsigned long)
+CALLED /var/coverage/bin/powertop timer::type()
+CALLED /var/coverage/bin/powertop interrupt::usage_units_summary()
+CALLED /var/coverage/bin/powertop timer::usage_summary()
+CALLED /var/coverage/bin/powertop timer::description()
+CALLED /var/coverage/bin/powertop work::type()
+CALLED /var/coverage/bin/powertop work::usage_summary()
+CALLED /var/coverage/bin/powertop work::description()
+CALLED /var/coverage/bin/powertop process::type()
+CALLED /var/coverage/bin/powertop process::usage_summary()
+CALLED /var/coverage/bin/powertop process::description()
+CALLED /var/coverage/bin/powertop interrupt::type()
+CALLED /var/coverage/bin/powertop interrupt::usage_summary()
+CALLED /var/coverage/bin/powertop interrupt::description()
+CALLED /var/coverage/bin/powertop report_maker::add_title(tag_attr*, char const*) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop report_maker::add_table(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, table_attributes*) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop impl_w_display_cpu_states(int)
+CALLED /var/coverage/bin/powertop get_cstates_num()
+CALLED /var/coverage/bin/powertop report_display_cpu_cstates()
+CALLED /var/coverage/bin/powertop abstract_cpu::has_cstate_level(int)
+CALLED /var/coverage/bin/powertop cpu_core::can_collapse()
+CALLED /var/coverage/bin/powertop report_display_cpu_pstates()
+CALLED /var/coverage/bin/powertop abstract_cpu::has_pstate_level(int)
+CALLED /var/coverage/bin/powertop cpu_core::fill_pstate_name(int, char*)
+CALLED /var/coverage/bin/powertop void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<true>(char const*, unsigned long)
+CALLED /var/coverage/bin/powertop cpu_package::fill_pstate_line(int, char*)
+CALLED /var/coverage/bin/powertop cpu_linux::fill_pstate_line(int, char*)
+CALLED /var/coverage/bin/powertop report_process_update_display()
+CALLED /var/coverage/bin/powertop device_consumer::type()
+CALLED /var/coverage/bin/powertop tuning_update_display()
+CALLED /var/coverage/bin/powertop end_process_data()
+CALLED /var/coverage/bin/powertop process::~process()
+CALLED /var/coverage/bin/powertop device_consumer::~device_consumer()
+CALLED /var/coverage/bin/powertop interrupt::~interrupt()
+CALLED /var/coverage/bin/powertop timer::~timer()
+CALLED /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, unsigned long>, std::_Select1st<std::pair<unsigned long const, unsigned long> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned long const, unsigned long> >*) [clone .isra.0]
+CALLED /var/coverage/bin/powertop work::~work()
+CALLED /var/coverage/bin/powertop compute_bundle(parameter_bundle*, result_bundle*) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop cpudevice::power_usage(result_bundle*, parameter_bundle*)
+CALLED /var/coverage/bin/powertop cpu_rapl_device::power_usage(result_bundle*, parameter_bundle*)
+CALLED /var/coverage/bin/powertop dram_rapl_device::power_usage(result_bundle*, parameter_bundle*)
+CALLED /var/coverage/bin/powertop show_report_devices()
+CALLED /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, long, bool (*)(device*, device*)>(__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, __gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, long, bool (*)(device*, device*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop power_device_sort(device*, device*)
+CALLED /var/coverage/bin/powertop runtime_pmdevice::power_valid()
+CALLED /var/coverage/bin/powertop runtime_pmdevice::utilization()
+CALLED /var/coverage/bin/powertop usbdevice::power_valid()
+CALLED /var/coverage/bin/powertop usbdevice::utilization()
+CALLED /var/coverage/bin/powertop alsa::power_valid()
+CALLED /var/coverage/bin/powertop alsa::utilization()
+CALLED /var/coverage/bin/powertop network::power_valid()
+CALLED /var/coverage/bin/powertop network::utilization()
+CALLED /var/coverage/bin/powertop void std::__final_insertion_sort<__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, bool (*)(device*, device*)>(__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, __gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, bool (*)(device*, device*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, bool (*)(device*, device*)>(__gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, __gnu_cxx::__normal_iterator<device**, std::vector<device*, std::allocator<device*> > >, bool (*)(device*, device*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop cpudevice::utilization()
+CALLED /var/coverage/bin/powertop device::util_units()
+CALLED /var/coverage/bin/powertop device::human_name()
+CALLED /var/coverage/bin/powertop runtime_pmdevice::human_name()
+CALLED /var/coverage/bin/powertop usbdevice::human_name()
+CALLED /var/coverage/bin/powertop alsa::human_name()
+CALLED /var/coverage/bin/powertop network::util_units()
+CALLED /var/coverage/bin/powertop network::human_name()
+CALLED /var/coverage/bin/powertop report_show_open_devices()
+CALLED /var/coverage/bin/powertop report_devices()
+CALLED /var/coverage/bin/powertop display_devfreq_devices()
+CALLED /var/coverage/bin/powertop init_report_output(char*, int)
+CALLED /var/coverage/bin/powertop report_formatter_string_base::add_exact(char const*)
+CALLED /var/coverage/bin/powertop system_info()
+CALLED /var/coverage/bin/powertop read_sysfs_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+CALLED /var/coverage/bin/powertop report_formatter_html::add_div(tag_attr*)
+CALLED /var/coverage/bin/powertop report_formatter_string_base::addf_exact(char const*, ...)
+CALLED /var/coverage/bin/powertop report_formatter_html::add_table(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, table_attributes*)
+CALLED /var/coverage/bin/powertop initialize_tuning()
+CALLED /var/coverage/bin/powertop create_tab(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, tab_window*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+CALLED /lib64/libncursesw.so.6 newpad
+CALLED /lib64/libncursesw.so.6 newpad_sp
+CALLED /var/coverage/bin/powertop std::_Rb_tree_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::piecewise_construct_t const&, std::tuple<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>&&, std::tuple<>&&) [clone .constprop.0] [clone .isra.0]
+CALLED /var/coverage/bin/powertop init_tuning() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop add_sysfs_tunable(char const*, char const*, char const*)
+CALLED /var/coverage/bin/powertop void std::vector<tunable*, std::allocator<tunable*> >::emplace_back<tunable*>(tunable*&&)
+CALLED /var/coverage/bin/powertop add_sata_tunables_callback(char const*)
+CALLED /var/coverage/bin/powertop add_usb_callback(char const*)
+CALLED /var/coverage/bin/powertop read_sysfs(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bool*)
+CALLED /var/coverage/bin/powertop tunable::tunable(char const*, double, char const*, char const*, char const*)
+CALLED /var/coverage/bin/powertop add_runtime_tunables(char const*) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop runtime_tunable::runtime_tunable(char const*, char const*, char const*, char const*) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop device_has_runtime_pm(char const*)
+CALLED /var/coverage/bin/powertop add_i2c_callback(char const*)
+CALLED /var/coverage/bin/powertop sort_tunables() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, long, bool (*)(tunable*, tunable*)>(__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, __gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, long, bool (*)(tunable*, tunable*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop tunables_sort(tunable*, tunable*)
+CALLED /var/coverage/bin/powertop sysfs_tunable::good_bad()
+CALLED /var/coverage/bin/powertop runtime_tunable::good_bad()
+CALLED /var/coverage/bin/powertop usb_tunable::good_bad()
+CALLED /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, bool (*)(tunable*, tunable*)>(__gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, __gnu_cxx::__normal_iterator<tunable**, std::vector<tunable*, std::allocator<tunable*> > >, bool (*)(tunable*, tunable*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop initialize_wakeup()
+CALLED /var/coverage/bin/powertop wakeup_eth_callback(char const*)
+CALLED /var/coverage/bin/powertop wakeup_usb_callback(char const*)
+CALLED /var/coverage/bin/powertop void std::vector<wakeup*, std::allocator<wakeup*> >::_M_realloc_append<wakeup*>(wakeup*&&) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop runtime_pmdevice::device_name()
+CALLED /var/coverage/bin/powertop void std::__adjust_heap<__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, long, void*, bool (*)(void*, void*)>(__gnu_cxx::__normal_iterator<void**, std::vector<void*, std::allocator<void*> > >, long, long, void*, bool (*)(void*, void*))
+CALLED /var/coverage/bin/powertop event_sort_function(void*, void*)
+CALLED /var/coverage/bin/powertop work::name()
+CALLED /var/coverage/bin/powertop report_formatter_html::add_summary_list(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >*, int)
+CALLED /var/coverage/bin/powertop void std::__introsort_loop<__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, long, bool (*)(devuser*, devuser*)>(__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, __gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, long, bool (*)(devuser*, devuser*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop void std::__insertion_sort<__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, bool (*)(devuser*, devuser*)>(__gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, __gnu_cxx::__normal_iterator<devuser**, std::vector<devuser*, std::allocator<devuser*> > >, bool (*)(devuser*, devuser*)) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop sysfs_tunable::toggle_script()
+CALLED /var/coverage/bin/powertop runtime_tunable::toggle_script()
+CALLED /var/coverage/bin/powertop usb_wakeup::wakeup_value()
+CALLED /var/coverage/bin/powertop clear_tuning()
+CALLED /var/coverage/bin/powertop sysfs_tunable::~sysfs_tunable()
+CALLED /var/coverage/bin/powertop runtime_tunable::~runtime_tunable()
+CALLED /var/coverage/bin/powertop usb_tunable::~usb_tunable()
+CALLED /var/coverage/bin/powertop i2c_tunable::~i2c_tunable()
+CALLED /var/coverage/bin/powertop save_all_results(char const*) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop save_parameters(char const*) [clone .constprop.0]
+CALLED /var/coverage/bin/powertop end_pci_access()
+CALLED /var/coverage/bin/powertop std::vector<devpower*, std::allocator<devpower*> >::~vector()
+CALLED /var/coverage/bin/powertop std::vector<devuser*, std::allocator<devuser*> >::~vector() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::~map() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >*) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, tab_window*, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::~map()
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, tab_window*> >*) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::~vector() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::map<unsigned long, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::~map() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::_Rb_tree<unsigned long, std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned long const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >*) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::vector<abstract_cpu*, std::allocator<abstract_cpu*> >::~vector()
+CALLED /var/coverage/bin/powertop abstract_cpu::~abstract_cpu()
+CALLED /var/coverage/bin/powertop std::vector<ahci*, std::allocator<ahci*> >::~vector()
+CALLED /var/coverage/bin/powertop std::vector<devfreq*, std::allocator<devfreq*> >::~vector()
+CALLED /var/coverage/bin/powertop std::vector<device*, std::allocator<device*> >::~vector() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, network*, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > >::~map()
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, network*> >*) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::vector<power_meter*, std::allocator<power_meter*> >::~vector() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::~map()
+CALLED /var/coverage/bin/powertop std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int>, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> > >::_M_erase(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, int> >*) [clone .isra.0]
+CALLED /var/coverage/bin/powertop std::vector<result_bundle*, std::allocator<result_bundle*> >::~vector()
+CALLED /var/coverage/bin/powertop result_bundle::~result_bundle()
+CALLED /var/coverage/bin/powertop parameter_bundle::~parameter_bundle()
+CALLED /var/coverage/bin/powertop std::vector<power_consumer*, std::allocator<power_consumer*> >::~vector() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::vector<int, std::allocator<int> >::~vector()
+CALLED /var/coverage/bin/powertop std::vector<std::vector<power_consumer*, std::allocator<power_consumer*> >, std::allocator<std::vector<power_consumer*, std::allocator<power_consumer*> > > >::~vector()
+CALLED /var/coverage/bin/powertop std::vector<interrupt*, std::allocator<interrupt*> >::~vector()
+CALLED /var/coverage/bin/powertop std::vector<process*, std::allocator<process*> >::~vector()
+CALLED /var/coverage/bin/powertop std::vector<device_consumer*, std::allocator<device_consumer*> >::~vector() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::map<unsigned long, unsigned long, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, unsigned long> > >::~map()
+CALLED /var/coverage/bin/powertop std::map<unsigned long, timer*, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, timer*> > >::~map() [clone .lto_priv.0]
+CALLED /var/coverage/bin/powertop std::map<unsigned long, work*, std::less<unsigned long>, std::allocator<std::pair<unsigned long const, work*> > >::~map()
+CALLED /var/coverage/bin/powertop report_maker::~report_maker()
+CALLED /var/coverage/bin/powertop report_formatter_html::~report_formatter_html()
+CALLED /var/coverage/bin/powertop std::vector<tunable*, std::allocator<tunable*> >::~vector()
+CALLED /var/coverage/bin/powertop std::vector<wakeup*, std::allocator<wakeup*> >::~vector()
+CALLED /lib64/libnl-genl-3.so.200 genl_unregister
+CALLED /lib64/libnl-3.so.200 nl_cache_mngt_unregister
+CALLED /lib64/libnl-genl-3.so.200 genl_unregister_family
