@@ -63,23 +63,42 @@ func FuncIsRelevant(name string) bool {
 	return true
 }
 
-// systemLibRe matches glibc/runtime/system libraries that are never useful
-// wildcard-trace targets: each carries thousands of symbols, so attaching
-// uprobes to all of them blows past attach timeouts and rarely yields
-// meaningful coverage for the target program. Shared between install-time
-// ldd-based enumeration (cmd) and runtime dlopen JIT discovery
-// (cmd/shim_binary), which both want the same "not worth it" list.
+// coreSystemLibRe matches glibc/ld.so-family runtime libraries: never a
+// useful trace target anywhere, at install time or runtime, since they
+// carry no application code. Shared between install-time ldd-based
+// enumeration (cmd) and runtime dlopen JIT discovery (cmd/shim_binary).
 //
 // libstdc\+\+ is matched as its own alternative, outside the shared trailing
 // \b: "+" is not a word character, so a \b immediately after it can never
 // match a following "." (both sides non-word) — under the combined pattern
 // this alternative could never actually match a real "libstdc++.so*" path.
-var systemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|libthread_db|ld-linux|libgcc_s|libglib|libgobject|libgthread|libgio|libcap|libattr|libpcre|libselinux|libmount|libblkid|libuuid|libpam|libaudit|libdbus|libsystemd|libudev|libresolv|libnsl|libutil|libcrypt|libanl)\b|libstdc\+\+`)
+var coreSystemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|libthread_db|ld-linux|libgcc_s|libresolv|libnsl|libutil|libcrypt|libanl)\b|libstdc\+\+`)
 
-// IsSystemLib reports whether path names a system/runtime library that
-// install-time enumeration and runtime dlopen discovery should both skip.
+// noisyDlopenLibRe matches additional libraries that carry thousands of
+// symbols and are common dlopen() targets (NSS/PAM/D-Bus modules, systemd,
+// SELinux, the glib/gobject stack, ...). These are only skipped for
+// *runtime* dlopen rediscovery, which just wants to avoid the attach-time
+// cost of wildcard-tracing something bulky and dynamically loaded — they
+// are NOT skipped at install time: a binary that directly links libselinux
+// or libsystemd (an ordinary ldd dependency) should still get those
+// functions statically enumerated and traced like any other dependency.
+var noisyDlopenLibRe = regexp.MustCompile(`(?i)(?:libglib|libgobject|libgthread|libgio|libcap|libattr|libpcre|libselinux|libmount|libblkid|libuuid|libpam|libaudit|libdbus|libsystemd|libudev)\b`)
+
+// IsSystemLib reports whether path names a glibc/ld.so-family library that
+// is never a useful trace target — used by install-time ldd-based
+// enumeration to skip pure runtime libraries while still tracing ordinary
+// application dependencies.
 func IsSystemLib(path string) bool {
-	return systemLibRe.MatchString(filepath.Base(path))
+	return coreSystemLibRe.MatchString(filepath.Base(path))
+}
+
+// IsNoisyDlopenLib reports whether path names a library that runtime dlopen
+// rediscovery should skip in addition to IsSystemLib: bulky, commonly
+// dlopen'd libraries that are worth tracing when directly linked (see
+// IsSystemLib) but not worth re-instrumenting every time they're dlopen'd.
+func IsNoisyDlopenLib(path string) bool {
+	base := filepath.Base(path)
+	return coreSystemLibRe.MatchString(base) || noisyDlopenLibRe.MatchString(base)
 }
 
 // writeJSON marshals v to path. An empty value (per isEmpty) deletes the file.

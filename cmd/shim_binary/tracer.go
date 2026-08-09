@@ -534,8 +534,8 @@ func (t *Tracer) handleDynamicLoad() {
 			continue
 		}
 
-		// Also skip system libraries to keep trace size reasonable
-		if funkutil.IsSystemLib(lib) {
+		// Also skip system/noisy dlopen libraries to keep trace size reasonable
+		if funkutil.IsNoisyDlopenLib(lib) {
 			continue
 		}
 
