@@ -1082,9 +1082,18 @@ func TestWriteFunctionsLog(t *testing.T) {
 }
 
 func TestTraceInline(t *testing.T) {
-	sh, err := exec.LookPath("sh")
-	if err != nil {
-		t.Skip("sh binary not found, skipping traceInline test")
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found, skipping traceInline test")
+	}
+
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int my_test_function() { return 42; }\nint main() { return my_test_function(); }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(tmp, "my_custom_test_binary")
+	if out, err := exec.Command("gcc", "-g", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile temporary binary: %v\n%s", err, out)
 	}
 
 	tmpLog := t.TempDir()
@@ -1100,7 +1109,7 @@ func TestTraceInline(t *testing.T) {
 	t.Setenv("FUNKOVERAGE_SHIM", trueBin)
 
 	filter, _ := NewFuncFilter("", "")
-	code, err := traceInline(sh, []string{"-c", "exit 0"}, true, filter)
+	code, err := traceInline(bin, []string{}, true, filter)
 	if err != nil {
 		t.Fatalf("traceInline error: %v", err)
 	}
