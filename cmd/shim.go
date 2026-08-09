@@ -123,11 +123,17 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 // setShimCaps grants the eBPF tracing capabilities the shim needs at runtime.
 // File capabilities are an xattr and are NOT preserved by io.Copy, so they
 // must be (re)applied to each installed shim copy after the copy completes.
+//
+// cap_sys_resource covers cilium/ebpf's rlimit.RemoveMemlock(): normally a
+// no-op on kernels with memcg-based BPF memory accounting (all supported
+// kernels here), but its own accounting-support probe can misfire under BPF
+// memory pressure and fall back to raising RLIMIT_MEMLOCK, which requires
+// this capability. Without it that fallback hard-fails the whole tracer.
 func setShimCaps(shimPath string) error {
-	caps := "cap_bpf,cap_perfmon,cap_dac_read_search+ep"
+	caps := "cap_bpf,cap_perfmon,cap_dac_read_search,cap_sys_resource+ep"
 	out, err := exec.Command("setcap", caps, shimPath).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("setcap %s %s: %w\n%s", caps, shimPath, err, out)
+		return fmt.Errorf("setcap %s %s: %w\n%s\nPATH=%s", caps, shimPath, err, out, os.Getenv("PATH"))
 	}
 	return nil
 }
