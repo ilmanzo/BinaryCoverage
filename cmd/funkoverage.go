@@ -35,7 +35,7 @@ func commands() map[string]command {
 		{"version", "print version", cmdVersion},
 		{"help", "print help", cmdHelp},
 	}
-	m := make(map[string]command, len(cmds)+4)
+	m := make(map[string]command, len(cmds)+16)
 	for _, c := range cmds {
 		m[c.name] = c
 	}
@@ -45,6 +45,16 @@ func commands() map[string]command {
 	m["--version"] = m["version"]
 	m["-v"] = m["version"]
 	m["-r"] = m["report"]
+	m["--report"] = m["report"]
+	m["-i"] = m["install"]
+	m["--install"] = m["install"]
+	m["-u"] = m["uninstall"]
+	m["--uninstall"] = m["uninstall"]
+	m["-t"] = m["trace"]
+	m["--trace"] = m["trace"]
+	m["-e"] = m["enumerate"]
+	m["--enumerate"] = m["enumerate"]
+	m["--setup"] = m["setup"]
 	return m
 }
 

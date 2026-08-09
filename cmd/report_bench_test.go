@@ -60,7 +60,7 @@ func BenchmarkScanLog(b *testing.B) {
 	dir := b.TempDir()
 	files := genBenchLogs(b, dir, 1, 20000, 1)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		coverage := make(map[string]*CoverageData)
 		if err := scanLog(files[0], "functions", coverage); err != nil {
 			b.Fatal(err)
@@ -72,7 +72,7 @@ func BenchmarkAnalyzeLogs(b *testing.B) {
 	dir := b.TempDir()
 	files := genBenchLogs(b, dir, 50, 500, 4)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := analyzeLogs(files); err != nil {
 			b.Fatal(err)
 		}
@@ -92,7 +92,7 @@ func BenchmarkGenerateHTMLReport(b *testing.B) {
 	}
 	outDir := b.TempDir()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for image, data := range coverage {
 			if err := generateHTMLReport(image, data, outDir); err != nil {
 				b.Fatal(err)
@@ -110,7 +110,7 @@ func BenchmarkGenerateXUnitReport(b *testing.B) {
 	}
 	outDir := b.TempDir()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for image, data := range coverage {
 			if err := generateXUnitReport(image, data, outDir); err != nil {
 				b.Fatal(err)
@@ -130,7 +130,7 @@ func BenchmarkEmitReportHTML(b *testing.B) {
 		b.Fatal(err)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		outDir := b.TempDir()
 		emitReport("html", coverage, outDir)
 	}
@@ -144,7 +144,7 @@ func BenchmarkEmitReportXML(b *testing.B) {
 		b.Fatal(err)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		outDir := b.TempDir()
 		emitReport("xml", coverage, outDir)
 	}
@@ -158,7 +158,7 @@ func BenchmarkEnumerateFunctions(b *testing.B) {
 		b.Skip("tests/sample/sample not built")
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if _, err := EnumerateFunctions(sample, false, nil); err != nil {
 			b.Fatal(err)
 		}

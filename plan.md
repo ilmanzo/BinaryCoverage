@@ -157,3 +157,37 @@ The following metrics are empirical test results verified directly on a standard
 * **Goal**: Completely eliminate running `/usr/bin/ldd` as an external subprocess.
 * **Approach**: Parse the target ELF binary headers directly in Go (using the standard `debug/elf` package) to locate dynamic table tags (`DT_NEEDED` entries) and manually resolve dynamic dependency paths.
 * **Benefit**: Removes fork-exec overhead, cuts down external system tool dependencies, and improves security compatibility on containerized/hardened environments.
+
+---
+
+## 6. Code Coverage Expansion & Command Aliases Plan
+
+### Part A: Command Aliases
+To improve CLI ergonomics and command flexibility, we will map short/flag-style aliases and GNU-long-style aliases to existing commands:
+- **`install`**: `-i`, `--install`
+- **`uninstall`**: `-u`, `--uninstall`
+- **`trace`**: `-t`, `--trace`
+- **`enumerate`**: `-e`, `--enumerate`
+- **`report`**: `--report` (in addition to `-r`)
+- **`setup`**: `--setup`
+
+### Part B: Test Coverage Expansion (Targeting 80%+)
+
+1. **`internal/funkutil` Coverage (Boost to ~100%)**
+   - Add `TestEnvOverrides` to cover `LogDir()` and `SafeBinDir()` behavior with env overrides.
+   - Add `TestFilterSidecarRoundtrip` to cover `FilterSidecarPath()`, `WriteFilterSidecar()`, and `ReadFilterSidecar()` JSON marshalling and unmarshalling.
+
+2. **`cmd/shim_binary` Coverage (Boost to 50%+)**
+   - Create `cmd/shim_binary/main_test.go` to test helper methods that are pure Go and do not require BPF/root:
+     - `envSafeName()`: Test string sanitization for active environment variable names.
+     - `cleanEnv()`: Test purging of transient shim/wait environment variables from a slice of env definitions.
+     - `calledLogPath()`: Test formatting and naming scheme of output called logs.
+     - `buildChildEnv()`: Test building of child environment vars with recursion guards and active prefixes.
+     - `realBinaryPath()`: Test resolution of original binary path via symlinks and `FUNKOVERAGE_BINARY_NAME` environments.
+
+3. **`cmd` CLI Coverage (Boost to 75%+)**
+   - **`trace.go`**: Add `TestTraceInline` mocking `FUNKOVERAGE_SHIM` with `/bin/true` to ensure the inline trace pipeline runs end-to-end against a real target binary (e.g. `/bin/sh`) and successfully generates the transient symlinks and sidecars without invoking real BPF logic.
+   - **`enumerate.go`**: Add `TestWriteFunctionsLog` to verify `writeFunctionsLog` correctly writes demangled entries as `# FUNC` records.
+   - **Subcommand execution**: Verify `cmdTrace`, `cmdEnumerate`, `cmdReport` directly by executing them with mock/valid arguments inside tests to assert usage parsing and error handling.
+   - **`elfutil.go`**: Add `TestMove` to cover cross-device and standard file moving.
+

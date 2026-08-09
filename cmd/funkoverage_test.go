@@ -1016,3 +1016,100 @@ func TestEmitReport(t *testing.T) {
 		t.Error("emitReport('txt') should print coverage")
 	}
 }
+
+func TestCommandAliases(t *testing.T) {
+	cmds := commands()
+	testCases := []struct {
+		alias string
+		want  string
+	}{
+		{"-i", "install"},
+		{"--install", "install"},
+		{"-u", "uninstall"},
+		{"--uninstall", "uninstall"},
+		{"-t", "trace"},
+		{"--trace", "trace"},
+		{"-e", "enumerate"},
+		{"--enumerate", "enumerate"},
+		{"--report", "report"},
+		{"--setup", "setup"},
+		{"-h", "help"},
+		{"--help", "help"},
+		{"-v", "version"},
+		{"--version", "version"},
+		{"-r", "report"},
+	}
+	for _, tc := range testCases {
+		cmd, ok := cmds[tc.alias]
+		if !ok {
+			t.Errorf("alias %q not registered", tc.alias)
+			continue
+		}
+		targetCmd, exists := cmds[tc.want]
+		if !exists {
+			t.Errorf("target command %q does not exist", tc.want)
+			continue
+		}
+		if cmd.name != targetCmd.name {
+			t.Errorf("alias %q resolves to command name %s, want %s", tc.alias, cmd.name, targetCmd.name)
+		}
+	}
+}
+
+func TestWriteFunctionsLog(t *testing.T) {
+	tmp := t.TempDir()
+	funcs := map[string][]string{
+		"/bin/test": {"main", "foo_bar"},
+	}
+	path, err := writeFunctionsLog(tmp, "testbin", funcs)
+	if err != nil {
+		t.Fatalf("writeFunctionsLog failed: %v", err)
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("functions log file should exist: %v", err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile functions log: %v", err)
+	}
+
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "FUNC /bin/test main") || !strings.Contains(contentStr, "FUNC /bin/test foo_bar") {
+		t.Errorf("functions log has unexpected content: %s", contentStr)
+	}
+}
+
+func TestTraceInline(t *testing.T) {
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("sh binary not found, skipping traceInline test")
+	}
+
+	tmpLog := t.TempDir()
+	tmpSafe := t.TempDir()
+
+	t.Setenv("LOG_DIR", tmpLog)
+	t.Setenv("SAFE_BIN_DIR", tmpSafe)
+
+	trueBin, err := exec.LookPath("true")
+	if err != nil {
+		t.Skip("true binary not found, skipping traceInline test")
+	}
+	t.Setenv("FUNKOVERAGE_SHIM", trueBin)
+
+	filter, _ := NewFuncFilter("", "")
+	code, err := traceInline(sh, []string{"-c", "exit 0"}, true, filter)
+	if err != nil {
+		t.Fatalf("traceInline error: %v", err)
+	}
+	if code != 0 {
+		t.Errorf("traceInline code = %d, want 0", code)
+	}
+
+	files, _ := filepath.Glob(filepath.Join(tmpLog, "*_functions.log"))
+	if len(files) == 0 {
+		t.Error("expected functions log to be written in LOG_DIR")
+	}
+}
