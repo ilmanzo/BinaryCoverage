@@ -82,10 +82,46 @@ func TestIsSystemLib(t *testing.T) {
 		{"/opt/myapp/libplugin.so", false},
 		{"./libplugin.so", false},
 		{"/usr/lib64/libcustomthing.so.1", false},
+		// Direct ldd dependencies of these are ordinary, meaningful trace
+		// targets at install time — only IsNoisyDlopenLib skips them.
+		{"/usr/lib64/libselinux.so.1", false},
+		{"/usr/lib64/libsystemd.so.0", false},
+		{"/usr/lib64/libpam.so.0", false},
 	}
 	for _, c := range cases {
 		if got := IsSystemLib(c.path); got != c.want {
 			t.Errorf("IsSystemLib(%q) = %v, want %v", c.path, got, c.want)
+		}
+	}
+}
+
+func TestIsNoisyDlopenLib(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		// Everything IsSystemLib already covers must still be skipped.
+		{"/lib64/libc.so.6", true},
+		{"/lib64/libstdc++.so.6", true},
+		// Plus the bulky/common dlopen targets install-time no longer skips.
+		{"/usr/lib64/libselinux.so.1", true},
+		{"/usr/lib64/libsystemd.so.0", true},
+		{"/usr/lib64/libpam.so.0", true},
+		{"/usr/lib64/libaudit.so.1", true},
+		{"/usr/lib64/libdbus-1.so.3", true},
+		{"/usr/lib64/libudev.so.1", true},
+		{"/usr/lib64/libmount.so.1", true},
+		{"/usr/lib64/libblkid.so.1", true},
+		{"/usr/lib64/libuuid.so.1", true},
+		{"/usr/lib64/libglib-2.0.so.0", true},
+		// Ordinary application libraries are still traced.
+		{"/usr/lib64/libssl.so.3", false},
+		{"/usr/lib64/libcurl.so.4", false},
+		{"/opt/myapp/libplugin.so", false},
+	}
+	for _, c := range cases {
+		if got := IsNoisyDlopenLib(c.path); got != c.want {
+			t.Errorf("IsNoisyDlopenLib(%q) = %v, want %v", c.path, got, c.want)
 		}
 	}
 }
