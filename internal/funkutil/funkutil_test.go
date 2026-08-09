@@ -1,6 +1,10 @@
 package funkutil
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestEnvOr(t *testing.T) {
 	t.Setenv("FUNKUTIL_TEST_X", "value")
@@ -123,5 +127,69 @@ func TestIsNoisyDlopenLib(t *testing.T) {
 		if got := IsNoisyDlopenLib(c.path); got != c.want {
 			t.Errorf("IsNoisyDlopenLib(%q) = %v, want %v", c.path, got, c.want)
 		}
+	}
+}
+
+func TestEnvOverrides(t *testing.T) {
+	origLogDir := os.Getenv("LOG_DIR")
+	origSafeBinDir := os.Getenv("SAFE_BIN_DIR")
+	defer func() {
+		t.Setenv("LOG_DIR", origLogDir)
+		t.Setenv("SAFE_BIN_DIR", origSafeBinDir)
+	}()
+
+	t.Setenv("LOG_DIR", "/custom/log/dir")
+	if got := LogDir(); got != "/custom/log/dir" {
+		t.Errorf("LogDir() with env: got %q, want %q", got, "/custom/log/dir")
+	}
+
+	t.Setenv("SAFE_BIN_DIR", "/custom/safe/bin")
+	if got := SafeBinDir(); got != "/custom/safe/bin" {
+		t.Errorf("SafeBinDir() with env: got %q, want %q", got, "/custom/safe/bin")
+	}
+
+	os.Unsetenv("LOG_DIR")
+	if got := LogDir(); got != DefaultLogDir {
+		t.Errorf("LogDir() unset: got %q, want %q", got, DefaultLogDir)
+	}
+
+	os.Unsetenv("SAFE_BIN_DIR")
+	if got := SafeBinDir(); got != DefaultSafeBinDir {
+		t.Errorf("SafeBinDir() unset: got %q, want %q", got, DefaultSafeBinDir)
+	}
+}
+
+func TestFilterSidecarRoundtrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	safePath := filepath.Join(tmpDir, "testbin")
+
+	// Missing file should return zero-value filter sidecar without error
+	got := ReadFilterSidecar(safePath)
+	if got.Include != "" || got.Exclude != "" {
+		t.Errorf("ReadFilterSidecar non-existent: got %+v, want empty", got)
+	}
+
+	// Write and read roundtrip
+	filter := FilterSidecar{
+		Include: "^plugin_",
+		Exclude: "^internal_",
+	}
+	if err := WriteFilterSidecar(safePath, filter); err != nil {
+		t.Fatalf("WriteFilterSidecar: %v", err)
+	}
+
+	got = ReadFilterSidecar(safePath)
+	if got.Include != "^plugin_" || got.Exclude != "^internal_" {
+		t.Errorf("ReadFilterSidecar roundtrip: got %+v, want %+v", got, filter)
+	}
+
+	// Empty patterns should delete the sidecar file
+	emptyFilter := FilterSidecar{Include: "", Exclude: ""}
+	if err := WriteFilterSidecar(safePath, emptyFilter); err != nil {
+		t.Fatalf("WriteFilterSidecar empty: %v", err)
+	}
+
+	if _, err := os.Stat(FilterSidecarPath(safePath)); !os.IsNotExist(err) {
+		t.Errorf("expected filter sidecar file to be deleted")
 	}
 }
