@@ -72,14 +72,8 @@ func hasDebugInfo(path string) (bool, error) {
 		}
 	}
 
-	buildID, err := getBuildID(f)
-	if err == nil && len(buildID) > 2 {
-		debugPath := buildIDDebugPath(buildID)
-		if _, err := os.Stat(debugPath); err == nil {
-			return true, nil
-		}
-	}
-
+	// externalDebugPath's first step is the same .build-id lookup, so a
+	// separate check here would only ever duplicate it.
 	if debugPath := externalDebugPath(path); debugPath != "" {
 		return true, nil
 	}
