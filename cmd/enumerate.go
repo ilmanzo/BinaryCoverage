@@ -200,52 +200,15 @@ func hasEmbeddedDebugInfo(f *elf.File) bool {
 }
 
 // externalDebugPath returns the path to an external .debug file, or "".
-// Tries: .build-id layout, then .gnu_debuglink (standard GNU separate-debug
-// convention), then .gnu_debugaltlink (dwz-compressed).
+// Thin wrapper over resolveDebugFile (cmd/elfutil.go), which also backs the
+// install-time merge path — enumeration wants a candidate even when the
+// binary already carries embedded debug sections, so skipIfEmbedded is
+// false, and any elf.Open error degrades to "" (no candidate) rather than
+// propagating, matching this function's pre-existing (string, no error)
+// signature.
 func externalDebugPath(binPath string) string {
-	f, err := elf.Open(binPath)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-
-	// Try .build-id path
-	buildID, err := getBuildID(f)
-	if err == nil && len(buildID) > 2 {
-		p := buildIDDebugPath(buildID)
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-
-	// Try .gnu_debuglink: <debugRoot>/<canonical-dir-of-binary>/<name>
-	if linkPath := debugLinkPath(binPath, readGnuDebugLink(f)); linkPath != "" {
-		if _, err := os.Stat(linkPath); err == nil {
-			return linkPath
-		}
-	}
-
-	// Try .gnu_debugaltlink (dwz-compressed debug)
-	if altPath := readGnuDebugAltLink(f); altPath != "" {
-		// Try direct path from section
-		if _, err := os.Stat(altPath); err == nil {
-			return altPath
-		}
-		// Try relative to /usr/lib/debug
-		relPath := filepath.Join("/usr/lib/debug", altPath)
-		if _, err := os.Stat(relPath); err == nil {
-			return relPath
-		}
-		// Try /usr/lib/debug/.dwz/<basename>
-		if base := filepath.Base(altPath); base != altPath {
-			dwzPath := filepath.Join("/usr/lib/debug/.dwz", base)
-			if _, err := os.Stat(dwzPath); err == nil {
-				return dwzPath
-			}
-		}
-	}
-
-	return ""
+	path, _ := resolveDebugFile(binPath, binPath, false)
+	return path
 }
 
 func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error) {

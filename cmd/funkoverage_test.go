@@ -323,6 +323,58 @@ func TestExternalDebugPath_IgnoresDwzFile(t *testing.T) {
 	}
 }
 
+// TestResolveDebugFile_SkipIfEmbedded verifies the one behavioral
+// difference between the two resolveDebugFile callers: locateExternalDebugForMerge
+// (skipIfEmbedded=true) has nothing useful to merge into a binary that
+// already carries embedded DWARF, so it returns "". externalDebugPath
+// (skipIfEmbedded=false) still returns a matching external candidate
+// regardless — enumeration wants it as a fallback candidate even when
+// static enumeration might succeed via the binary's own DWARF instead.
+func TestResolveDebugFile_SkipIfEmbedded(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+	orig := globalDebugRoot
+	globalDebugRoot = tmp
+	defer func() { globalDebugRoot = orig }()
+
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// -g and no strip: bin keeps its own embedded DWARF (.debug_info etc.).
+	bin := filepath.Join(tmp, "embedded")
+	if out, err := exec.Command("gcc", "-g", "-Wl,--build-id", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	f, err := elf.Open(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildID, err := getBuildID(f)
+	f.Close()
+	if err != nil {
+		t.Fatalf("get build id: %v", err)
+	}
+
+	dir := filepath.Join(tmp, ".build-id", buildID[:2])
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	debugFile := filepath.Join(dir, buildID[2:]+".debug")
+	if err := os.WriteFile(debugFile, []byte("dummy debug info"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, err := locateExternalDebugForMerge(bin, bin); err != nil || got != "" {
+		t.Errorf("locateExternalDebugForMerge(embedded DWARF) = (%q, %v), want (\"\", nil)", got, err)
+	}
+	if got := externalDebugPath(bin); got != debugFile {
+		t.Errorf("externalDebugPath(embedded DWARF) = %q, want %q", got, debugFile)
+	}
+}
+
 // --- mergeLibraryDebugInfo / restoreLibraryBackups tests ---
 
 // TestMergeLibraryDebugInfo verifies that a library gets its external debug

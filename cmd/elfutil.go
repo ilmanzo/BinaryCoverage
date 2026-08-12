@@ -172,15 +172,30 @@ func restoreLibraryBackups(safePath string) {
 // into binPath, or "" if the binary already has embedded debug info or no
 // external file is found.
 func locateExternalDebugForMerge(binPath, origPath string) (string, error) {
+	return resolveDebugFile(binPath, origPath, true)
+}
+
+// resolveDebugFile returns the external debug file for binPath, or "".
+// origPath is binPath's original absolute location (equal to binPath unless
+// the binary has already been moved to SAFE_BIN_DIR) — .gnu_debuglink
+// resolves relative to it. When skipIfEmbedded is set, a binary that already
+// carries .debug_* sections resolves to "" (nothing to merge; used by the
+// merge path, not by enumeration's externalDebugPath, which wants a
+// candidate regardless). Tries, in order: .build-id, .gnu_debuglink (the
+// standard GNU separate-debug convention), then .gnu_debugaltlink
+// (dwz-compressed).
+func resolveDebugFile(binPath, origPath string, skipIfEmbedded bool) (string, error) {
 	f, err := elf.Open(binPath)
 	if err != nil {
 		return "", fmt.Errorf("open elf: %w", err)
 	}
 	defer f.Close()
 
-	for _, s := range f.Sections {
-		if (strings.HasPrefix(s.Name, ".debug_") || strings.HasPrefix(s.Name, ".zdebug_")) && s.Size > 0 {
-			return "", nil
+	if skipIfEmbedded {
+		for _, s := range f.Sections {
+			if (strings.HasPrefix(s.Name, ".debug_") || strings.HasPrefix(s.Name, ".zdebug_")) && s.Size > 0 {
+				return "", nil
+			}
 		}
 	}
 
