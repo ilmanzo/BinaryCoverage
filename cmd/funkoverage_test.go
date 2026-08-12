@@ -132,6 +132,38 @@ func TestFindDebugFile(t *testing.T) {
 	if got := findDebugFile(filepath.Join(tmp, "nonexistent.debug")); got != "" {
 		t.Errorf("findDebugFile(missing) = %q, want empty", got)
 	}
+
+	// Both the globalDebugRoot-relative and globalDebugRoot/.dwz/<basename>
+	// branches must honor globalDebugRoot, not a hardcoded /usr/lib/debug —
+	// otherwise they're untestable and inconsistent with every other
+	// resolver in this file, which all respect the override.
+	orig := globalDebugRoot
+	globalDebugRoot = filepath.Join(tmp, "debugroot")
+	defer func() { globalDebugRoot = orig }()
+
+	altPath := "/some/alt/path.debug"
+	relPath := filepath.Join(globalDebugRoot, altPath)
+	if err := os.MkdirAll(filepath.Dir(relPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(relPath, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := findDebugFile(altPath); got != relPath {
+		t.Errorf("findDebugFile(globalDebugRoot-relative) = %q, want %q", got, relPath)
+	}
+
+	dwzAltPath := "/another/alt/pkg-1.2.3.x86_64"
+	dwzPath := filepath.Join(globalDebugRoot, ".dwz", filepath.Base(dwzAltPath))
+	if err := os.MkdirAll(filepath.Dir(dwzPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dwzPath, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := findDebugFile(dwzAltPath); got != dwzPath {
+		t.Errorf("findDebugFile(globalDebugRoot/.dwz) = %q, want %q", got, dwzPath)
+	}
 }
 
 // --- locateExternalDebugForMerge tests ---

@@ -269,14 +269,14 @@ func findDebugFile(altPath string) string {
 	if _, err := os.Stat(altPath); err == nil {
 		return altPath
 	}
-	// Try relative to /usr/lib/debug
-	relPath := filepath.Join("/usr/lib/debug", altPath)
+	// Try relative to globalDebugRoot
+	relPath := filepath.Join(globalDebugRoot, altPath)
 	if _, err := os.Stat(relPath); err == nil {
 		return relPath
 	}
-	// Try /usr/lib/debug/.dwz/<basename>
+	// Try globalDebugRoot/.dwz/<basename>
 	if base := filepath.Base(altPath); base != altPath {
-		dwzPath := filepath.Join("/usr/lib/debug/.dwz", base)
+		dwzPath := filepath.Join(globalDebugRoot, ".dwz", base)
 		if _, err := os.Stat(dwzPath); err == nil {
 			return dwzPath
 		}
