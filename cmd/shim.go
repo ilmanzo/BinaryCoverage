@@ -62,7 +62,6 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 	if err != nil {
 		return fmt.Errorf("stat original binary: %w", err)
 	}
-	origMode := origInfo.Mode().Perm()
 
 	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
 		return err
@@ -114,7 +113,7 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		return fmt.Errorf("write func list sidecar: %w", err)
 	}
 
-	if err := copyFile(shimBinary, realTarget, origMode); err != nil {
+	if err := copyFile(shimBinary, realTarget, origInfo); err != nil {
 		return fmt.Errorf("install shim binary: %w", err)
 	}
 
@@ -303,13 +302,24 @@ func shimSearchPaths() []string {
 	return paths
 }
 
-func copyFile(src, dst string, perm os.FileMode) error {
+// copyFile copies src's bytes to dst, applying info's mode (including any
+// setuid/setgid/sticky bits) and, best-effort, its owner/group — so a
+// shimmed binary keeps the exact privilege semantics of the file it
+// replaces. info describes the metadata to apply to dst, independent of
+// src's own metadata: the shim-install call site copies bytes from the
+// generic shim binary but wears the original target's mode/owner.
+func copyFile(src, dst string, info os.FileInfo) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	mode := info.Mode() & preservedModeBits
+	// Create with the plain permission bits only — setuid/setgid go on in
+	// the final Chmod below. chown (like write) clears any setuid/setgid
+	// bit already present, so applying ownership before the create mode
+	// could stick would be immediately undone.
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode.Perm())
 	if err != nil {
 		return err
 	}
@@ -319,5 +329,6 @@ func copyFile(src, dst string, perm os.FileMode) error {
 		os.Remove(dst)
 		return err
 	}
-	return os.Chmod(dst, perm)
+	chownLike(dst, info)
+	return os.Chmod(dst, mode)
 }

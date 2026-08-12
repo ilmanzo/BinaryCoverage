@@ -144,12 +144,17 @@ go test ./cmd/ -run Interspersed -v
 
 ---
 
-### B2 — install/uninstall silently rewrites the original binary's file mode  **[e2e]**
+### B2 — install/uninstall must fully preserve the original binary's mode AND ownership  **[e2e]**
 
-**Severity: high (permanent, silent modification of system files).**
+**Severity: high. Scope expanded from the initial audit — see "Design decision" below.
+Maintainer's requirement: "after the installation and after uninstall nothing must
+change on the original binary except for instrumentation wrapping." That means mode
+*and* owner:group must be exactly restored, not just approximately close.**
 
-`unstrip` unconditionally `os.Chmod(out, 0755)` on the merged output. Verified
-locally:
+Two independent gaps, both in the same area:
+
+**Gap 1 — mode.** `unstrip` unconditionally `os.Chmod(out, 0755)` on the merged
+output. Verified locally:
 
 ```
 -r-sr-xr-x  a          # setuid 4555 original
@@ -163,15 +168,109 @@ Consequences:
 2. `mergeLibraryDebugInfo` runs `unstrip` on system `.so` files (normally 0644),
    flipping them to 0755 for the lifetime of the install. `rpm -V` flags them.
 
-Not a privilege-escalation path (`copyFile(shimBinary, realTarget, origMode)` uses
-`Mode().Perm()`, which strips setuid, so the *shim* never inherits it) — but it is
-silent, permanent corruption of system state.
+**Gap 2 — mode AND ownership on the shim copy itself.** The file placed at the
+*original* binary's path (the one users actually invoke) is `copyFile(shimBinary,
+realTarget, origMode)`, where `origMode = origInfo.Mode().Perm()` — permission bits
+only, setuid/setgid/sticky stripped, and ownership never touched (so it ends up
+owned by whichever uid ran `install`, i.e. root). A shimmed setuid or setgid binary
+(a deployment tool granted elevated rights, a service binary relying on a
+group-writable setgid mode, ...) silently loses that behavior the instant it's
+shimmed — the shim runs as the *invoking* user with root's ownership, not the file's
+original owner, so whatever the setuid/setgid bit existed to do stops working. This
+is a functional break in the wrapped program, not just a coverage or `rpm -V`
+cosmetic issue.
 
-**Files:** `cmd/elfutil.go`
+**Design decision, reversing this doc's original reasoning for Gap 2:** the first
+draft of this item argued dropping setuid on the shim was *safe* ("not a
+privilege-escalation path... the shim never inherits it"). That was evaluated purely
+from a security angle and missed the functional-fidelity requirement above:
+transparently wrapping a binary must not change its privilege model or ownership, or
+the wrapped program breaks. The fix is to give the shim copy the exact same mode
+*and* owner:group as the original — the shim becomes the new privileged entry point,
+exactly as the original binary was, and hands off (via `syscall.Exec`) to the real
+binary at `SAFE_BIN_DIR`, which needs that same fidelity for its own execve-time
+privilege grant to work.
 
-**Change:** in `unstrip`, stat `binPath` first and restore its full mode, including
-the setuid/setgid/sticky bits (`Mode().Perm()` alone drops them; `os.Chmod` maps
-`os.ModeSetuid` etc. to the right syscall bits).
+**Security note to carry forward, not a blocker for this fix:** this means
+`funkoverage-shim` itself must be trusted to run with the original binary's
+privileges when invoked by an unprivileged user, for the (brief) window before it
+execs the real binary. That is inherent to any transparent wrapper of a
+setuid/setgid binary — it is not a new risk introduced by this fix, since silently
+dropping the bit instead breaks the tool's basic transparency guarantee.
+
+**Gap 3 — merging library debug info destroys SONAME symlinks.** Found live while
+running the Phase 0 baseline sweep on the VM: `test_gmp.sh` left
+`/usr/lib64/libgmp.so.10` as a **plain regular file** instead of the symlink it's
+packaged as (confirmed via `zypper install --force libgmp10`, which restored
+`libgmp.so.10 -> libgmp.so.10.5.0`). Root cause: `ldd` reports a library's SONAME
+path as-is (e.g. `/lib64/libgmp.so.10`), not further-resolved past that symlink, and
+`ParseLddLibraries` passes that path straight through as the map key
+`mergeLibraryDebugInfo` operates on. `unstrip`'s final `move(out, binPath)` and
+`restoreLibraryBackups`'s `move(backupPath, lib)` are both `os.Rename` onto that
+literal path — `rename(2)` targeting a symlink replaces *the symlink itself*, not
+its target, so the SONAME symlink is silently replaced by a regular-file copy on
+first merge and never comes back on uninstall. Content is byte-identical (so the
+library still works and no existing assertion caught it), but this is exactly the
+"nothing must change except the wrapping" defect, for merged libraries instead of
+the main binary.
+
+**Change:** in `mergeLibraryDebugInfo` (`cmd/elfutil.go`), resolve `lib` via
+`filepath.EvalSymlinks` to its real underlying file **before** doing anything else,
+and do the backup/unstrip against that resolved path — key the returned `backups`
+map by the resolved path too, so `restoreLibraryBackups`'s `move` also targets the
+real file and never touches the symlink. A no-op for libraries that are already
+plain files (the common case), so this changes nothing for anything but SONAME
+symlinks:
+
+```go
+for lib := range funcs {
+	if lib == mainImage {
+		continue
+	}
+	realLib, err := filepath.EvalSymlinks(lib)
+	if err != nil {
+		continue
+	}
+	debugPath, err := locateExternalDebugForMerge(realLib, realLib)
+	...
+	// backup/unstrip/backups[...] all keyed on realLib, not lib
+}
+```
+
+**Test:** fixture where `lib` is a symlink to a separate real `.so` file with
+external debug info; assert after merge+restore the symlink is still a symlink
+(`os.Lstat` + `os.Readlink`, not `os.Stat`) pointing at the same target.
+
+**Files:** `cmd/elfutil.go`, `cmd/shim.go`
+
+**Change:**
+
+Add a shared mask and a best-effort chown helper in `cmd/elfutil.go` (needs a new
+`"syscall"` import):
+
+```go
+// preservedModeBits are the mode bits that must survive a merge/copy/move so a
+// shimmed binary's original privilege semantics (setuid tools, a group-writable
+// setgid service binary, ...) keep working exactly as before instrumentation —
+// losing them silently breaks the wrapped program's functionality, not just its
+// coverage numbers.
+const preservedModeBits = os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky
+
+// chownLike applies path's owner/group to match info, best-effort: requires
+// root/CAP_CHOWN, and a failure (e.g. a non-root test run) must not be fatal —
+// mode is what governs exec/setuid semantics, ownership is secondary fidelity
+// (ls -l, rpm -V, and the maintainer's "nothing changes but the wrapping"
+// requirement).
+func chownLike(path string, info os.FileInfo) {
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		_ = os.Chown(path, int(stat.Uid), int(stat.Gid))
+	}
+}
+```
+
+In `unstrip`: stat `binPath` first (before `eu-unstrip` runs), then apply
+`preservedModeBits` + `chownLike` to the merged output before `move`ing it into
+place.
 
 ```go
 info, err := os.Stat(binPath)
@@ -179,28 +278,77 @@ if err != nil {
 	return fmt.Errorf("stat %s: %w", binPath, err)
 }
 ...
-mode := info.Mode() & (os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
-if err := os.Chmod(out, mode); err != nil { ... }
+if err := os.Chmod(out, info.Mode()&preservedModeBits); err != nil {
+	os.Remove(out)
+	return fmt.Errorf("chmod merged binary: %w", err)
+}
+chownLike(out, info)
+return move(out, binPath)
 ```
 
-Also widen the backup copy in `mergeLibraryDebugInfo` (`cmd/elfutil.go:116`) to use
-the same mask instead of `info.Mode().Perm()`, so restore is byte-and-mode exact.
+In `mergeLibraryDebugInfo` (`cmd/elfutil.go:116`): pass the already-captured
+`os.FileInfo` straight through to `copyFile` instead of narrowing it to
+`info.Mode().Perm()`.
 
-**Tests:** unit test — build a fixture, `chmod 4555`, run `unstrip` against a
-detached debug file, assert the output mode is still `4555`. Second case: `0644`
-input → `0644` output.
+`copyFile` (`cmd/shim.go:306`) changes signature from `(src, dst string, perm
+os.FileMode)` to `(src, dst string, info os.FileInfo)`. It applies
+`info.Mode()&preservedModeBits` for both `OpenFile`'s create-mode and the post-copy
+`Chmod`, then calls `chownLike(dst, info)`. `info` describes the *destination's*
+target metadata, not `src`'s own — the existing call site (shim copy) already
+separates "bytes from `shimBinary`" from "metadata from the original binary" via a
+separate parameter; this just widens that parameter from a stripped `os.FileMode` to
+the full `os.FileInfo`.
 
-**Verify (VM):**
+Call site in `install()` (`cmd/shim.go`): delete `origMode := origInfo.Mode().Perm()`
+— `origInfo` is already captured before the move, at the binary's *original*
+location, which is exactly the metadata needed. Change the call to
+`copyFile(shimBinary, realTarget, origInfo)`.
+
+**Out of scope, deliberately:** `moveCrossDevice` does not gain ownership
+preservation here — it doesn't call `copyFile` today, and Phase 2's **A5** already
+rewrites it to call `copyFile` for the mode fix. Once `copyFile`'s signature changes
+here, A5's rewrite gets full mode+ownership fidelity for free; don't fix it twice.
+
+**Tests:**
+- `unstrip`: fixture `chmod 4555`, merge, assert output mode is still `4555`.
+  Second case: `0644` input → `0644` output.
+- `copyFile`: fixture with a distinct mode (e.g. `0640`); assert it round-trips.
+  Ownership: assert chown-to-self succeeds (a process can always chown a file to its
+  own current uid/gid without extra privilege) rather than asserting a chown to a
+  *different* uid, which requires root and would make the test require root to pass.
+- `install()`/`uninstall()` round trip on a `4555` fixture, extending
+  `TestInstallUninstall` — this needs no root since it's a plain file the test itself
+  created and owns.
+
+**Verify (VM, needs root — the setuid/chown-to-other-owner case can't be tested
+without it):**
 ```bash
 sudo install -m 4755 /bin/true /tmp/setuid-probe
-stat -c %a /tmp/setuid-probe          # 4755
-sudo funkoverage install /tmp/setuid-probe && sudo funkoverage uninstall /tmp/setuid-probe
-stat -c %a /tmp/setuid-probe          # must still be 4755
+sudo chown daemon:daemon /tmp/setuid-probe        # simulate a non-root-owned setuid tool
+stat -c '%a %U:%G' /tmp/setuid-probe              # 4755 daemon:daemon
+sudo funkoverage install /tmp/setuid-probe
+stat -c '%a %U:%G' /tmp/setuid-probe              # shim copy: still 4755 daemon:daemon
+sudo funkoverage uninstall /tmp/setuid-probe
+stat -c '%a %U:%G' /tmp/setuid-probe              # restored original: still 4755 daemon:daemon
 ```
-Also, mid-install, confirm a merged library kept its original mode:
-`stat -c %a /usr/lib64/libgmp.so.10.5.0` before vs during `test_gmp.sh`.
+Also, mid-install, confirm a merged library kept its original mode+owner:
+`stat -c '%a %U:%G' /usr/lib64/libgmp.so.10.5.0` before vs during `test_gmp.sh`.
 
-**Risk:** low. Only makes a previously-unconditional chmod conditional on the input.
+**Risk:** medium (was low — scope grew). Widens `copyFile`'s contract, which every
+e2e test's `install_shim`/`install()` call goes through — the full sweep, not just
+the setuid probe above, must pass.
+
+**Implementation pitfall, found by the setuid unit test failing on the first
+attempt:** `chown` clears any setuid/setgid bit already present on a file — this is
+deliberate kernel behavior (POSIX; prevents ownership-change privilege tricks), not
+a bug, and it fires even for a same-value chown-to-self. `chownLike` must therefore
+run *before* the final `os.Chmod` in both `unstrip` and `copyFile`, never after —
+chmod doesn't clear bits it just set, so it must be the last step. `copyFile` in
+particular must create the destination file with the plain permission bits only
+(`mode.Perm()`, not `mode`) and defer setting setuid/setgid to the final `Chmod`
+call, since the file's *initial* owner (whoever's running `install`) isn't
+necessarily its *final* owner (`info`'s), and the intervening chown would strip
+anything set at creation time.
 
 ---
 

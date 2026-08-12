@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"funkoverage/internal/funkutil"
@@ -295,6 +296,61 @@ func TestExternalDebugPath_IgnoresDwzFile(t *testing.T) {
 // info merged in place (so uprobe attach can resolve names that only exist
 // in the debug file's symtab), that a backup of the pre-merge original is
 // recorded, and that restoreLibraryBackups puts the original back exactly.
+// buildStrippedLibFixture compiles a small shared library with a LOCAL
+// (static) function and a PUBLIC function, strips it the way real distro
+// debuginfo packaging does (--strip-all, keeping only .dynsym), and points
+// it at an external debug file via .gnu_debuglink under globalDebugRoot.
+// lib_local_func is deliberately `static`: LOCAL binding, present in
+// .symtab but never in .dynsym, so it vanishes from a fully-stripped
+// runtime .so exactly like GMP's internal mpn_* helpers do (the real bug
+// this mirrors). Returns the library path and its stripped (pre-merge)
+// bytes. Caller must set globalDebugRoot and check for gcc/strip/objcopy
+// first.
+func buildStrippedLibFixture(t *testing.T, libDir, name string) (lib string, strippedBytes []byte) {
+	t.Helper()
+	if err := os.MkdirAll(libDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(libDir, name+".c")
+	code := "static int lib_local_func(void) { return 42; }\nint lib_public_func(void) { return lib_local_func(); }\n"
+	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
+		t.Fatal(err)
+	}
+	lib = filepath.Join(libDir, name)
+	if out, err := exec.Command("gcc", "-shared", "-fPIC", "-g", "-o", lib, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	realLibDir, err := filepath.EvalSymlinks(libDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	debugDir := filepath.Join(globalDebugRoot, realLibDir)
+	if err := os.MkdirAll(debugDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	debugFile := filepath.Join(debugDir, name+".debug")
+	if out, err := exec.Command("objcopy", "--only-keep-debug", lib, debugFile).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --only-keep-debug: %v\n%s", err, out)
+	}
+	// strip --strip-all (not --strip-debug) matches real distro debuginfo
+	// packaging: the shipped runtime .so keeps only .dynsym, dropping the
+	// full .symtab (and with it every LOCAL/static symbol) entirely.
+	if out, err := exec.Command("strip", "--strip-all", lib).CombinedOutput(); err != nil {
+		t.Fatalf("strip --strip-all: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("objcopy", "--add-gnu-debuglink="+debugFile, lib).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --add-gnu-debuglink: %v\n%s", err, out)
+	}
+	strippedBytes, err = os.ReadFile(lib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if funcs := symtabFunctions(lib, nil); slices.Contains(funcs, "lib_local_func") {
+		t.Fatalf("test setup: lib_local_func should NOT be resolvable pre-merge, got %v", funcs)
+	}
+	return lib, strippedBytes
+}
+
 func TestMergeLibraryDebugInfo(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("gcc not found")
@@ -313,49 +369,7 @@ func TestMergeLibraryDebugInfo(t *testing.T) {
 	defer func() { globalDebugRoot = orig }()
 
 	libDir := filepath.Join(tmp, "usr", "lib64")
-	if err := os.MkdirAll(libDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	src := filepath.Join(tmp, "lib.c")
-	// lib_local_func is `static`: LOCAL binding, present in .symtab but never
-	// in .dynsym, so it vanishes from a fully-stripped runtime .so exactly
-	// like GMP's internal mpn_* helpers do (the real bug this mirrors).
-	code := "static int lib_local_func(void) { return 42; }\nint lib_public_func(void) { return lib_local_func(); }\n"
-	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
-		t.Fatal(err)
-	}
-	lib := filepath.Join(libDir, "libdemo.so")
-	if out, err := exec.Command("gcc", "-shared", "-fPIC", "-g", "-o", lib, src).CombinedOutput(); err != nil {
-		t.Fatalf("compile: %v\n%s", err, out)
-	}
-	realLibDir, err := filepath.EvalSymlinks(libDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	debugDir := filepath.Join(globalDebugRoot, realLibDir)
-	if err := os.MkdirAll(debugDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	debugFile := filepath.Join(debugDir, "libdemo.so.debug")
-	if out, err := exec.Command("objcopy", "--only-keep-debug", lib, debugFile).CombinedOutput(); err != nil {
-		t.Fatalf("objcopy --only-keep-debug: %v\n%s", err, out)
-	}
-	// strip --strip-all (not --strip-debug) matches real distro debuginfo
-	// packaging: the shipped runtime .so keeps only .dynsym, dropping the
-	// full .symtab (and with it every LOCAL/static symbol) entirely.
-	if out, err := exec.Command("strip", "--strip-all", lib).CombinedOutput(); err != nil {
-		t.Fatalf("strip --strip-all: %v\n%s", err, out)
-	}
-	if out, err := exec.Command("objcopy", "--add-gnu-debuglink="+debugFile, lib).CombinedOutput(); err != nil {
-		t.Fatalf("objcopy --add-gnu-debuglink: %v\n%s", err, out)
-	}
-	strippedBytes, err := os.ReadFile(lib)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if funcs := symtabFunctions(lib, nil); slices.Contains(funcs, "lib_local_func") {
-		t.Fatalf("test setup: lib_local_func should NOT be resolvable pre-merge, got %v", funcs)
-	}
+	lib, strippedBytes := buildStrippedLibFixture(t, libDir, "libdemo.so")
 
 	funcs := map[string][]string{
 		lib:          {"lib_local_func"},
@@ -422,6 +436,91 @@ func TestMergeLibraryDebugInfo_SkipsMainImage(t *testing.T) {
 	backups := mergeLibraryDebugInfo(funcs, main)
 	if len(backups) != 0 {
 		t.Errorf("mergeLibraryDebugInfo should skip mainImage, got backups = %v", backups)
+	}
+}
+
+// TestMergeLibraryDebugInfo_PreservesSymlink guards against the bug found
+// live during the audit-fixes.md Phase 0 baseline sweep: ldd reports a
+// library's SONAME path as-is (e.g. /lib64/libgmp.so.10), which is normally
+// a symlink to the real versioned file (libgmp.so.10.5.0). Before this fix,
+// mergeLibraryDebugInfo's move() onto that path replaced the symlink itself
+// with a regular-file copy — confirmed for real via `zypper install --force
+// libgmp10` on the VM, which restored the pristine symlink.
+func TestMergeLibraryDebugInfo_PreservesSymlink(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	if _, err := exec.LookPath("strip"); err != nil {
+		t.Skip("strip not found")
+	}
+	if _, err := exec.LookPath("eu-unstrip"); err != nil {
+		t.Skip("eu-unstrip not found")
+	}
+	tmp := t.TempDir()
+	safeBinDir := filepath.Join(tmp, "safebin")
+	t.Setenv("SAFE_BIN_DIR", safeBinDir)
+	orig := globalDebugRoot
+	globalDebugRoot = filepath.Join(tmp, "debugroot")
+	defer func() { globalDebugRoot = orig }()
+
+	libDir := filepath.Join(tmp, "usr", "lib64")
+	realLib, strippedBytes := buildStrippedLibFixture(t, libDir, "libdemo.so.1.0.0")
+
+	// Mirror the real SONAME convention (libgmp.so.10 -> libgmp.so.10.5.0):
+	// the symlink is what ldd reports and what mergeLibraryDebugInfo
+	// receives as the map key.
+	soname := filepath.Join(libDir, "libdemo.so.1")
+	if err := os.Symlink(filepath.Base(realLib), soname); err != nil {
+		t.Fatal(err)
+	}
+
+	backups := mergeLibraryDebugInfo(map[string][]string{soname: {"lib_local_func"}}, "/some/main")
+
+	if _, ok := backups[soname]; ok {
+		t.Errorf("backups should be keyed by the resolved real path, not the symlink %s", soname)
+	}
+	backupPath, ok := backups[realLib]
+	if !ok {
+		t.Fatalf("mergeLibraryDebugInfo did not back up the resolved path %s; backups = %v", realLib, backups)
+	}
+
+	assertSymlinkIntact := func(when string) {
+		t.Helper()
+		fi, err := os.Lstat(soname)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fi.Mode()&os.ModeSymlink == 0 {
+			t.Errorf("SONAME symlink was replaced by a regular file %s merge", when)
+		}
+		if target, err := os.Readlink(soname); err != nil || target != filepath.Base(realLib) {
+			t.Errorf("symlink target %s merge = %q, %v; want %q", when, target, err, filepath.Base(realLib))
+		}
+	}
+	assertSymlinkIntact("after")
+	if funcs := symtabFunctions(soname, nil); !slices.Contains(funcs, "lib_local_func") {
+		t.Errorf("merged library (opened via the symlink) should expose lib_local_func, got %v", funcs)
+	}
+
+	safePath := filepath.Join(safeBinDir, "some-target")
+	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := funkutil.WriteLibBackups(safePath, backups); err != nil {
+		t.Fatal(err)
+	}
+	restoreLibraryBackups(safePath)
+
+	assertSymlinkIntact("after restore, following")
+	restored, err := os.ReadFile(realLib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(restored) != string(strippedBytes) {
+		t.Error("restoreLibraryBackups did not restore the pre-merge (stripped) library bytes")
+	}
+	if _, err := os.Stat(backupPath); !os.IsNotExist(err) {
+		t.Errorf("backup file %s should be gone after restore, stat err = %v", backupPath, err)
 	}
 }
 
@@ -762,6 +861,107 @@ int main() { return add(1,2) + sub(3,1); }
 	}
 }
 
+// --- copyFile / unstrip mode+ownership preservation tests ---
+
+func TestCopyFilePreservesModeAndOwner(t *testing.T) {
+	tmp := t.TempDir()
+	metaSrc := filepath.Join(tmp, "meta-src")
+	if err := os.WriteFile(metaSrc, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(metaSrc, 0640); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(metaSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bytesSrc := filepath.Join(tmp, "bytes-src")
+	if err := os.WriteFile(bytesSrc, []byte("distinct content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := filepath.Join(tmp, "dst")
+	if err := copyFile(bytesSrc, dst, info); err != nil {
+		t.Fatalf("copyFile: %v", err)
+	}
+
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "distinct content" {
+		t.Error("copyFile should copy bytes from src, mode/owner from info")
+	}
+
+	dstInfo, err := os.Stat(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dstInfo.Mode().Perm() != 0640 {
+		t.Errorf("dst mode = %v, want 0640", dstInfo.Mode().Perm())
+	}
+	srcStat, _ := info.Sys().(*syscall.Stat_t)
+	dstStat, _ := dstInfo.Sys().(*syscall.Stat_t)
+	if srcStat != nil && dstStat != nil && (srcStat.Uid != dstStat.Uid || srcStat.Gid != dstStat.Gid) {
+		t.Errorf("ownership not preserved: src=%d:%d dst=%d:%d", srcStat.Uid, srcStat.Gid, dstStat.Uid, dstStat.Gid)
+	}
+}
+
+func TestUnstripPreservesMode(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	if _, err := exec.LookPath("strip"); err != nil {
+		t.Skip("strip not found")
+	}
+	if _, err := exec.LookPath("eu-unstrip"); err != nil {
+		t.Skip("eu-unstrip not found")
+	}
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		mode os.FileMode
+	}{
+		{"regular", 0755},
+		{"setuid", os.ModeSetuid | 0555},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			bin := filepath.Join(tmp, "bin_"+tc.name)
+			if out, err := exec.Command("gcc", "-g", "-o", bin, src).CombinedOutput(); err != nil {
+				t.Fatalf("compile: %v\n%s", err, out)
+			}
+			debugFile := bin + ".debug"
+			if out, err := exec.Command("objcopy", "--only-keep-debug", bin, debugFile).CombinedOutput(); err != nil {
+				t.Fatalf("objcopy --only-keep-debug: %v\n%s", err, out)
+			}
+			if out, err := exec.Command("strip", "--strip-all", bin).CombinedOutput(); err != nil {
+				t.Fatalf("strip --strip-all: %v\n%s", err, out)
+			}
+			if err := os.Chmod(bin, tc.mode); err != nil {
+				t.Fatal(err)
+			}
+			if err := unstrip(bin, debugFile); err != nil {
+				t.Fatalf("unstrip: %v", err)
+			}
+			fi, err := os.Stat(bin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if fi.Mode()&preservedModeBits != tc.mode&preservedModeBits {
+				t.Errorf("mode after unstrip = %v, want %v", fi.Mode()&preservedModeBits, tc.mode&preservedModeBits)
+			}
+		})
+	}
+}
+
 // --- install/uninstall tests ---
 
 // compileDebugBinary compiles a small C program with -g and returns the binary path.
@@ -863,6 +1063,51 @@ func TestInstallUninstall(t *testing.T) {
 	// Original ELF should be restored
 	if !isELF(bin) {
 		t.Error("expected original ELF restored after uninstall")
+	}
+}
+
+// TestInstallUninstall_PreservesSetuidMode verifies "nothing changes on the
+// original binary except the wrapping": a setuid/setgid binary must keep
+// those bits, on the shim copy that replaces it during install AND on the
+// restored original after uninstall.
+func TestInstallUninstall_PreservesSetuidMode(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+	safeBinDir := filepath.Join(tmp, "safe")
+	logDir := filepath.Join(tmp, "logs")
+	shimDir := filepath.Join(tmp, "shim")
+	if err := os.MkdirAll(shimDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	shimPath := makeDummyShim(t, shimDir)
+	t.Setenv("FUNKOVERAGE_SHIM", shimPath)
+	t.Setenv("SAFE_BIN_DIR", safeBinDir)
+	t.Setenv("LOG_DIR", logDir)
+
+	bin := compileDebugBinary(t, tmp, "setuidbin")
+	wantMode := os.ModeSetuid | 0555
+	if err := os.Chmod(bin, wantMode); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := install(bin, true, nil); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if fi, err := os.Stat(bin); err != nil {
+		t.Fatal(err)
+	} else if fi.Mode()&preservedModeBits != wantMode&preservedModeBits {
+		t.Errorf("shim copy mode = %v, want %v", fi.Mode()&preservedModeBits, wantMode&preservedModeBits)
+	}
+
+	if err := uninstall(bin); err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+	if fi, err := os.Stat(bin); err != nil {
+		t.Fatal(err)
+	} else if fi.Mode()&preservedModeBits != wantMode&preservedModeBits {
+		t.Errorf("restored original mode = %v, want %v", fi.Mode()&preservedModeBits, wantMode&preservedModeBits)
 	}
 }
 

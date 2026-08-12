@@ -11,9 +11,31 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"funkoverage/internal/funkutil"
 )
+
+// preservedModeBits are the mode bits that must survive a merge/copy/move so
+// a shimmed binary's original privilege semantics (setuid tools, a
+// group-writable setgid service binary, ...) keep working exactly as before
+// instrumentation — losing them silently breaks the wrapped program's
+// functionality, not just its coverage numbers.
+const preservedModeBits = os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky
+
+// chownLike applies path's owner/group to match info, best-effort: requires
+// root/CAP_CHOWN, and a failure (e.g. a non-root test run) must not be
+// fatal — mode is what governs exec/setuid semantics, ownership is
+// secondary fidelity (ls -l, rpm -V, and "nothing changes but the
+// wrapping"). Callers MUST chown before the final chmod: a successful
+// chown clears any setuid/setgid bit already on the file (the kernel does
+// this to prevent ownership-change privilege tricks), so setting those
+// bits must be the last step, not this one.
+func chownLike(path string, info os.FileInfo) {
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		_ = os.Chown(path, int(stat.Uid), int(stat.Gid))
+	}
+}
 
 var globalDebugRoot = "/usr/lib/debug"
 
@@ -100,29 +122,39 @@ func mergeLibraryDebugInfo(funcs map[string][]string, mainImage string) map[stri
 		if lib == mainImage {
 			continue
 		}
-		debugPath, err := locateExternalDebugForMerge(lib, lib)
-		if err != nil || debugPath == "" {
-			continue // no external debug found, or lib is already self-sufficient
-		}
-		info, err := os.Stat(lib)
+		// ldd reports a library's SONAME path as-is (e.g. /lib64/libgmp.so.10),
+		// which is commonly a symlink to the real versioned file
+		// (libgmp.so.10.5.0). Operate on the resolved real path so unstrip's
+		// final move() never overwrites the symlink itself — os.Rename onto a
+		// symlink path replaces the link, not its target, silently turning
+		// the SONAME symlink into a plain-file copy forever.
+		realLib, err := filepath.EvalSymlinks(lib)
 		if err != nil {
 			continue
 		}
-		backupPath := filepath.Join(funkutil.SafeBinDir(), "libs", lib)
+		debugPath, err := locateExternalDebugForMerge(realLib, realLib)
+		if err != nil || debugPath == "" {
+			continue // no external debug found, or lib is already self-sufficient
+		}
+		info, err := os.Stat(realLib)
+		if err != nil {
+			continue
+		}
+		backupPath := filepath.Join(funkutil.SafeBinDir(), "libs", realLib)
 		if err := os.MkdirAll(filepath.Dir(backupPath), 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: backup dir for %s: %v\n", lib, err)
+			fmt.Fprintf(os.Stderr, "warning: backup dir for %s: %v\n", realLib, err)
 			continue
 		}
-		if err := copyFile(lib, backupPath, info.Mode().Perm()); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: back up %s before merge: %v\n", lib, err)
+		if err := copyFile(realLib, backupPath, info); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: back up %s before merge: %v\n", realLib, err)
 			continue
 		}
-		if err := unstrip(lib, debugPath); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: merge debug symbols into %s: %v\n", lib, err)
+		if err := unstrip(realLib, debugPath); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: merge debug symbols into %s: %v\n", realLib, err)
 			os.Remove(backupPath)
 			continue
 		}
-		backups[lib] = backupPath
+		backups[realLib] = backupPath
 	}
 	return backups
 }
@@ -252,6 +284,10 @@ func findDebugFile(altPath string) string {
 // unstrip merges debugPath into binPath using eu-unstrip.
 // Uses --force to handle ELF type mismatches (PIE binary + relocatable debug).
 func unstrip(binPath, debugPath string) error {
+	info, err := os.Stat(binPath)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", binPath, err)
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(binPath), ".unstrip-*")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
@@ -263,7 +299,11 @@ func unstrip(binPath, debugPath string) error {
 	if combined, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("eu-unstrip failed: %w: %s", err, combined)
 	}
-	if err := os.Chmod(out, 0755); err != nil {
+	// chown, THEN chmod: chown (like write) clears any setuid/setgid bit
+	// already present — a kernel security measure against ownership-change
+	// privilege tricks — so setting the final mode must come last.
+	chownLike(out, info)
+	if err := os.Chmod(out, info.Mode()&preservedModeBits); err != nil {
 		os.Remove(out)
 		return fmt.Errorf("chmod merged binary: %w", err)
 	}
