@@ -1547,30 +1547,38 @@ func TestEmitReport(t *testing.T) {
 	}
 }
 
-// TestCommands asserts the exact key set: the 8 subcommand names plus only
-// the documented -h/--help and -v/--version aliases. Every other alias
-// (-i, -u, -t, -e, -r, --install, --uninstall, --trace, --enumerate,
-// --report, --setup) was undocumented, unused in tests/docs, and -u was
-// unreachable anyway (shadowed by the "unwrap" deprecation guard in main).
+// TestCommands asserts the exact key set: the 8 subcommand names plus every
+// documented alias. "-u" for uninstall is deliberately absent — it's
+// unreachable, shadowed by the "unwrap" deprecation guard in main, which
+// intercepts the literal string "-u" before commands() is ever consulted;
+// "--uninstall" (not shadowed) is the reachable alias instead.
 func TestCommands(t *testing.T) {
 	cmds := commands()
-	want := []string{
-		"setup", "install", "uninstall", "trace", "enumerate", "report", "version", "help",
-		"-h", "--help", "-v", "--version",
+	want := map[string]string{
+		"setup": "setup", "--setup": "setup",
+		"install": "install", "-i": "install", "--install": "install",
+		"uninstall": "uninstall", "--uninstall": "uninstall",
+		"trace": "trace", "-t": "trace", "--trace": "trace",
+		"enumerate": "enumerate", "-e": "enumerate", "--enumerate": "enumerate",
+		"report": "report", "-r": "report", "--report": "report",
+		"version": "version", "-v": "version", "--version": "version",
+		"help": "help", "-h": "help", "--help": "help",
 	}
 	if len(cmds) != len(want) {
 		t.Errorf("commands() has %d keys, want %d: got %v", len(cmds), len(want), slices.Sorted(maps.Keys(cmds)))
 	}
-	for _, k := range want {
-		if _, ok := cmds[k]; !ok {
+	for k, wantName := range want {
+		cmd, ok := cmds[k]
+		if !ok {
 			t.Errorf("expected key %q missing from commands()", k)
+			continue
+		}
+		if cmd.name != wantName {
+			t.Errorf("commands()[%q].name = %q, want %q", k, cmd.name, wantName)
 		}
 	}
-	if cmds["-h"].name != "help" || cmds["--help"].name != "help" {
-		t.Error("-h/--help must alias help")
-	}
-	if cmds["-v"].name != "version" || cmds["--version"].name != "version" {
-		t.Error("-v/--version must alias version")
+	if _, ok := cmds["-u"]; ok {
+		t.Error(`"-u" must not be registered: it's unreachable, shadowed by the "unwrap" guard in main`)
 	}
 }
 

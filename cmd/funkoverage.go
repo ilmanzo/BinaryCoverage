@@ -35,19 +35,28 @@ func commands() map[string]command {
 		{"version", "print version", cmdVersion},
 		{"help", "print help", cmdHelp},
 	}
-	m := make(map[string]command, len(cmds)+4)
+	m := make(map[string]command, len(cmds)+14)
 	for _, c := range cmds {
 		m[c.name] = c
 	}
-	// Aliases: only -h/--help and -v/--version are documented in helpText;
-	// the rest (-i, -u, -t, -e, -r, --install, --uninstall, --trace,
-	// --enumerate, --report, --setup) were undocumented and unused, and -u
-	// was unreachable anyway (shadowed by the "unwrap" deprecation guard
-	// below).
+	// Aliases, all documented in helpText. -u for uninstall is deliberately
+	// absent: it's unreachable, shadowed by the "unwrap" deprecation guard
+	// below, which intercepts the literal string "-u" before this map is
+	// ever consulted.
 	m["--help"] = m["help"]
 	m["-h"] = m["help"]
 	m["--version"] = m["version"]
 	m["-v"] = m["version"]
+	m["-r"] = m["report"]
+	m["--report"] = m["report"]
+	m["-i"] = m["install"]
+	m["--install"] = m["install"]
+	m["--uninstall"] = m["uninstall"]
+	m["-t"] = m["trace"]
+	m["--trace"] = m["trace"]
+	m["-e"] = m["enumerate"]
+	m["--enumerate"] = m["enumerate"]
+	m["--setup"] = m["setup"]
 	return m
 }
 

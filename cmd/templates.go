@@ -13,19 +13,22 @@ var aggregateHTMLTemplate string
 const helpText = `funkoverage - binary function coverage via eBPF
 
 Usage:
-  funkoverage setup
+  funkoverage setup                        (alias: --setup)
       Validate eBPF environment (kernel ≥6.6, BTF). Run once as root.
 
   funkoverage install [--no-libs] [--include RE] [--exclude RE] <binary...>
+                                            (alias: -i, --install)
       Install shim for ELF binary (requires debug symbols).
 
-  funkoverage uninstall <binary...>
+  funkoverage uninstall <binary...>        (alias: --uninstall)
       Restore original binary.
 
   funkoverage trace [--no-libs] [--include RE] [--exclude RE] <binary> [args...]
+                                            (alias: -t, --trace)
       Run binary under tracing without permanent installation.
 
   funkoverage enumerate [--no-libs] [--include RE] [--exclude RE] <binary>
+                                            (alias: -e, --enumerate)
       List all discoverable functions (debug utility).
 
   Filter flags:
@@ -34,10 +37,15 @@ Usage:
     Both can be combined: include is applied first, then exclude
 
   funkoverage report <inputdir|log1,log2> <outputdir> [--formats html,xml,txt]
+                                            (alias: -r, --report)
       Generate coverage reports from log files.
 
-  funkoverage version
-  funkoverage help
+  funkoverage version                      (alias: -v, --version)
+  funkoverage help                         (alias: -h, --help)
+
+Note: there is no short alias for uninstall ("-u" is reserved for the
+"unwrap is renamed to uninstall" migration notice); use "uninstall" or
+"--uninstall".
 
 Environment variables:
   FUNKOVERAGE_SHIM   Path to funkoverage-shim binary (default: same dir as funkoverage)
