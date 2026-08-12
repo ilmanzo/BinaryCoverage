@@ -625,6 +625,17 @@ func TestIsELF(t *testing.T) {
 	if isELF(emptyFile) {
 		t.Error("isELF should return false for empty file")
 	}
+
+	// A short file containing a genuine prefix of the ELF magic (fewer than
+	// 4 bytes) must not be misread via a padded/zero-filled buffer — it
+	// must be treated as "not ELF", not silently compared against garbage.
+	shortFile := filepath.Join(tmp, "short")
+	if err := os.WriteFile(shortFile, []byte("\x7fE"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if isELF(shortFile) {
+		t.Error("isELF should return false for a file shorter than the magic")
+	}
 }
 
 // --- hasDebugInfo tests ---

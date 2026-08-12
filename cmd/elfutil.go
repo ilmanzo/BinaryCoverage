@@ -46,7 +46,10 @@ func isELF(path string) bool {
 	}
 	defer f.Close()
 	magic := make([]byte, 4)
-	if _, err := f.Read(magic); err != nil {
+	// io.ReadFull, not f.Read: a short file can return fewer than 4 bytes
+	// with a nil error, which would otherwise compare the ELF magic against
+	// a zero-padded buffer instead of correctly reporting "not ELF".
+	if _, err := io.ReadFull(f, magic); err != nil {
 		return false
 	}
 	return string(magic) == "\x7fELF"
