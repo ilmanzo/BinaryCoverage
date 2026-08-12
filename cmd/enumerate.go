@@ -105,11 +105,7 @@ func symtabFunctions(path string, filter *funkutil.FuncFilter) []string {
 		return nil
 	}
 	defer f.Close()
-	funcs, err := enumerateSymtab(f, filter)
-	if err != nil {
-		return nil
-	}
-	return funcs
+	return enumerateSymtab(f, filter)
 }
 
 func dwarfFunctions(path string, filter *funkutil.FuncFilter) ([]string, error) {
@@ -207,46 +203,14 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]strin
 	return funcs, nil
 }
 
-func enumerateSymtab(f *elf.File, filter *funkutil.FuncFilter) ([]string, error) {
-	symbols, err := f.Symbols()
-	if err != nil {
-		// Try dynamic symbols as last resort
-		symbols, err = f.DynamicSymbols()
-		if err != nil {
-			return nil, fmt.Errorf("no symbol table: %w", err)
-		}
-	}
-	seen := make(map[string]struct{})
-	seenAddr := make(map[uint64]struct{})
-	var funcs []string
-	for _, sym := range symbols {
-		if elf.ST_TYPE(sym.Info) != elf.STT_FUNC {
-			continue
-		}
-		if sym.Value == 0 {
-			continue
-		}
-		// uprobe attach requires offset < symbol size; skip the CRT helpers
-		// (deregister_tm_clones, frame_dummy, etc.) that the linker emits
-		// with size 0.
-		if sym.Size == 0 {
-			continue
-		}
-		// Itanium ABI complete-object/base-object ctor-dtor pairs (C1/C2,
-		// D1/D2) are distinct symbols that alias the same address whenever
-		// the class has no virtual bases. Dedup by address, not name, so
-		// they count once instead of double-attaching and double-counting —
-		// this is safe even for virtual-base classes, where C1/C2 genuinely
-		// compile to different code at different addresses.
-		if _, dup := seenAddr[sym.Value]; dup {
-			continue
-		}
-		if acceptFunc(seen, sym.Name, filter) {
-			seenAddr[sym.Value] = struct{}{}
-			funcs = append(funcs, sym.Name)
-		}
-	}
-	return funcs, nil
+// enumerateSymtab delegates the actual symbol walk (union of .symtab and
+// .dynsym, STT_FUNC + size/address filtering, address+name dedup — shared
+// with the shim's runtime dlopen JIT discovery) to funkutil.SymtabFunctions,
+// supplying the relevance + --include/--exclude predicate.
+func enumerateSymtab(f *elf.File, filter *funkutil.FuncFilter) []string {
+	return funkutil.SymtabFunctions(f, func(demangled string) bool {
+		return funkutil.FuncIsRelevant(demangled) && filter.Match(demangled)
+	})
 }
 
 // lddLineRe matches both forms of ldd output:

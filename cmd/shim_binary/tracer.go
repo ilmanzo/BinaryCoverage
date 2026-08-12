@@ -421,6 +421,12 @@ func getMappedSharedLibraries(pid uint32) ([]string, error) {
 	return libs, nil
 }
 
+// getSharedLibrarySymbols delegates the actual symbol walk (union of
+// .symtab and .dynsym, STT_FUNC + size/address filtering, address+name
+// dedup — shared with install-time enumeration) to
+// funkutil.SymtabFunctions, keeping only relevance filtering here; the
+// --include/--exclude filter is applied separately by the caller
+// (handleDynamicLoad), after capacity clipping.
 func getSharedLibrarySymbols(path string) ([]string, error) {
 	f, err := elf.Open(path)
 	if err != nil {
@@ -428,48 +434,9 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 	}
 	defer f.Close()
 
-	// Union .dynsym and .symtab rather than falling back only on a hard
-	// error: a present-but-stripped-down .symtab (common for shared libs —
-	// glibc's libc.so.6 ships one that omits exported functions like
-	// dlopen, which live only in .dynsym) would otherwise silently hide
-	// real, callable functions instead of triggering the fallback.
-	var syms []elf.Symbol
-	if dynSyms, err := f.DynamicSymbols(); err == nil {
-		syms = append(syms, dynSyms...)
-	}
-	if statSyms, err := f.Symbols(); err == nil {
-		syms = append(syms, statSyms...)
-	}
-	if len(syms) == 0 {
+	funcs := funkutil.SymtabFunctions(f, funkutil.FuncIsRelevant)
+	if len(funcs) == 0 {
 		return nil, fmt.Errorf("no symbol table (dynamic or static) in %s", path)
-	}
-
-	var funcs []string
-	seen := make(map[string]struct{})
-	seenAddr := make(map[uint64]struct{})
-	for _, sym := range syms {
-		if elf.ST_TYPE(sym.Info) != elf.STT_FUNC {
-			continue
-		}
-		if sym.Value == 0 || sym.Size == 0 {
-			continue
-		}
-		if sym.Name == "" || !funkutil.FuncIsRelevant(sym.Name) {
-			continue
-		}
-		// Same symbol can appear in both .dynsym and .symtab, and Itanium
-		// ABI C1/C2 (D1/D2) ctor/dtor pairs alias one address for classes
-		// without virtual bases — dedup by address, not name, to avoid
-		// double-attaching a uprobe at the same address under two cookies.
-		if _, dup := seenAddr[sym.Value]; dup {
-			continue
-		}
-		if _, dup := seen[sym.Name]; dup {
-			continue
-		}
-		seen[sym.Name] = struct{}{}
-		seenAddr[sym.Value] = struct{}{}
-		funcs = append(funcs, sym.Name)
 	}
 	return funcs, nil
 }
