@@ -1524,12 +1524,16 @@ func TestEmitReport(t *testing.T) {
 		},
 	}
 
-	emitReport("html", coverage, tmp)
+	if err := emitReport("html", coverage, tmp); err != nil {
+		t.Errorf("emitReport('html'): %v", err)
+	}
 	if _, err := os.Stat(filepath.Join(tmp, "test.html")); err != nil {
 		t.Error("emitReport('html') should create test.html")
 	}
 
-	emitReport("xml", coverage, tmp)
+	if err := emitReport("xml", coverage, tmp); err != nil {
+		t.Errorf("emitReport('xml'): %v", err)
+	}
 	if _, err := os.Stat(filepath.Join(tmp, "coverage_test.xml")); err != nil {
 		t.Error("emitReport('xml') should create XML file")
 	}
@@ -1537,13 +1541,42 @@ func TestEmitReport(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
-	emitReport("txt", coverage, tmp)
+	err := emitReport("txt", coverage, tmp)
 	w.Close()
 	os.Stdout = old
+	if err != nil {
+		t.Errorf("emitReport('txt'): %v", err)
+	}
 	buf := make([]byte, 4096)
 	n, _ := r.Read(buf)
 	if !strings.Contains(string(buf[:n]), "Coverage:") {
 		t.Error("emitReport('txt') should print coverage")
+	}
+
+	if err := emitReport("bogus", coverage, tmp); err == nil {
+		t.Error("emitReport('bogus') should return an error")
+	} else if !strings.Contains(err.Error(), "bogus") {
+		t.Errorf("emitReport('bogus') error should name the format, got: %v", err)
+	}
+}
+
+func TestCmdReport_UnknownFormat(t *testing.T) {
+	tmp := t.TempDir()
+	logDir := filepath.Join(tmp, "logs")
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(logDir, "x_1_1_functions.log"), []byte("FUNC /bin/x foo\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	outDir := filepath.Join(tmp, "out")
+
+	err := cmdReport([]string{logDir, outDir, "--formats", "bogus"})
+	if err == nil {
+		t.Fatal("cmdReport with an unknown format should return an error")
+	}
+	if !strings.Contains(err.Error(), "bogus") {
+		t.Errorf("cmdReport error should name the format, got: %v", err)
 	}
 }
 

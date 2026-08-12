@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -240,18 +241,23 @@ func cmdReport(args []string) error {
 	if err != nil {
 		return err
 	}
+	var errs []error
 	for format := range strings.SplitSeq(*formats, ",") {
-		emitReport(strings.TrimSpace(format), coverage, outputDir)
+		if err := emitReport(strings.TrimSpace(format), coverage, outputDir); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
-func emitReport(format string, coverage map[string]*CoverageData, outputDir string) {
+func emitReport(format string, coverage map[string]*CoverageData, outputDir string) error {
 	switch format {
 	case "txt":
 		printTxtReport(coverage)
 	case "html":
-		_ = os.MkdirAll(outputDir, 0755)
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("create %s: %w", outputDir, err)
+		}
 		g := new(errgroup.Group)
 		g.SetLimit(runtime.GOMAXPROCS(0))
 		for image, data := range coverage {
@@ -263,9 +269,13 @@ func emitReport(format string, coverage map[string]*CoverageData, outputDir stri
 			})
 		}
 		_ = g.Wait()
-		_ = generateAggregateHTMLReport(coverage, outputDir)
+		if err := generateAggregateHTMLReport(coverage, outputDir); err != nil {
+			return fmt.Errorf("aggregate html report: %w", err)
+		}
 	case "xml":
-		_ = os.MkdirAll(outputDir, 0755)
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("create %s: %w", outputDir, err)
+		}
 		g := new(errgroup.Group)
 		g.SetLimit(runtime.GOMAXPROCS(0))
 		for image, data := range coverage {
@@ -277,7 +287,10 @@ func emitReport(format string, coverage map[string]*CoverageData, outputDir stri
 			})
 		}
 		_ = g.Wait()
+	default:
+		return fmt.Errorf("unknown format %q (want html, xml or txt)", format)
 	}
+	return nil
 }
 
 func collectLogFiles(inputArg string) []string {
