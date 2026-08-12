@@ -358,32 +358,17 @@ func move(source, destination string) error {
 	return err
 }
 
+// moveCrossDevice copies source to destination (mode and, best-effort,
+// ownership included — see copyFile) and removes source, for the rare case
+// where SAFE_BIN_DIR and the original binary's directory are on different
+// filesystems and os.Rename can't do it atomically.
 func moveCrossDevice(source, destination string) error {
-	src, err := os.Open(source)
-	if err != nil {
-		return fmt.Errorf("open(source): %w", err)
-	}
-	dst, err := os.Create(destination)
-	if err != nil {
-		src.Close()
-		return fmt.Errorf("create(destination): %w", err)
-	}
-	_, err = io.Copy(dst, src)
-	src.Close()
-	dst.Close()
-	if err != nil {
-		return fmt.Errorf("copy: %w", err)
-	}
 	fi, err := os.Stat(source)
 	if err != nil {
-		os.Remove(destination)
 		return fmt.Errorf("stat: %w", err)
 	}
-	err = os.Chmod(destination, fi.Mode())
-	if err != nil {
-		os.Remove(destination)
-		return fmt.Errorf("chmod: %w", err)
+	if err := copyFile(source, destination, fi); err != nil {
+		return fmt.Errorf("copy: %w", err)
 	}
-	os.Remove(source)
-	return nil
+	return os.Remove(source)
 }

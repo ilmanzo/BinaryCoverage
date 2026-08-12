@@ -1469,6 +1469,34 @@ func TestMoveCrossDevice(t *testing.T) {
 	}
 }
 
+// TestMoveCrossDevice_PreservesSetuid guards the fidelity moveCrossDevice
+// gained by delegating to copyFile (A5): it used to chmod with the plain
+// os.Rename-equivalent mode only, never touching ownership, and B2's mode
+// fix landed on unstrip/copyFile without this cross-device path — verify
+// it inherited the fix rather than needing its own.
+func TestMoveCrossDevice_PreservesSetuid(t *testing.T) {
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "src")
+	dst := filepath.Join(tmp, "dst")
+	if err := os.WriteFile(src, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	wantMode := os.ModeSetuid | 0555
+	if err := os.Chmod(src, wantMode); err != nil {
+		t.Fatal(err)
+	}
+	if err := moveCrossDevice(src, dst); err != nil {
+		t.Fatalf("moveCrossDevice: %v", err)
+	}
+	fi, err := os.Stat(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode()&preservedModeBits != wantMode&preservedModeBits {
+		t.Errorf("mode after moveCrossDevice = %v, want %v", fi.Mode()&preservedModeBits, wantMode&preservedModeBits)
+	}
+}
+
 // --- EnumerateFunctions with filter tests ---
 
 func TestEnumerateFunctionsWithFilter(t *testing.T) {
