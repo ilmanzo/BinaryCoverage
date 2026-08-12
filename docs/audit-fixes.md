@@ -595,24 +595,49 @@ shim's lenient behaviour — a bad pattern currently logs and degrades to
 
 ---
 
-### A4 — `findLibcPath`'s hardcoded path list
+### A4 — `findLibcPath`'s hardcoded path list — REJECTED, doc's premise was wrong
 
-**Cut: ~15 lines.**
+**Do not do this.** The original reasoning below is incorrect. Left here so it
+isn't proposed again.
 
-`cmd/shim_binary/tracer.go:379` probes ten hardcoded libc/libdl paths **before**
-falling back to `/proc/<pid>/maps`. The hardcoded probes test the *host* filesystem,
-not the traced pid's mount namespace, so in a container or chroot they can select a
-libc the target never maps — and the authoritative source is already implemented
-right below.
+**Original (wrong) reasoning:** `cmd/shim_binary/tracer.go:379` probes ten
+hardcoded libc/libdl paths **before** falling back to `/proc/<pid>/maps`. The
+hardcoded probes test the *host* filesystem, not the traced pid's mount
+namespace, so in a container or chroot they can select a libc the target never
+maps — and the authoritative source is already implemented right below. Proposed
+change: delete `standardPaths`; go straight to `/proc/<pid>/maps`.
 
-**Change:** delete `standardPaths`; go straight to `/proc/<pid>/maps`. Keep
-`hasSymbol` as the confirmation step (glibc <2.34 puts `dlopen` in `libdl.so.2`).
+**Why it's wrong:** `findLibcPath(rootPID)` is called from `Tracer.Start`, which
+runs while `rootPID` is still the shim's own re-exec'd child, **blocked on the
+wait-pipe read, before it calls `syscall.Exec` into the real target**
+(`cmd/shim_binary/main.go`'s `runWithTracing`/`childMain`). At that exact moment,
+`/proc/rootPID/maps` reflects the shim binary's own memory layout, not the
+eventual target's. Confirmed directly:
 
-**Tests:** `findLibcPath(uint32(os.Getpid()))` returns a path that
-`hasSymbol(p, "dlopen")` confirms.
+```
+$ file funkoverage-shim
+funkoverage-shim: ELF 64-bit LSB executable, x86-64, ..., statically linked, ...
+```
 
-**Risk: medium** — dlopen JIT instrumentation depends on it. `test_nss_dlopen.sh`,
-`test_pam_dlopen.sh`, `test_nginx_dlopen.sh` are the guards. **[e2e]**
+`funkoverage-shim` is a **statically linked** Go binary — it maps no libc at all.
+Removing `standardPaths` makes `/proc/<pid>/maps` search fail every time it's
+actually invoked in production, on every host, container or not — not just in
+the container/chroot edge case the doc worried about. This would silently
+disable the dlopen uretprobe attachment entirely, breaking all dlopen JIT
+tracing (`test_nss_dlopen.sh`, `test_pam_dlopen.sh`, `test_nginx_dlopen.sh`).
+
+Caught before landing: attempting this change made
+`TestFindLibcPath_HasDlopen`/`TestHasSymbol`/`TestGetSharedLibrarySymbols` all
+start skipping locally. Root-caused via `os.Getpid()` in the test also being a
+static Go binary with no libc mapped — same shape as the real bug, just
+surfaced through the test's own process instead of the shim's. Reverted; no
+code change landed for this item.
+
+**If this needs revisiting:** the real fix would have to attach the dlopen
+uretprobe *after* the child execs into the target (so `/proc/pid/maps` reflects
+the target, not the shim), which reintroduces a race against any `dlopen()` call
+from the target's own `.init_array`/constructors before `main()` — a materially
+bigger change than a 15-line deletion, out of scope for this audit pass.
 
 ---
 
