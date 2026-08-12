@@ -14,7 +14,7 @@ import (
 // Writes _functions.log, creates a temporary real-binary symlink in
 // SAFE_BIN_DIR so the shim's path-convention lookup works, invokes the
 // shim, then cleans up.
-func traceInline(binaryPath string, args []string, noLibs bool, filter *funkutil.FuncFilter) (int, error) {
+func traceInline(binaryPath string, args []string, libScope LibScope, filter *funkutil.FuncFilter) (int, error) {
 	logDir := funkutil.LogDir()
 	safeBinDir := funkutil.SafeBinDir()
 
@@ -31,11 +31,11 @@ func traceInline(binaryPath string, args []string, noLibs bool, filter *funkutil
 		return 1, err
 	}
 
-	funcs, err := EnumerateFunctions(realBin, noLibs, filter)
+	funcs, err := EnumerateFunctions(realBin, libScope, filter)
 	if err != nil {
 		return 1, fmt.Errorf("function enumeration: %w", err)
 	}
-	if len(funcs) == 0 && noLibs {
+	if len(funcs) == 0 && libScope == MainBinaryOnly {
 		return 1, fmt.Errorf("no functions found in %s (debug symbols missing?)", realBin)
 	}
 	if _, err := writeFunctionsLog(logDir, filepath.Base(realBin), funcs); err != nil {

@@ -41,9 +41,21 @@ func demangleName(raw string) string {
 	return demangle.Filter(funkutil.StripVersion(raw))
 }
 
+// LibScope controls whether install/trace/enumerate also cover a binary's
+// shared library dependencies, or only the binary itself (the --no-libs
+// flag) — a named type so call sites read EnumerateFunctions(path,
+// MainBinaryOnly, filter) instead of an opaque EnumerateFunctions(path,
+// true, filter).
+type LibScope bool
+
+const (
+	WithLibraries  LibScope = false // default: also enumerate/trace shared library dependencies
+	MainBinaryOnly LibScope = true  // --no-libs: skip library dependencies entirely
+)
+
 // EnumerateFunctions returns map[imagePath][]functionName for the binary and
 // all its shared libraries that have debug info.
-func EnumerateFunctions(binPath string, noLibs bool, filter *funkutil.FuncFilter) (map[string][]string, error) {
+func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
 	result := make(map[string][]string)
 
 	funcs, err := enumerateOne(binPath, filter)
@@ -54,7 +66,7 @@ func EnumerateFunctions(binPath string, noLibs bool, filter *funkutil.FuncFilter
 		result[binPath] = funcs
 	}
 
-	if noLibs {
+	if libScope == MainBinaryOnly {
 		return result, nil
 	}
 
@@ -147,7 +159,7 @@ func hasEmbeddedDebugInfo(f *elf.File) bool {
 // propagating, matching this function's pre-existing (string, no error)
 // signature.
 func externalDebugPath(binPath string) string {
-	path, _ := resolveDebugFile(binPath, binPath, false)
+	path, _ := resolveDebugFile(binPath, binPath, AllowEmbedded)
 	return path
 }
 

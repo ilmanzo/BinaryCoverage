@@ -62,7 +62,7 @@ func BenchmarkScanLog(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		coverage := make(map[string]*CoverageData)
-		if err := scanLog(files[0], "functions", coverage); err != nil {
+		if err := scanLog(files[0], logTypeFunctions, coverage); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -159,7 +159,7 @@ func BenchmarkEnumerateFunctions(b *testing.B) {
 	}
 	b.ResetTimer()
 	for b.Loop() {
-		if _, err := EnumerateFunctions(sample, false, nil); err != nil {
+		if _, err := EnumerateFunctions(sample, WithLibraries, nil); err != nil {
 			b.Fatal(err)
 		}
 	}

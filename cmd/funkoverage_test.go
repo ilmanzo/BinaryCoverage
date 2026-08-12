@@ -845,15 +845,18 @@ func TestAnalyzeLogsNewFormat(t *testing.T) {
 }
 
 func TestDetectLogType(t *testing.T) {
-	cases := []struct{ path, want string }{
-		{"sample_20260101_functions.log", "functions"},
-		{"sample_20260101_called.log", "called"},
-		{"old_pin.log", ""},   // unrecognized → skipped
-		{"functions.log", ""}, // suffix only, no prefix → skipped
+	cases := []struct {
+		path string
+		want logType
+	}{
+		{"sample_20260101_functions.log", logTypeFunctions},
+		{"sample_20260101_called.log", logTypeCalled},
+		{"old_pin.log", logTypeUnknown},   // unrecognized → skipped
+		{"functions.log", logTypeUnknown}, // suffix only, no prefix → skipped
 	}
 	for _, c := range cases {
 		if got := detectLogType(c.path); got != c.want {
-			t.Errorf("detectLogType(%q) = %q, want %q", c.path, got, c.want)
+			t.Errorf("detectLogType(%q) = %v, want %v", c.path, got, c.want)
 		}
 	}
 }
@@ -904,7 +907,7 @@ int main() { return add(1,2) + sub(3,1); }
 		t.Fatalf("compile: %v\n%s", err, out)
 	}
 
-	funcs, err := EnumerateFunctions(bin, true, nil)
+	funcs, err := EnumerateFunctions(bin, MainBinaryOnly, nil)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions: %v", err)
 	}
@@ -1087,7 +1090,7 @@ func TestInstallUninstall(t *testing.T) {
 
 	bin := compileDebugBinary(t, tmp, "testbin")
 
-	if err := install(bin, true, nil); err != nil {
+	if err := install(bin, MainBinaryOnly, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 
@@ -1164,7 +1167,7 @@ func TestInstallUninstall_PreservesSetuidMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := install(bin, true, nil); err != nil {
+	if err := install(bin, MainBinaryOnly, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
 	if fi, err := os.Stat(bin); err != nil {
@@ -1203,7 +1206,7 @@ func TestInstallMany(t *testing.T) {
 	bin1 := compileDebugBinary(t, tmp, "bin1")
 	bin2 := compileDebugBinary(t, tmp, "bin2")
 
-	if err := installMany([]string{bin1, bin2}, true, nil); err != nil {
+	if err := installMany([]string{bin1, bin2}, MainBinaryOnly, nil); err != nil {
 		t.Fatalf("installMany: %v", err)
 	}
 	if err := uninstallMany([]string{bin1, bin2}); err != nil {
@@ -1404,6 +1407,15 @@ func TestGenerateXUnitReport(t *testing.T) {
 	if suite.Skipped != 2 {
 		t.Errorf("expected 2 skipped (uncalled), got %d", suite.Skipped)
 	}
+
+	if len(suite.TestCase) != 1 || suite.TestCase[0].Passed == nil {
+		t.Fatalf("expected 1 testcase with a Passed result, got %+v", suite.TestCase)
+	}
+	details := suite.TestCase[0].Passed.Text
+	wantTotals := "TOTALS:\n  Total Functions: 3\n  Total Called: 1\n  Average Coverage: 33.33%"
+	if !strings.Contains(details, wantTotals) {
+		t.Errorf("expected details to contain %q, got:\n%s", wantTotals, details)
+	}
 }
 
 // --- generateAggregateHTMLReport tests ---
@@ -1538,7 +1550,7 @@ int main() { return str_length() + str_upper() + math_add(); }
 	}
 
 	filter, _ := funkutil.NewFuncFilter("^str_", "")
-	funcs, err := EnumerateFunctions(bin, true, filter)
+	funcs, err := EnumerateFunctions(bin, MainBinaryOnly, filter)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions: %v", err)
 	}
@@ -1711,7 +1723,7 @@ func TestTraceInline(t *testing.T) {
 	t.Setenv("FUNKOVERAGE_SHIM", trueBin)
 
 	filter, _ := funkutil.NewFuncFilter("", "")
-	code, err := traceInline(bin, []string{}, true, filter)
+	code, err := traceInline(bin, []string{}, MainBinaryOnly, filter)
 	if err != nil {
 		t.Fatalf("traceInline error: %v", err)
 	}

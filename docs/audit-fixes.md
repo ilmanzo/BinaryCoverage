@@ -732,7 +732,7 @@ unless noted.
 | id | change | file | cut |
 |---|---|---|---|
 | A9  | `emitReport`'s `html` and `xml` cases are the same errgroup block twice — extract `perImage(coverage, outputDir, fn)` | `cmd/funkoverage.go:214` | -14 |
-| A10 | `generateXUnitReport`'s `TOTALS` block repeats the three numbers already in `summaryText` | `cmd/report.go:314` | -8 |
+| A10 | **REJECTED** — `generateXUnitReport`'s `TOTALS` block repeats the three numbers already in `summaryText`, but `Message` (summaryText) and `Text` (details, holding TOTALS) are two separate XML fields consumed independently by CI tooling; maintainer wants both kept. `TestGenerateXUnitReport` now asserts on the TOTALS text explicitly. | `cmd/report.go:314` | 0 |
 | A11 | `detectLogType` returns `"functions"`/`"called"`, then string-compares **per line** in `scanLog`'s hot loop → return a bool, select the target map before the loop | `cmd/report.go:81,201` | -8 |
 | A12 | `hasSymbol`'s two nested loops → `slices.ContainsFunc` | `tracer.go:350` | -10 |
 | A13 | `EnvOr` → `cmp.Or(os.Getenv(name), fallback)`; delete the helper and its test | `internal/funkutil/funkutil.go:22` | -6 |

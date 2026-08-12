@@ -36,7 +36,7 @@ type HTMLReportData struct {
 	UncalledCount      int
 	CoveragePercentage float64
 	Functions          []FunctionEntry
-	GeneratedAt        string // Add this field
+	GeneratedAt        string
 }
 
 // --- Coverage Analysis ---
@@ -77,16 +77,28 @@ func safeImageName(image string) string {
 	return safeNameRe.ReplaceAllString(filepath.Base(image), "_")
 }
 
-// detectLogType returns "functions" or "called" based on filename suffix.
-func detectLogType(path string) string {
+// logType identifies which log file a line came from — used everywhere
+// coverage/report code needs to distinguish _functions.log from
+// _called.log, instead of ad-hoc bools or magic strings.
+type logType int
+
+const (
+	logTypeUnknown logType = iota
+	logTypeFunctions
+	logTypeCalled
+)
+
+// detectLogType classifies path by filename suffix; logTypeUnknown for
+// anything else.
+func detectLogType(path string) logType {
 	base := filepath.Base(path)
 	switch {
 	case strings.HasSuffix(base, "_functions.log"):
-		return "functions"
+		return logTypeFunctions
 	case strings.HasSuffix(base, "_called.log"):
-		return "called"
+		return logTypeCalled
 	default:
-		return ""
+		return logTypeUnknown
 	}
 }
 
@@ -129,13 +141,13 @@ func analyzeLogs(logFiles []string) (map[string]*CoverageData, error) {
 	g.SetLimit(runtime.GOMAXPROCS(0))
 	for i, logFile := range logFiles {
 		g.Go(func() error {
-			logType := detectLogType(logFile)
-			if logType == "" {
+			lt := detectLogType(logFile)
+			if lt == logTypeUnknown {
 				fmt.Fprintf(os.Stderr, "report: skipping unrecognized log file: %s\n", logFile)
 				return nil
 			}
 			local := make(map[string]*CoverageData)
-			if err := scanLog(logFile, logType, local); err != nil {
+			if err := scanLog(logFile, lt, local); err != nil {
 				return err
 			}
 			locals[i] = local
@@ -164,7 +176,7 @@ func mergeCoverage(dst, src map[string]*CoverageData) {
 
 // scanLog reads a single log file and updates coverage in place.
 // Defer-cleanup fires per call, not per analyzeLogs invocation.
-func scanLog(logFile, logType string, coverage map[string]*CoverageData) error {
+func scanLog(logFile string, lt logType, coverage map[string]*CoverageData) error {
 	f, err := os.Open(logFile)
 	if err != nil {
 		return fmt.Errorf("could not open log file %s: %w", logFile, err)
@@ -172,7 +184,7 @@ func scanLog(logFile, logType string, coverage map[string]*CoverageData) error {
 	defer f.Close()
 
 	prefix := funcPrefix
-	if logType == "called" {
+	if lt == logTypeCalled {
 		prefix = calledPrefix
 	}
 
@@ -198,10 +210,10 @@ func scanLog(logFile, logType string, coverage map[string]*CoverageData) error {
 		}
 		image, function := string(imageBytes), string(funcBytes)
 		ensureCoverage(coverage, image)
-		if logType == "functions" {
-			coverage[image].TotalFunctions[function] = struct{}{}
-		} else {
+		if lt == logTypeCalled {
 			coverage[image].CalledFunctions[function] = struct{}{}
+		} else {
+			coverage[image].TotalFunctions[function] = struct{}{}
 		}
 	}
 	if err := scanner.Err(); err != nil {

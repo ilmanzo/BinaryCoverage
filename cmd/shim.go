@@ -18,7 +18,7 @@ const defaultShimSearchDir = "/usr/lib64/coverage-tools"
 // install moves the real binary to SAFE_BIN_DIR/<basename>, writes a
 // _functions.log, and puts the shim binary at the original path.
 // No JSON config — the shim finds the real binary by path convention.
-func install(targetBinary string, noLibs bool, filter *funkutil.FuncFilter) error {
+func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter) error {
 	logDir := funkutil.LogDir()
 	safeBinDir := funkutil.SafeBinDir()
 
@@ -53,7 +53,7 @@ func install(targetBinary string, noLibs bool, filter *funkutil.FuncFilter) erro
 	if err != nil {
 		return fmt.Errorf("debug info check: %w", err)
 	}
-	if !found && noLibs {
+	if !found && libScope == MainBinaryOnly {
 		return fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
 	}
 
@@ -81,13 +81,13 @@ func install(targetBinary string, noLibs bool, filter *funkutil.FuncFilter) erro
 	}
 
 	// Enumerate functions after merging debug info so all symbols are available
-	funcs, err := EnumerateFunctions(safePath, noLibs, filter)
+	funcs, err := EnumerateFunctions(safePath, libScope, filter)
 	if err != nil {
 		_ = move(safePath, realTarget)
 		return fmt.Errorf("function enumeration: %w", err)
 	}
 	if len(funcs) == 0 {
-		if noLibs {
+		if libScope == MainBinaryOnly {
 			_ = move(safePath, realTarget)
 			return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
 		}
@@ -97,7 +97,7 @@ func install(targetBinary string, noLibs bool, filter *funkutil.FuncFilter) erro
 		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 
-	if !noLibs {
+	if libScope == WithLibraries {
 		backups := mergeLibraryDebugInfo(funcs, safePath)
 		if err := funkutil.WriteLibBackups(safePath, backups); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: write library backup sidecar: %v\n", err)
@@ -207,9 +207,9 @@ func forEachBinary(binaries []string, verb string, fn func(string) error) error 
 	return nil
 }
 
-func installMany(binaries []string, noLibs bool, filter *funkutil.FuncFilter) error {
+func installMany(binaries []string, libScope LibScope, filter *funkutil.FuncFilter) error {
 	return forEachBinary(binaries, "install", func(bin string) error {
-		return install(bin, noLibs, filter)
+		return install(bin, libScope, filter)
 	})
 }
 

@@ -172,26 +172,38 @@ func restoreLibraryBackups(safePath string) {
 // into binPath, or "" if the binary already has embedded debug info or no
 // external file is found.
 func locateExternalDebugForMerge(binPath, origPath string) (string, error) {
-	return resolveDebugFile(binPath, origPath, true)
+	return resolveDebugFile(binPath, origPath, SkipIfEmbedded)
 }
+
+// embeddedDebugPolicy controls whether resolveDebugFile treats a binary
+// that already carries embedded .debug_* sections as having nothing to
+// resolve, or still returns an external candidate regardless.
+type embeddedDebugPolicy bool
+
+const (
+	// AllowEmbedded: still return an external candidate even if the binary
+	// already has embedded debug info — enumeration wants a fallback
+	// candidate for dwarfFunctions regardless of what's embedded.
+	AllowEmbedded embeddedDebugPolicy = false
+	// SkipIfEmbedded: resolve to "" if the binary already has embedded
+	// debug info — merging would have nothing useful to add.
+	SkipIfEmbedded embeddedDebugPolicy = true
+)
 
 // resolveDebugFile returns the external debug file for binPath, or "".
 // origPath is binPath's original absolute location (equal to binPath unless
 // the binary has already been moved to SAFE_BIN_DIR) — .gnu_debuglink
-// resolves relative to it. When skipIfEmbedded is set, a binary that already
-// carries .debug_* sections resolves to "" (nothing to merge; used by the
-// merge path, not by enumeration's externalDebugPath, which wants a
-// candidate regardless). Tries, in order: .build-id, .gnu_debuglink (the
+// resolves relative to it. Tries, in order: .build-id, .gnu_debuglink (the
 // standard GNU separate-debug convention), then .gnu_debugaltlink
 // (dwz-compressed).
-func resolveDebugFile(binPath, origPath string, skipIfEmbedded bool) (string, error) {
+func resolveDebugFile(binPath, origPath string, policy embeddedDebugPolicy) (string, error) {
 	f, err := elf.Open(binPath)
 	if err != nil {
 		return "", fmt.Errorf("open elf: %w", err)
 	}
 	defer f.Close()
 
-	if skipIfEmbedded {
+	if policy == SkipIfEmbedded {
 		for _, s := range f.Sections {
 			if (strings.HasPrefix(s.Name, ".debug_") || strings.HasPrefix(s.Name, ".zdebug_")) && s.Size > 0 {
 				return "", nil

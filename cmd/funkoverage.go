@@ -147,7 +147,7 @@ func cmdInstall(args []string) error {
 	if err != nil {
 		return err
 	}
-	return installMany(positional, *noLibs, filter)
+	return installMany(positional, LibScope(*noLibs), filter)
 }
 
 func cmdUninstall(args []string) error {
@@ -174,7 +174,7 @@ func cmdTrace(args []string) error {
 	if err != nil {
 		return err
 	}
-	code, err := traceInline(fs.Arg(0), fs.Args()[1:], *noLibs, filter)
+	code, err := traceInline(fs.Arg(0), fs.Args()[1:], LibScope(*noLibs), filter)
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func cmdEnumerate(args []string) error {
 	if err != nil {
 		return err
 	}
-	funcs, err := EnumerateFunctions(positional[0], *noLibs, filter)
+	funcs, err := EnumerateFunctions(positional[0], LibScope(*noLibs), filter)
 	if err != nil {
 		return err
 	}
@@ -260,17 +260,7 @@ func emitReport(format string, coverage map[string]*CoverageData, outputDir stri
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)
 		}
-		g := new(errgroup.Group)
-		g.SetLimit(runtime.GOMAXPROCS(0))
-		for image, data := range coverage {
-			g.Go(func() error {
-				if err := generateHTMLReport(image, data, outputDir); err != nil {
-					fmt.Fprintln(os.Stderr, "HTML report error:", err)
-				}
-				return nil
-			})
-		}
-		_ = g.Wait()
+		perImage(coverage, outputDir, "HTML report error:", generateHTMLReport)
 		if err := generateAggregateHTMLReport(coverage, outputDir); err != nil {
 			return fmt.Errorf("aggregate html report: %w", err)
 		}
@@ -278,21 +268,28 @@ func emitReport(format string, coverage map[string]*CoverageData, outputDir stri
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)
 		}
-		g := new(errgroup.Group)
-		g.SetLimit(runtime.GOMAXPROCS(0))
-		for image, data := range coverage {
-			g.Go(func() error {
-				if err := generateXUnitReport(image, data, outputDir); err != nil {
-					fmt.Fprintln(os.Stderr, "XUnit report error:", err)
-				}
-				return nil
-			})
-		}
-		_ = g.Wait()
+		perImage(coverage, outputDir, "XUnit report error:", generateXUnitReport)
 	default:
 		return fmt.Errorf("unknown format %q (want html, xml or txt)", format)
 	}
 	return nil
+}
+
+// perImage runs fn concurrently for every image in coverage. A per-image
+// error is logged under errLabel, not returned — one bad image shouldn't
+// stop the rest of the report.
+func perImage(coverage map[string]*CoverageData, outputDir, errLabel string, fn func(image string, data *CoverageData, outputDir string) error) {
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.GOMAXPROCS(0))
+	for image, data := range coverage {
+		g.Go(func() error {
+			if err := fn(image, data, outputDir); err != nil {
+				fmt.Fprintln(os.Stderr, errLabel, err)
+			}
+			return nil
+		})
+	}
+	_ = g.Wait()
 }
 
 func collectLogFiles(inputArg string) []string {
