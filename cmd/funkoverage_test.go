@@ -1309,18 +1309,38 @@ func TestImageIsRelevant(t *testing.T) {
 	}
 }
 
-// --- utsString tests ---
+// --- parseKernelVersion tests ---
 
-func TestUtsString(t *testing.T) {
-	input := []int8{'h', 'e', 'l', 'l', 'o', 0, 'x', 'y'}
-	if got := utsString(input); got != "hello" {
-		t.Errorf("utsString = %q, want %q", got, "hello")
+func TestParseKernelVersion(t *testing.T) {
+	cases := []struct {
+		release   string
+		wantMajor int
+		wantMinor int
+		wantErr   bool
+	}{
+		{"6.6.0-1-default", 6, 6, false},
+		{"5.15.0-generic", 5, 15, false},
+		{"6.6", 6, 6, false},
+		{"6.6.0", 6, 6, false},
+		{"6", 0, 0, true},
+		{"", 0, 0, true},
+		{"a.b.c", 0, 0, true},
 	}
-	if got := utsString([]int8{0}); got != "" {
-		t.Errorf("utsString([0]) = %q, want empty", got)
-	}
-	if got := utsString([]int8{'a', 'b'}); got != "ab" {
-		t.Errorf("utsString without null = %q, want %q", got, "ab")
+	for _, c := range cases {
+		maj, min, err := parseKernelVersion(c.release)
+		if c.wantErr {
+			if err == nil {
+				t.Errorf("parseKernelVersion(%q) expected error, got nil", c.release)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("parseKernelVersion(%q): %v", c.release, err)
+			continue
+		}
+		if maj != c.wantMajor || min != c.wantMinor {
+			t.Errorf("parseKernelVersion(%q) = (%d, %d), want (%d, %d)", c.release, maj, min, c.wantMajor, c.wantMinor)
+		}
 	}
 }
 

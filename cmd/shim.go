@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"funkoverage/internal/funkutil"
 )
@@ -250,19 +249,13 @@ func setupEnv() error {
 // checkKernelVersion parses `uname -r` and ensures the running kernel is
 // at least major.minor. Patch and suffix are ignored.
 func checkKernelVersion(wantMajor, wantMinor int) error {
-	var uts syscall.Utsname
-	if err := syscall.Uname(&uts); err != nil {
-		return fmt.Errorf("uname: %w", err)
+	data, err := os.ReadFile("/proc/sys/kernel/osrelease")
+	if err != nil {
+		return fmt.Errorf("read kernel release: %w", err)
 	}
-	release := utsString(uts.Release[:])
-	parts := strings.SplitN(release, ".", 3)
-	if len(parts) < 2 {
-		return fmt.Errorf("cannot parse kernel release %q", release)
-	}
-	maj, err1 := strconv.Atoi(parts[0])
-	min, err2 := strconv.Atoi(strings.SplitN(parts[1], "-", 2)[0])
-	if err1 != nil || err2 != nil {
-		return fmt.Errorf("cannot parse kernel release %q", release)
+	maj, min, err := parseKernelVersion(strings.TrimSpace(string(data)))
+	if err != nil {
+		return err
 	}
 	if maj < wantMajor || (maj == wantMajor && min < wantMinor) {
 		return fmt.Errorf("kernel %d.%d+ required (have %d.%d) for uprobe_multi support",
@@ -271,15 +264,20 @@ func checkKernelVersion(wantMajor, wantMinor int) error {
 	return nil
 }
 
-func utsString(b []int8) string {
-	out := make([]byte, 0, len(b))
-	for _, c := range b {
-		if c == 0 {
-			break
-		}
-		out = append(out, byte(c))
+// parseKernelVersion extracts the major.minor version from a kernel release
+// string (e.g. "6.6.0-1-default" -> 6, 6), as reported by
+// /proc/sys/kernel/osrelease.
+func parseKernelVersion(release string) (major, minor int, err error) {
+	parts := strings.SplitN(release, ".", 3)
+	if len(parts) < 2 {
+		return 0, 0, fmt.Errorf("cannot parse kernel release %q", release)
 	}
-	return string(out)
+	maj, err1 := strconv.Atoi(parts[0])
+	min, err2 := strconv.Atoi(strings.SplitN(parts[1], "-", 2)[0])
+	if err1 != nil || err2 != nil {
+		return 0, 0, fmt.Errorf("cannot parse kernel release %q", release)
+	}
+	return maj, min, nil
 }
 
 func findShimBinary() (string, error) {
