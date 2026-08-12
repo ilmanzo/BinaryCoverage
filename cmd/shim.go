@@ -70,7 +70,8 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 	if err := move(realTarget, safePath); err != nil {
 		return err
 	}
-	if err := mergeDebugIfExternal(safePath); err != nil {
+	if err := mergeDebugIfExternal(safePath, realTarget); err != nil {
+		_ = move(safePath, realTarget)
 		return fmt.Errorf("merge debug symbols: %w", err)
 	}
 

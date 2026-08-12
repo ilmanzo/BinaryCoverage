@@ -120,7 +120,7 @@ func TestLocateExternalDebugForMerge(t *testing.T) {
 	}
 
 	// No external debug file placed yet: nothing to find.
-	if got, err := locateExternalDebugForMerge(bin); err != nil || got != "" {
+	if got, err := locateExternalDebugForMerge(bin, bin); err != nil || got != "" {
 		t.Errorf("locateExternalDebugForMerge before placing debug file = (%q, %v), want (\"\", nil)", got, err)
 	}
 
@@ -132,12 +132,112 @@ func TestLocateExternalDebugForMerge(t *testing.T) {
 	if err := os.WriteFile(debugFile, []byte("dummy debug info"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	got, err := locateExternalDebugForMerge(bin)
+	got, err := locateExternalDebugForMerge(bin, bin)
 	if err != nil {
 		t.Fatalf("locateExternalDebugForMerge: %v", err)
 	}
 	if got != debugFile {
 		t.Errorf("locateExternalDebugForMerge = %q, want %q", got, debugFile)
+	}
+}
+
+// TestLocateExternalDebugForMerge_DebugLink verifies the .gnu_debuglink
+// fallback: when build-id resolution fails (e.g. a missing/stale
+// .build-id symlink), the debug file is still found via the standard
+// <debugRoot>/<canonical-dir-of-binary>/<debuglink-basename> convention
+// used by rpm/dpkg debuginfo packages.
+func TestLocateExternalDebugForMerge_DebugLink(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	if _, err := exec.LookPath("objcopy"); err != nil {
+		t.Skip("objcopy not found")
+	}
+	tmp := t.TempDir()
+	orig := globalDebugRoot
+	globalDebugRoot = filepath.Join(tmp, "debugroot")
+	defer func() { globalDebugRoot = orig }()
+
+	binDir := filepath.Join(tmp, "usr", "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(binDir, "prog")
+	if out, err := exec.Command("gcc", "-g", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	realBinDir, err := filepath.EvalSymlinks(binDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	debugDir := filepath.Join(globalDebugRoot, realBinDir)
+	if err := os.MkdirAll(debugDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	debugFile := filepath.Join(debugDir, "prog.debug")
+	if out, err := exec.Command("objcopy", "--only-keep-debug", bin, debugFile).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --only-keep-debug: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("objcopy", "--strip-debug", "--add-gnu-debuglink="+debugFile, bin).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --add-gnu-debuglink: %v\n%s", err, out)
+	}
+
+	got, err := locateExternalDebugForMerge(bin, bin)
+	if err != nil {
+		t.Fatalf("locateExternalDebugForMerge: %v", err)
+	}
+	if got != debugFile {
+		t.Errorf("locateExternalDebugForMerge via .gnu_debuglink = %q, want %q", got, debugFile)
+	}
+}
+
+// TestExternalDebugPath_IgnoresDwzFile verifies that a same-named file
+// sitting in a .dwz/-style directory is never picked up as a substitute
+// debug source: it can never provide a symtab or a standalone-parseable
+// .debug_info (see issue #128), so treating it as found is worse than
+// reporting no debug info at all.
+func TestExternalDebugPath_IgnoresDwzFile(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	if _, err := exec.LookPath("strip"); err != nil {
+		t.Skip("strip not found")
+	}
+	tmp := t.TempDir()
+	orig := globalDebugRoot
+	globalDebugRoot = tmp
+	defer func() { globalDebugRoot = orig }()
+
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(tmp, "cpupower")
+	if out, err := exec.Command("gcc", "-g", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("strip", "--strip-all", bin).CombinedOutput(); err != nil {
+		t.Fatalf("strip: %v\n%s", err, out)
+	}
+
+	dwzDir := filepath.Join(tmp, ".dwz")
+	if err := os.MkdirAll(dwzDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dwzDir, "cpupower-1.0-1.x86_64"), []byte("not a real debug file"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := externalDebugPath(bin); got != "" {
+		t.Errorf("externalDebugPath picked up a .dwz/ file as a debug source: %q, want \"\"", got)
+	}
+	if got, err := locateExternalDebugForMerge(bin, bin); err != nil || got != "" {
+		t.Errorf("locateExternalDebugForMerge picked up a .dwz/ file as a debug source: (%q, %v), want (\"\", nil)", got, err)
 	}
 }
 

@@ -57,21 +57,6 @@ func hasDebugInfo(path string) (bool, error) {
 		return true, nil
 	}
 
-	// Last resort: scan all .dwz files (handles fully-stripped packages like openssh)
-	binName := filepath.Base(path)
-	dwzDir := "/usr/lib/debug/.dwz"
-	if entries, err := os.ReadDir(dwzDir); err == nil {
-		for _, e := range entries {
-			if !e.IsDir() {
-				// Match by package name prefix, or by partial name matching for common patterns
-				name := e.Name()
-				if strings.HasPrefix(name, binName) || strings.Contains(name, binName) {
-					return true, nil
-				}
-			}
-		}
-	}
-
 	return false, nil
 }
 
@@ -81,9 +66,11 @@ func buildIDDebugPath(buildID string) string {
 
 // mergeDebugIfExternal merges external debug symbols into the binary using
 // eu-unstrip so DWARF traversal works even on stripped binaries.
-// Searches: .build-id paths, .gnu_debugaltlink (dwz), and .dwz/ directory.
-func mergeDebugIfExternal(binPath string) error {
-	debugPath, err := locateExternalDebugForMerge(binPath)
+// origPath is the binary's original absolute location (before any move to
+// SAFE_BIN_DIR), needed to resolve .gnu_debuglink's directory-relative
+// convention. Searches: .build-id paths, .gnu_debuglink, and .gnu_debugaltlink.
+func mergeDebugIfExternal(binPath, origPath string) error {
+	debugPath, err := locateExternalDebugForMerge(binPath, origPath)
 	if err != nil || debugPath == "" {
 		return err
 	}
@@ -93,7 +80,7 @@ func mergeDebugIfExternal(binPath string) error {
 // locateExternalDebugForMerge returns the external debug file path to merge
 // into binPath, or "" if the binary already has embedded debug info or no
 // external file is found.
-func locateExternalDebugForMerge(binPath string) (string, error) {
+func locateExternalDebugForMerge(binPath, origPath string) (string, error) {
 	f, err := elf.Open(binPath)
 	if err != nil {
 		return "", fmt.Errorf("open elf: %w", err)
@@ -113,21 +100,18 @@ func locateExternalDebugForMerge(binPath string) (string, error) {
 		}
 	}
 
+	if linkPath := debugLinkPath(origPath, readGnuDebugLink(f)); linkPath != "" {
+		if _, err := os.Stat(linkPath); err == nil {
+			return linkPath, nil
+		}
+	}
+
 	if altPath := readGnuDebugAltLink(f); altPath != "" {
 		if debugPath := findDebugFile(altPath); debugPath != "" {
 			return debugPath, nil
 		}
 	}
 
-	binName := filepath.Base(binPath)
-	dwzDir := "/usr/lib/debug/.dwz"
-	if entries, err := os.ReadDir(dwzDir); err == nil {
-		for _, e := range entries {
-			if !e.IsDir() && strings.HasPrefix(e.Name(), binName) {
-				return filepath.Join(dwzDir, e.Name()), nil
-			}
-		}
-	}
 	return "", nil
 }
 
@@ -146,6 +130,40 @@ func readGnuDebugAltLink(f *elf.File) string {
 		return string(data[:i])
 	}
 	return ""
+}
+
+// readGnuDebugLink extracts the debug file basename from the standard
+// .gnu_debuglink section (null-terminated name, then a padded CRC32 we
+// don't need here).
+func readGnuDebugLink(f *elf.File) string {
+	sec := f.Section(".gnu_debuglink")
+	if sec == nil {
+		return ""
+	}
+	data, err := sec.Data()
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+	if i := bytes.IndexByte(data, 0); i > 0 {
+		return string(data[:i])
+	}
+	return ""
+}
+
+// debugLinkPath resolves the standard GNU debug-link convention used by
+// rpm/dpkg debuginfo packages: <debugRoot>/<canonical-dir-of-binary>/<name>.
+// The directory must be canonicalized (e.g. /lib64 -> /usr/lib64 on
+// merged-/usr systems) since that's where debuginfo packages actually
+// install their files.
+func debugLinkPath(origPath, linkName string) string {
+	if linkName == "" {
+		return ""
+	}
+	dir := filepath.Dir(origPath)
+	if real, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = real
+	}
+	return filepath.Join(globalDebugRoot, dir, linkName)
 }
 
 // findDebugFile locates a debug file given an alt-link path.
