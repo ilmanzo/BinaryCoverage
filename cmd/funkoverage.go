@@ -100,6 +100,27 @@ func addFilterFlags(fs *flag.FlagSet) func() (*FuncFilter, error) {
 	}
 }
 
+// parseInterspersed parses fs, allowing flags to appear after positional
+// arguments. Go's flag package stops at the first non-flag argument, so
+// documented forms like `report <in> <out> --formats xml` would otherwise
+// silently drop the flag. Returns the positional arguments in order. A "--"
+// terminator still ends flag parsing as usual.
+func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
+	var positional []string
+	for len(args) > 0 {
+		if err := fs.Parse(args); err != nil {
+			return nil, err
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			break
+		}
+		positional = append(positional, rest[0])
+		args = rest[1:]
+	}
+	return positional, nil
+}
+
 // --- subcommand implementations ---
 
 func cmdHelp(args []string) error    { fmt.Print(helpText); return nil }
@@ -110,15 +131,18 @@ func cmdInstall(args []string) error {
 	fs := flag.NewFlagSet("install", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
 	buildFilter := addFilterFlags(fs)
-	fs.Parse(args)
-	if fs.NArg() < 1 {
+	positional, err := parseInterspersed(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(positional) < 1 {
 		return fmt.Errorf("missing binary path(s)")
 	}
 	filter, err := buildFilter()
 	if err != nil {
 		return err
 	}
-	return installMany(fs.Args(), *noLibs, filter)
+	return installMany(positional, *noLibs, filter)
 }
 
 func cmdUninstall(args []string) error {
@@ -134,6 +158,9 @@ func cmdTrace(args []string) error {
 	fs := flag.NewFlagSet("trace", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
 	buildFilter := addFilterFlags(fs)
+	// Deliberately NOT parseInterspersed: everything after the binary path
+	// belongs to the traced program, not to funkoverage. `trace foo --help`
+	// must pass --help to foo, so parsing must stop at the first positional.
 	fs.Parse(args)
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path")
@@ -156,15 +183,18 @@ func cmdEnumerate(args []string) error {
 	fs := flag.NewFlagSet("enumerate", flag.ExitOnError)
 	noLibs := fs.Bool("no-libs", false, "Skip library enumeration")
 	buildFilter := addFilterFlags(fs)
-	fs.Parse(args)
-	if fs.NArg() < 1 {
+	positional, err := parseInterspersed(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(positional) < 1 {
 		return fmt.Errorf("missing binary path")
 	}
 	filter, err := buildFilter()
 	if err != nil {
 		return err
 	}
-	funcs, err := EnumerateFunctions(fs.Arg(0), *noLibs, filter)
+	funcs, err := EnumerateFunctions(positional[0], *noLibs, filter)
 	if err != nil {
 		return err
 	}
@@ -191,11 +221,14 @@ func cmdEnumerate(args []string) error {
 func cmdReport(args []string) error {
 	fs := flag.NewFlagSet("report", flag.ExitOnError)
 	formats := fs.String("formats", "html,txt,xml", "Comma-separated list: html,xml,txt")
-	fs.Parse(args)
-	if fs.NArg() < 2 {
+	positional, err := parseInterspersed(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(positional) < 2 {
 		return fmt.Errorf("usage: report <inputdir|log1,log2> <outputdir> [--formats html,xml,txt]")
 	}
-	inputArg, outputDir := fs.Arg(0), fs.Arg(1)
+	inputArg, outputDir := positional[0], positional[1]
 
 	logFiles := collectLogFiles(inputArg)
 	if len(logFiles) == 0 {

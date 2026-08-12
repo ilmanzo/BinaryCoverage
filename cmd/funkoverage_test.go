@@ -3,6 +3,7 @@ package main
 import (
 	"debug/elf"
 	"encoding/xml"
+	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,6 +68,52 @@ func TestFuncFilterSidecar(t *testing.T) {
 	if s := both.Sidecar(); s.Include != "^math_" || s.Exclude != "is_" {
 		t.Errorf("unexpected sidecar for both: %+v", s)
 	}
+}
+
+// --- parseInterspersed tests ---
+
+func TestParseInterspersed(t *testing.T) {
+	newFS := func() (*flag.FlagSet, *string) {
+		fs := flag.NewFlagSet("test", flag.ContinueOnError)
+		formats := fs.String("formats", "default", "")
+		return fs, formats
+	}
+
+	cases := []struct {
+		name        string
+		args        []string
+		wantPos     []string
+		wantFormats string
+	}{
+		{"no flags", []string{"a", "b"}, []string{"a", "b"}, "default"},
+		{"flag before positionals", []string{"--formats", "xml", "a", "b"}, []string{"a", "b"}, "xml"},
+		{"flag after positionals", []string{"a", "b", "--formats", "xml"}, []string{"a", "b"}, "xml"},
+		{"flag interleaved", []string{"a", "--formats", "xml", "b"}, []string{"a", "b"}, "xml"},
+		{"flag with = syntax", []string{"a", "--formats=xml", "b"}, []string{"a", "b"}, "xml"},
+		{"-- terminates flag parsing", []string{"a", "--", "--formats", "xml"}, []string{"a", "--formats", "xml"}, "default"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fs, formats := newFS()
+			pos, err := parseInterspersed(fs, tc.args)
+			if err != nil {
+				t.Fatalf("parseInterspersed: %v", err)
+			}
+			if !slices.Equal(pos, tc.wantPos) {
+				t.Errorf("positional = %v, want %v", pos, tc.wantPos)
+			}
+			if *formats != tc.wantFormats {
+				t.Errorf("formats = %q, want %q", *formats, tc.wantFormats)
+			}
+		})
+	}
+
+	t.Run("unknown flag errors", func(t *testing.T) {
+		fs, _ := newFS()
+		if _, err := parseInterspersed(fs, []string{"a", "--bogus"}); err == nil {
+			t.Error("expected error for unknown flag, got nil")
+		}
+	})
 }
 
 // --- findDebugFile tests ---
