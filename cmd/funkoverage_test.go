@@ -4,6 +4,7 @@ import (
 	"debug/elf"
 	"encoding/xml"
 	"flag"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1546,42 +1547,30 @@ func TestEmitReport(t *testing.T) {
 	}
 }
 
-func TestCommandAliases(t *testing.T) {
+// TestCommands asserts the exact key set: the 8 subcommand names plus only
+// the documented -h/--help and -v/--version aliases. Every other alias
+// (-i, -u, -t, -e, -r, --install, --uninstall, --trace, --enumerate,
+// --report, --setup) was undocumented, unused in tests/docs, and -u was
+// unreachable anyway (shadowed by the "unwrap" deprecation guard in main).
+func TestCommands(t *testing.T) {
 	cmds := commands()
-	testCases := []struct {
-		alias string
-		want  string
-	}{
-		{"-i", "install"},
-		{"--install", "install"},
-		{"-u", "uninstall"},
-		{"--uninstall", "uninstall"},
-		{"-t", "trace"},
-		{"--trace", "trace"},
-		{"-e", "enumerate"},
-		{"--enumerate", "enumerate"},
-		{"--report", "report"},
-		{"--setup", "setup"},
-		{"-h", "help"},
-		{"--help", "help"},
-		{"-v", "version"},
-		{"--version", "version"},
-		{"-r", "report"},
+	want := []string{
+		"setup", "install", "uninstall", "trace", "enumerate", "report", "version", "help",
+		"-h", "--help", "-v", "--version",
 	}
-	for _, tc := range testCases {
-		cmd, ok := cmds[tc.alias]
-		if !ok {
-			t.Errorf("alias %q not registered", tc.alias)
-			continue
+	if len(cmds) != len(want) {
+		t.Errorf("commands() has %d keys, want %d: got %v", len(cmds), len(want), slices.Sorted(maps.Keys(cmds)))
+	}
+	for _, k := range want {
+		if _, ok := cmds[k]; !ok {
+			t.Errorf("expected key %q missing from commands()", k)
 		}
-		targetCmd, exists := cmds[tc.want]
-		if !exists {
-			t.Errorf("target command %q does not exist", tc.want)
-			continue
-		}
-		if cmd.name != targetCmd.name {
-			t.Errorf("alias %q resolves to command name %s, want %s", tc.alias, cmd.name, targetCmd.name)
-		}
+	}
+	if cmds["-h"].name != "help" || cmds["--help"].name != "help" {
+		t.Error("-h/--help must alias help")
+	}
+	if cmds["-v"].name != "version" || cmds["--version"].name != "version" {
+		t.Error("-v/--version must alias version")
 	}
 }
 
