@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 
+	"funkoverage/internal/funkutil"
+
 	"golang.org/x/sync/errgroup"
 )
 
@@ -95,11 +97,11 @@ func exitf(format string, args ...any) {
 
 // addFilterFlags binds --include and --exclude on fs and returns a closure
 // that builds the FuncFilter after fs.Parse has run.
-func addFilterFlags(fs *flag.FlagSet) func() (*FuncFilter, error) {
+func addFilterFlags(fs *flag.FlagSet) func() (*funkutil.FuncFilter, error) {
 	include := fs.String("include", "", "Regex: only trace functions matching pattern")
 	exclude := fs.String("exclude", "", "Regex: skip functions matching pattern")
-	return func() (*FuncFilter, error) {
-		return NewFuncFilter(*include, *exclude)
+	return func() (*funkutil.FuncFilter, error) {
+		return funkutil.NewFuncFilter(*include, *exclude)
 	}
 }
 

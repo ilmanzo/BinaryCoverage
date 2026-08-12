@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"testing"
+
+	"funkoverage/internal/funkutil"
 )
 
 func TestFlattenFuncs_StableOrderAndCookies(t *testing.T) {
@@ -109,8 +111,10 @@ func TestClipToCapacity(t *testing.T) {
 
 func TestTracer_MatchesFilter(t *testing.T) {
 	tr := &Tracer{
-		includeRe: regexp.MustCompile(`^plugin_`),
-		excludeRe: regexp.MustCompile(`_internal$`),
+		filter: &funkutil.FuncFilter{
+			Include: regexp.MustCompile(`^plugin_`),
+			Exclude: regexp.MustCompile(`_internal$`),
+		},
 	}
 	cases := []struct {
 		name string
@@ -121,15 +125,15 @@ func TestTracer_MatchesFilter(t *testing.T) {
 		{"other_func", false},
 	}
 	for _, c := range cases {
-		if got := tr.matchesFilter(c.name); got != c.want {
-			t.Errorf("matchesFilter(%q) = %v, want %v", c.name, got, c.want)
+		if got := tr.filter.Match(c.name); got != c.want {
+			t.Errorf("filter.Match(%q) = %v, want %v", c.name, got, c.want)
 		}
 	}
 
-	// No filter configured: everything passes.
+	// No filter configured (nil *FuncFilter): everything passes.
 	tr2 := &Tracer{}
-	if !tr2.matchesFilter("anything") {
-		t.Error("matchesFilter with no filter configured should pass everything")
+	if !tr2.filter.Match("anything") {
+		t.Error("filter.Match with no filter configured should pass everything")
 	}
 }
 

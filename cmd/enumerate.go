@@ -18,65 +18,9 @@ import (
 	"github.com/ianlancetaylor/demangle"
 )
 
-// FuncFilter gates which functions pass enumeration based on regex patterns
-// applied to the demangled name.
-type FuncFilter struct {
-	Include *regexp.Regexp
-	Exclude *regexp.Regexp
-}
-
-func NewFuncFilter(include, exclude string) (*FuncFilter, error) {
-	f := &FuncFilter{}
-	if include != "" {
-		re, err := regexp.Compile(include)
-		if err != nil {
-			return nil, fmt.Errorf("bad --include regex: %w", err)
-		}
-		f.Include = re
-	}
-	if exclude != "" {
-		re, err := regexp.Compile(exclude)
-		if err != nil {
-			return nil, fmt.Errorf("bad --exclude regex: %w", err)
-		}
-		f.Exclude = re
-	}
-	return f, nil
-}
-
-func (f *FuncFilter) Match(demangled string) bool {
-	if f == nil {
-		return true
-	}
-	if f.Include != nil && !f.Include.MatchString(demangled) {
-		return false
-	}
-	if f.Exclude != nil && f.Exclude.MatchString(demangled) {
-		return false
-	}
-	return true
-}
-
-// Sidecar converts f to its serializable form (regex source patterns) so the
-// shim can re-apply the same filter to functions discovered via dlopen at
-// runtime. A nil filter yields the zero value (no filtering).
-func (f *FuncFilter) Sidecar() funkutil.FilterSidecar {
-	var s funkutil.FilterSidecar
-	if f == nil {
-		return s
-	}
-	if f.Include != nil {
-		s.Include = f.Include.String()
-	}
-	if f.Exclude != nil {
-		s.Exclude = f.Exclude.String()
-	}
-	return s
-}
-
 // acceptFunc reports whether to keep `raw` (mangled name) given a filter and
 // dedup set. On accept it marks `raw` as seen.
-func acceptFunc(seen map[string]struct{}, raw string, filter *FuncFilter) bool {
+func acceptFunc(seen map[string]struct{}, raw string, filter *funkutil.FuncFilter) bool {
 	demangled := demangleName(raw)
 	if !funkutil.FuncIsRelevant(demangled) || !filter.Match(demangled) {
 		return false
@@ -99,7 +43,7 @@ func demangleName(raw string) string {
 
 // EnumerateFunctions returns map[imagePath][]functionName for the binary and
 // all its shared libraries that have debug info.
-func EnumerateFunctions(binPath string, noLibs bool, filter *FuncFilter) (map[string][]string, error) {
+func EnumerateFunctions(binPath string, noLibs bool, filter *funkutil.FuncFilter) (map[string][]string, error) {
 	result := make(map[string][]string)
 
 	funcs, err := enumerateOne(binPath, filter)
@@ -142,7 +86,7 @@ func EnumerateFunctions(binPath string, noLibs bool, filter *FuncFilter) (map[st
 // .gnu_debugaltlink file that Go's debug/dwarf package cannot follow.
 //
 // Order: binary's .symtab → external .debug file's .symtab → DWARF.
-func enumerateOne(path string, filter *FuncFilter) ([]string, error) {
+func enumerateOne(path string, filter *funkutil.FuncFilter) ([]string, error) {
 	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
 		return funcs, nil
 	}
@@ -155,7 +99,7 @@ func enumerateOne(path string, filter *FuncFilter) ([]string, error) {
 	return dwarfFunctions(cmp.Or(debugPath, path), filter)
 }
 
-func symtabFunctions(path string, filter *FuncFilter) []string {
+func symtabFunctions(path string, filter *funkutil.FuncFilter) []string {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil
@@ -168,7 +112,7 @@ func symtabFunctions(path string, filter *FuncFilter) []string {
 	return funcs
 }
 
-func dwarfFunctions(path string, filter *FuncFilter) ([]string, error) {
+func dwarfFunctions(path string, filter *funkutil.FuncFilter) ([]string, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open elf: %w", err)
@@ -211,7 +155,7 @@ func externalDebugPath(binPath string) string {
 	return path
 }
 
-func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error) {
+func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]string, error) {
 	seen := make(map[string]struct{})
 	seenAddr := make(map[uint64]struct{})
 	var funcs []string
@@ -263,7 +207,7 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error)
 	return funcs, nil
 }
 
-func enumerateSymtab(f *elf.File, filter *FuncFilter) ([]string, error) {
+func enumerateSymtab(f *elf.File, filter *funkutil.FuncFilter) ([]string, error) {
 	symbols, err := f.Symbols()
 	if err != nil {
 		// Try dynamic symbols as last resort

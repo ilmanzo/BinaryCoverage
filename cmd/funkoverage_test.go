@@ -48,30 +48,6 @@ func TestSetupEnv(t *testing.T) {
 	}
 }
 
-// --- FuncFilter.Sidecar tests ---
-
-func TestFuncFilterSidecar(t *testing.T) {
-	var nilFilter *FuncFilter
-	if s := nilFilter.Sidecar(); s.Include != "" || s.Exclude != "" {
-		t.Errorf("nil filter should produce empty sidecar, got %+v", s)
-	}
-
-	empty, _ := NewFuncFilter("", "")
-	if s := empty.Sidecar(); s.Include != "" || s.Exclude != "" {
-		t.Errorf("empty filter should produce empty sidecar, got %+v", s)
-	}
-
-	includeOnly, _ := NewFuncFilter("^str_", "")
-	if s := includeOnly.Sidecar(); s.Include != "^str_" || s.Exclude != "" {
-		t.Errorf("unexpected sidecar for include-only: %+v", s)
-	}
-
-	both, _ := NewFuncFilter("^math_", "is_")
-	if s := both.Sidecar(); s.Include != "^math_" || s.Exclude != "is_" {
-		t.Errorf("unexpected sidecar for both: %+v", s)
-	}
-}
-
 // --- parseInterspersed tests ---
 
 func TestParseInterspersed(t *testing.T) {
@@ -1313,82 +1289,6 @@ func TestSummarizeCoverage_MultipleImages(t *testing.T) {
 	}
 }
 
-// --- FuncFilter tests ---
-
-func TestNewFuncFilter(t *testing.T) {
-	f, err := NewFuncFilter("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f.Include != nil || f.Exclude != nil {
-		t.Error("empty strings should produce nil regexps")
-	}
-
-	f, err = NewFuncFilter("^str_", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f.Include == nil {
-		t.Error("expected non-nil Include")
-	}
-
-	f, err = NewFuncFilter("", "^util_")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f.Exclude == nil {
-		t.Error("expected non-nil Exclude")
-	}
-
-	_, err = NewFuncFilter("[invalid", "")
-	if err == nil {
-		t.Error("expected error for invalid include regex")
-	}
-	_, err = NewFuncFilter("", "[invalid")
-	if err == nil {
-		t.Error("expected error for invalid exclude regex")
-	}
-}
-
-func TestFuncFilterMatch(t *testing.T) {
-	var nilFilter *FuncFilter
-	if !nilFilter.Match("anything") {
-		t.Error("nil filter should match everything")
-	}
-
-	include, _ := NewFuncFilter("^str_", "")
-	if !include.Match("str_length") {
-		t.Error("should match str_length")
-	}
-	if include.Match("math_add") {
-		t.Error("should not match math_add")
-	}
-
-	exclude, _ := NewFuncFilter("", "^util_")
-	if !exclude.Match("str_length") {
-		t.Error("should match str_length")
-	}
-	if exclude.Match("util_clamp") {
-		t.Error("should not match util_clamp")
-	}
-
-	both, _ := NewFuncFilter("^math_", "is_")
-	if !both.Match("math_add") {
-		t.Error("should match math_add")
-	}
-	if both.Match("math_is_prime") {
-		t.Error("should not match math_is_prime (excluded)")
-	}
-	if both.Match("str_length") {
-		t.Error("should not match str_length (not included)")
-	}
-
-	empty, _ := NewFuncFilter("", "")
-	if !empty.Match("anything") {
-		t.Error("empty filter should match everything")
-	}
-}
-
 // --- imageIsRelevant tests ---
 
 func TestImageIsRelevant(t *testing.T) {
@@ -1589,7 +1489,7 @@ int main() { return str_length() + str_upper() + math_add(); }
 		t.Fatalf("compile: %v\n%s", err, out)
 	}
 
-	filter, _ := NewFuncFilter("^str_", "")
+	filter, _ := funkutil.NewFuncFilter("^str_", "")
 	funcs, err := EnumerateFunctions(bin, true, filter)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions: %v", err)
@@ -1762,7 +1662,7 @@ func TestTraceInline(t *testing.T) {
 	}
 	t.Setenv("FUNKOVERAGE_SHIM", trueBin)
 
-	filter, _ := NewFuncFilter("", "")
+	filter, _ := funkutil.NewFuncFilter("", "")
 	code, err := traceInline(bin, []string{}, true, filter)
 	if err != nil {
 		t.Fatalf("traceInline error: %v", err)

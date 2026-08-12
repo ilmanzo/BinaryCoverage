@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -54,8 +53,7 @@ type Tracer struct {
 	rootPID        uint32
 	seenCapacity   uint32 // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
 	capacityWarned bool
-	includeRe      *regexp.Regexp // dlopen JIT filter, mirrors install-time --include
-	excludeRe      *regexp.Regexp // dlopen JIT filter, mirrors install-time --exclude
+	filter         *funkutil.FuncFilter // dlopen JIT filter, mirrors the install-time --include/--exclude filter
 
 	wg       sync.WaitGroup
 	stopOnce sync.Once
@@ -79,20 +77,12 @@ func NewTracer(funcs map[string][]string, logPath, includePattern, excludePatter
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
 	}
 
-	var includeRe, excludeRe *regexp.Regexp
-	if includePattern != "" {
-		if re, err := regexp.Compile(includePattern); err == nil {
-			includeRe = re
-		} else {
-			debugLog("funkoverage-shim: bad --include pattern %q: %v", includePattern, err)
-		}
+	filter := funkutil.FilterFromSidecar(funkutil.FilterSidecar{Include: includePattern, Exclude: excludePattern})
+	if includePattern != "" && filter.Include == nil {
+		debugLog("funkoverage-shim: bad --include pattern %q", includePattern)
 	}
-	if excludePattern != "" {
-		if re, err := regexp.Compile(excludePattern); err == nil {
-			excludeRe = re
-		} else {
-			debugLog("funkoverage-shim: bad --exclude pattern %q: %v", excludePattern, err)
-		}
+	if excludePattern != "" && filter.Exclude == nil {
+		debugLog("funkoverage-shim: bad --exclude pattern %q", excludePattern)
 	}
 
 	refs, imgSyms, imgCookies := flattenFuncs(funcs)
@@ -130,23 +120,8 @@ func NewTracer(funcs map[string][]string, logPath, includePattern, excludePatter
 		logFile:      logFile,
 		funcsLogPath: funcsLogPath,
 		seenCapacity: seenCapacity,
-		includeRe:    includeRe,
-		excludeRe:    excludeRe,
+		filter:       filter,
 	}, nil
-}
-
-// matchesFilter reports whether demangled passes the install-time
-// --include/--exclude filter: include must match if set, exclude must not
-// match. Mirrors FuncFilter.Match in cmd/enumerate.go (unavailable here —
-// separate package main).
-func (t *Tracer) matchesFilter(demangled string) bool {
-	if t.includeRe != nil && !t.includeRe.MatchString(demangled) {
-		return false
-	}
-	if t.excludeRe != nil && t.excludeRe.MatchString(demangled) {
-		return false
-	}
-	return true
 }
 
 // ensureFuncsLog opens the per-run dynamic functions log on first use.
@@ -551,10 +526,10 @@ func (t *Tracer) handleDynamicLoad() {
 			continue
 		}
 
-		if t.includeRe != nil || t.excludeRe != nil {
+		if t.filter.Include != nil || t.filter.Exclude != nil {
 			filtered := syms[:0]
 			for _, name := range syms {
-				if t.matchesFilter(demangle.Filter(funkutil.StripVersion(name))) {
+				if t.filter.Match(demangle.Filter(funkutil.StripVersion(name))) {
 					filtered = append(filtered, name)
 				}
 			}

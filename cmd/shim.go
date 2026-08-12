@@ -19,7 +19,7 @@ const defaultShimSearchDir = "/usr/lib64/coverage-tools"
 // install moves the real binary to SAFE_BIN_DIR/<basename>, writes a
 // _functions.log, and puts the shim binary at the original path.
 // No JSON config — the shim finds the real binary by path convention.
-func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
+func install(targetBinary string, noLibs bool, filter *funkutil.FuncFilter) error {
 	logDir := funkutil.LogDir()
 	safeBinDir := funkutil.SafeBinDir()
 
@@ -208,7 +208,7 @@ func forEachBinary(binaries []string, verb string, fn func(string) error) error 
 	return nil
 }
 
-func installMany(binaries []string, noLibs bool, filter *FuncFilter) error {
+func installMany(binaries []string, noLibs bool, filter *funkutil.FuncFilter) error {
 	return forEachBinary(binaries, "install", func(bin string) error {
 		return install(bin, noLibs, filter)
 	})
