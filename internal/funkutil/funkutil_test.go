@@ -159,6 +159,32 @@ func TestEnvOverrides(t *testing.T) {
 	}
 }
 
+func TestEnsureLogDir(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "coverage", "data")
+
+	if err := EnsureLogDir(dir); err != nil {
+		t.Fatalf("EnsureLogDir: %v", err)
+	}
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if !fi.IsDir() {
+		t.Fatal("EnsureLogDir did not create a directory")
+	}
+	wantMode := os.ModeSticky | 0o777
+	if fi.Mode()&(os.ModeSticky|os.ModePerm) != wantMode {
+		t.Errorf("mode = %v, want sticky+0777 (%v)", fi.Mode(), wantMode)
+	}
+
+	// Calling again on an existing directory must not error, even though
+	// the Chmod re-application is best-effort.
+	if err := EnsureLogDir(dir); err != nil {
+		t.Errorf("EnsureLogDir on existing dir: %v", err)
+	}
+}
+
 func TestFilterSidecarRoundtrip(t *testing.T) {
 	tmpDir := t.TempDir()
 	safePath := filepath.Join(tmpDir, "testbin")

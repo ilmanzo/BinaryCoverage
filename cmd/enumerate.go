@@ -379,7 +379,7 @@ func ParseLddLibraries(binPath string) ([]string, error) {
 
 // writeFunctionsLog writes a _functions.log file to logDir and returns its path.
 func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string) (string, error) {
-	if err := os.MkdirAll(logDir, 0777); err != nil {
+	if err := funkutil.EnsureLogDir(logDir); err != nil {
 		return "", err
 	}
 	ts := time.Now()

@@ -103,7 +103,7 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	filter := funkutil.ReadFilterSidecar(realBin)
 
 	dir := funkutil.LogDir()
-	if err := os.MkdirAll(dir, 0777); err != nil {
+	if err := funkutil.EnsureLogDir(dir); err != nil {
 		return 1, fmt.Errorf("create log dir: %w", err)
 	}
 

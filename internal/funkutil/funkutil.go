@@ -32,6 +32,23 @@ func LogDir() string { return EnvOr("LOG_DIR", DefaultLogDir) }
 // SafeBinDir returns SAFE_BIN_DIR or DefaultSafeBinDir.
 func SafeBinDir() string { return EnvOr("SAFE_BIN_DIR", DefaultSafeBinDir) }
 
+// EnsureLogDir creates dir as 1777 (world-writable + sticky, same contract
+// as /tmp). The shim is installed with file capabilities specifically so it
+// can be invoked by users other than whoever ran `setup`/`install`; they
+// must be able to create their own _called.log, and the sticky bit stops
+// one user from deleting or renaming another's. MkdirAll applies the
+// umask, so the mode is re-applied with Chmod — best-effort: once the
+// directory exists with the right mode (typically created by root during
+// `setup`), a later non-root caller can't Chmod a directory it doesn't
+// own, and that failure must not be treated as fatal.
+func EnsureLogDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o1777); err != nil {
+		return err
+	}
+	_ = os.Chmod(dir, os.ModeSticky|0o777)
+	return nil
+}
+
 // StripVersion removes a trailing "@VERSION" suffix from a symbol name.
 // e.g. "memcpy@GLIBC_2.14" → "memcpy".
 func StripVersion(name string) string {

@@ -233,10 +233,14 @@ func setupEnv() error {
 		return fmt.Errorf("BTF unavailable at /sys/kernel/btf/vmlinux: %w "+
 			"(kernel must be built with CONFIG_DEBUG_INFO_BTF=y)", err)
 	}
-	for _, dir := range []string{funkutil.LogDir(), funkutil.SafeBinDir()} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("create %s: %w", dir, err)
-		}
+	// LOG_DIR is 1777 (like /tmp), not 0755: the shim is installed with file
+	// capabilities so non-root users can invoke a shimmed binary and still
+	// write their own _called.log. SAFE_BIN_DIR is root-only.
+	if err := funkutil.EnsureLogDir(funkutil.LogDir()); err != nil {
+		return fmt.Errorf("create %s: %w", funkutil.LogDir(), err)
+	}
+	if err := os.MkdirAll(funkutil.SafeBinDir(), 0755); err != nil {
+		return fmt.Errorf("create %s: %w", funkutil.SafeBinDir(), err)
 	}
 	fmt.Println("Environment OK: kernel + BTF + log/bin directories ready.")
 	fmt.Println("Run 'funkoverage install <binary>' as root to install a shim.")
