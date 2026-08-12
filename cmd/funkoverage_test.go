@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -238,6 +239,142 @@ func TestExternalDebugPath_IgnoresDwzFile(t *testing.T) {
 	}
 	if got, err := locateExternalDebugForMerge(bin, bin); err != nil || got != "" {
 		t.Errorf("locateExternalDebugForMerge picked up a .dwz/ file as a debug source: (%q, %v), want (\"\", nil)", got, err)
+	}
+}
+
+// --- mergeLibraryDebugInfo / restoreLibraryBackups tests ---
+
+// TestMergeLibraryDebugInfo verifies that a library gets its external debug
+// info merged in place (so uprobe attach can resolve names that only exist
+// in the debug file's symtab), that a backup of the pre-merge original is
+// recorded, and that restoreLibraryBackups puts the original back exactly.
+func TestMergeLibraryDebugInfo(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	if _, err := exec.LookPath("strip"); err != nil {
+		t.Skip("strip not found")
+	}
+	if _, err := exec.LookPath("eu-unstrip"); err != nil {
+		t.Skip("eu-unstrip not found")
+	}
+	tmp := t.TempDir()
+	safeBinDir := filepath.Join(tmp, "safebin")
+	t.Setenv("SAFE_BIN_DIR", safeBinDir)
+	orig := globalDebugRoot
+	globalDebugRoot = filepath.Join(tmp, "debugroot")
+	defer func() { globalDebugRoot = orig }()
+
+	libDir := filepath.Join(tmp, "usr", "lib64")
+	if err := os.MkdirAll(libDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(tmp, "lib.c")
+	// lib_local_func is `static`: LOCAL binding, present in .symtab but never
+	// in .dynsym, so it vanishes from a fully-stripped runtime .so exactly
+	// like GMP's internal mpn_* helpers do (the real bug this mirrors).
+	code := "static int lib_local_func(void) { return 42; }\nint lib_public_func(void) { return lib_local_func(); }\n"
+	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
+		t.Fatal(err)
+	}
+	lib := filepath.Join(libDir, "libdemo.so")
+	if out, err := exec.Command("gcc", "-shared", "-fPIC", "-g", "-o", lib, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	realLibDir, err := filepath.EvalSymlinks(libDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	debugDir := filepath.Join(globalDebugRoot, realLibDir)
+	if err := os.MkdirAll(debugDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	debugFile := filepath.Join(debugDir, "libdemo.so.debug")
+	if out, err := exec.Command("objcopy", "--only-keep-debug", lib, debugFile).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --only-keep-debug: %v\n%s", err, out)
+	}
+	// strip --strip-all (not --strip-debug) matches real distro debuginfo
+	// packaging: the shipped runtime .so keeps only .dynsym, dropping the
+	// full .symtab (and with it every LOCAL/static symbol) entirely.
+	if out, err := exec.Command("strip", "--strip-all", lib).CombinedOutput(); err != nil {
+		t.Fatalf("strip --strip-all: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("objcopy", "--add-gnu-debuglink="+debugFile, lib).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --add-gnu-debuglink: %v\n%s", err, out)
+	}
+	strippedBytes, err := os.ReadFile(lib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if funcs := symtabFunctions(lib, nil); slices.Contains(funcs, "lib_local_func") {
+		t.Fatalf("test setup: lib_local_func should NOT be resolvable pre-merge, got %v", funcs)
+	}
+
+	funcs := map[string][]string{
+		lib:          {"lib_local_func"},
+		"/some/main": {"main_func"},
+	}
+	backups := mergeLibraryDebugInfo(funcs, "/some/main")
+
+	backupPath, ok := backups[lib]
+	if !ok {
+		t.Fatalf("mergeLibraryDebugInfo did not back up %s; backups = %v", lib, backups)
+	}
+	backedUp, err := os.ReadFile(backupPath)
+	if err != nil {
+		t.Fatalf("read backup: %v", err)
+	}
+	if string(backedUp) != string(strippedBytes) {
+		t.Error("backup does not match the pre-merge (stripped) library bytes")
+	}
+
+	merged, err := os.ReadFile(lib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(merged) <= len(strippedBytes) {
+		t.Errorf("merged library (%d bytes) should be larger than stripped (%d bytes)", len(merged), len(strippedBytes))
+	}
+	if funcs := symtabFunctions(lib, nil); !slices.Contains(funcs, "lib_local_func") {
+		t.Errorf("merged library should now expose lib_local_func directly, got %v", funcs)
+	}
+
+	// Restore, via the same sidecar install() would write.
+	safePath := filepath.Join(safeBinDir, "some-target")
+	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := funkutil.WriteLibBackups(safePath, backups); err != nil {
+		t.Fatal(err)
+	}
+	restoreLibraryBackups(safePath)
+
+	restored, err := os.ReadFile(lib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(restored) != string(strippedBytes) {
+		t.Error("restoreLibraryBackups did not restore the pre-merge (stripped) library bytes")
+	}
+	if _, err := os.Stat(backupPath); !os.IsNotExist(err) {
+		t.Errorf("backup file %s should be gone after restore, stat err = %v", backupPath, err)
+	}
+}
+
+// TestMergeLibraryDebugInfo_SkipsMainImage verifies the main target binary
+// (already merged separately by install()) is never re-processed here.
+func TestMergeLibraryDebugInfo_SkipsMainImage(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("SAFE_BIN_DIR", filepath.Join(tmp, "safebin"))
+
+	main := filepath.Join(tmp, "main")
+	if err := os.WriteFile(main, []byte("not a real elf, must not be touched"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	funcs := map[string][]string{main: {"main_func"}}
+	backups := mergeLibraryDebugInfo(funcs, main)
+	if len(backups) != 0 {
+		t.Errorf("mergeLibraryDebugInfo should skip mainImage, got backups = %v", backups)
 	}
 }
 

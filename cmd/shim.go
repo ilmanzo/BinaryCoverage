@@ -99,6 +99,13 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 
+	if !noLibs {
+		backups := mergeLibraryDebugInfo(funcs, safePath)
+		if err := funkutil.WriteLibBackups(safePath, backups); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: write library backup sidecar: %v\n", err)
+		}
+	}
+
 	if err := funkutil.WriteFilterSidecar(safePath, filter.Sidecar()); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: write filter sidecar: %v\n", err)
 	}
@@ -171,6 +178,7 @@ func uninstall(targetBinary string) error {
 		return fmt.Errorf("restore binary: %w", err)
 	}
 	_ = funkutil.WriteFuncList(safePath, nil)
+	restoreLibraryBackups(safePath)
 
 	originalName := filepath.Base(targetBinary)
 	if originalName != binaryName {
