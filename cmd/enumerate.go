@@ -174,6 +174,15 @@ func dwarfFunctions(path string, filter *FuncFilter) ([]string, error) {
 		return nil, fmt.Errorf("open elf: %w", err)
 	}
 	defer f.Close()
+	if !hasEmbeddedDebugInfo(f) {
+		// No .debug_info anywhere in this file: there's nothing to parse.
+		// This is the common, expected case once every external-debug
+		// lookup has failed — not a real error, so let the caller treat it
+		// as "no functions found" instead of surfacing a raw stdlib parser
+		// error (Go's debug/dwarf errors on a missing/empty .debug_info
+		// with a cryptic "too short" rather than reporting its absence).
+		return nil, nil
+	}
 	dw, err := f.DWARF()
 	if err != nil {
 		return nil, fmt.Errorf("dwarf: %w", err)
@@ -181,9 +190,18 @@ func dwarfFunctions(path string, filter *FuncFilter) ([]string, error) {
 	return enumerateDWARF(dw, filter)
 }
 
+func hasEmbeddedDebugInfo(f *elf.File) bool {
+	for _, s := range f.Sections {
+		if s.Name == ".debug_info" && s.Size > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // externalDebugPath returns the path to an external .debug file, or "".
-// Tries: .build-id layout, then .gnu_debugaltlink (dwz-compressed), then
-// brute-force search in /usr/lib/debug/.dwz/ by package name.
+// Tries: .build-id layout, then .gnu_debuglink (standard GNU separate-debug
+// convention), then .gnu_debugaltlink (dwz-compressed).
 func externalDebugPath(binPath string) string {
 	f, err := elf.Open(binPath)
 	if err != nil {
@@ -197,6 +215,13 @@ func externalDebugPath(binPath string) string {
 		p := buildIDDebugPath(buildID)
 		if _, err := os.Stat(p); err == nil {
 			return p
+		}
+	}
+
+	// Try .gnu_debuglink: <debugRoot>/<canonical-dir-of-binary>/<name>
+	if linkPath := debugLinkPath(binPath, readGnuDebugLink(f)); linkPath != "" {
+		if _, err := os.Stat(linkPath); err == nil {
+			return linkPath
 		}
 	}
 
@@ -216,18 +241,6 @@ func externalDebugPath(binPath string) string {
 			dwzPath := filepath.Join("/usr/lib/debug/.dwz", base)
 			if _, err := os.Stat(dwzPath); err == nil {
 				return dwzPath
-			}
-		}
-	}
-
-	// Brute-force: scan .dwz dir for package matching binary name
-	binName := filepath.Base(binPath)
-	dwzDir := "/usr/lib/debug/.dwz"
-	entries, err := os.ReadDir(dwzDir)
-	if err == nil {
-		for _, e := range entries {
-			if !e.IsDir() && (strings.HasPrefix(e.Name(), binName) || strings.Contains(e.Name(), binName)) {
-				return filepath.Join(dwzDir, e.Name())
 			}
 		}
 	}
