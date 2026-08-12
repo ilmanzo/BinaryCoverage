@@ -241,9 +241,7 @@ func ParseLddLibraries(binPath string) ([]string, error) {
 		return nil, err
 	}
 	var libs []string
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		line := scanner.Text()
+	for line := range strings.Lines(string(out)) {
 		if strings.Contains(line, "linux-vdso") || strings.Contains(line, "not found") {
 			continue
 		}

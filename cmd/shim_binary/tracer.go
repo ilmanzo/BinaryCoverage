@@ -322,19 +322,12 @@ func hasSymbol(path, name string) bool {
 	}
 	defer f.Close()
 
-	if syms, err := f.DynamicSymbols(); err == nil {
-		for _, s := range syms {
-			if s.Name == name {
-				return true
-			}
-		}
+	hasName := func(s elf.Symbol) bool { return s.Name == name }
+	if syms, err := f.DynamicSymbols(); err == nil && slices.ContainsFunc(syms, hasName) {
+		return true
 	}
-	if syms, err := f.Symbols(); err == nil {
-		for _, s := range syms {
-			if s.Name == name {
-				return true
-			}
-		}
+	if syms, err := f.Symbols(); err == nil && slices.ContainsFunc(syms, hasName) {
+		return true
 	}
 	return false
 }
@@ -396,10 +389,9 @@ func getMappedSharedLibraries(pid uint32) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(string(data), "\n")
 	seen := make(map[string]struct{})
 	var libs []string
-	for _, line := range lines {
+	for line := range strings.Lines(string(data)) {
 		if strings.Contains(line, ".so") && strings.Contains(line, "r-xp") {
 			parts := strings.Fields(line)
 			if len(parts) >= 6 {

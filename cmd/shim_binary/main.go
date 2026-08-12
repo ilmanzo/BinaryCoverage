@@ -201,15 +201,12 @@ func envSafeName(s string) string {
 }
 
 func cleanEnv(extra ...string) []string {
-	skip := map[string]bool{childEnvVar: true, waitFdEnvVar: true, arg0EnvVar: true}
-	for _, k := range extra {
-		skip[k] = true
-	}
+	skip := append([]string{childEnvVar, waitFdEnvVar, arg0EnvVar}, extra...)
 	src := os.Environ()
 	env := make([]string, 0, len(src))
 	for _, e := range src {
 		k, _, _ := strings.Cut(e, "=")
-		if !skip[k] {
+		if !slices.Contains(skip, k) {
 			env = append(env, e)
 		}
 	}

@@ -4,6 +4,7 @@
 package funkutil
 
 import (
+	"cmp"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -18,19 +19,11 @@ const (
 	DefaultSafeBinDir = "/var/coverage/bin"
 )
 
-// EnvOr returns the value of the named env var, or fallback if unset/empty.
-func EnvOr(name, fallback string) string {
-	if v := os.Getenv(name); v != "" {
-		return v
-	}
-	return fallback
-}
-
 // LogDir returns LOG_DIR or DefaultLogDir.
-func LogDir() string { return EnvOr("LOG_DIR", DefaultLogDir) }
+func LogDir() string { return cmp.Or(os.Getenv("LOG_DIR"), DefaultLogDir) }
 
 // SafeBinDir returns SAFE_BIN_DIR or DefaultSafeBinDir.
-func SafeBinDir() string { return EnvOr("SAFE_BIN_DIR", DefaultSafeBinDir) }
+func SafeBinDir() string { return cmp.Or(os.Getenv("SAFE_BIN_DIR"), DefaultSafeBinDir) }
 
 // EnsureLogDir creates dir as 1777 (world-writable + sticky, same contract
 // as /tmp). The shim is installed with file capabilities specifically so it

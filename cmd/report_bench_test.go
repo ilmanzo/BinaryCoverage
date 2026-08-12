@@ -15,7 +15,7 @@ import (
 func genBenchLogs(b *testing.B, dir string, numImages, funcsPerImage, callFilesPerImage int) []string {
 	b.Helper()
 	var files []string
-	for i := 0; i < numImages; i++ {
+	for i := range numImages {
 		image := fmt.Sprintf("/opt/bench/image%04d/bin", i)
 		base := fmt.Sprintf("image%04d", i)
 
@@ -24,7 +24,7 @@ func genBenchLogs(b *testing.B, dir string, numImages, funcsPerImage, callFilesP
 		if err != nil {
 			b.Fatal(err)
 		}
-		for j := 0; j < funcsPerImage; j++ {
+		for j := range funcsPerImage {
 			fmt.Fprintf(f, "FUNC %s func_%s_%d(int, char const*)\n", image, base, j)
 		}
 		f.Close()
@@ -35,17 +35,14 @@ func genBenchLogs(b *testing.B, dir string, numImages, funcsPerImage, callFilesP
 		if perFile == 0 {
 			perFile = 1
 		}
-		for c := 0; c < callFilesPerImage; c++ {
+		for c := range callFilesPerImage {
 			calledPath := filepath.Join(dir, base+"_run"+strconv.Itoa(c)+"_called.log")
 			cf, err := os.Create(calledPath)
 			if err != nil {
 				b.Fatal(err)
 			}
 			start := c * perFile
-			end := start + perFile
-			if end > funcsPerImage {
-				end = funcsPerImage
-			}
+			end := min(start+perFile, funcsPerImage)
 			for j := start; j < end; j++ {
 				fmt.Fprintf(cf, "CALLED %s func_%s_%d(int, char const*)\n", image, base, j)
 			}
