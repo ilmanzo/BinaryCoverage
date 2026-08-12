@@ -65,6 +65,10 @@ type Tracer struct {
 // `funcs` maps each ELF image path (main binary or shared library) to the
 // list of symbol names to trace. The flattened order — images sorted, symbols
 // in input order — defines the global cookie space used to identify events.
+// A nil/empty funcs map is valid: it supports pure runtime dynamic-library
+// tracing, a binary with no static functions of its own that relies
+// entirely on dlopen'd plugins for coverage — flattenFuncs below ranges it
+// (a no-op on nil) and simply produces no initial cookies.
 //
 // `includePattern`/`excludePattern` are the source regex patterns from the
 // install-time --include/--exclude filter (empty string = no filter). They
@@ -72,7 +76,6 @@ type Tracer struct {
 // instrumentation, matching the filtering already applied at enumeration
 // time to statically discovered functions.
 func NewTracer(funcs map[string][]string, logPath, includePattern, excludePattern string) (*Tracer, error) {
-	funcs = normalizeFuncs(funcs)
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
 	}
@@ -137,16 +140,6 @@ func (t *Tracer) ensureFuncsLog() (*os.File, error) {
 	}
 	t.funcsLogFile = f
 	return f, nil
-}
-
-// normalizeFuncs defaults a nil/empty funcs map to an empty (non-nil) map,
-// supporting pure runtime dynamic-library tracing: a binary with no static
-// functions of its own, relying entirely on dlopen'd plugins for coverage.
-func normalizeFuncs(funcs map[string][]string) map[string][]string {
-	if len(funcs) == 0 {
-		return make(map[string][]string)
-	}
-	return funcs
 }
 
 // flattenFuncs builds the global cookie space. Images are sorted so that

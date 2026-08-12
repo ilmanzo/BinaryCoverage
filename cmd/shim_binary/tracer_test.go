@@ -54,30 +54,19 @@ func TestFlattenFuncs_DeterministicAcrossRuns(t *testing.T) {
 	}
 }
 
-// NewTracer used to reject empty/nil funcs outright. It now defaults them
-// to support pure runtime dynamic-library tracing (a binary with no static
-// functions of its own, relying entirely on dlopen'd plugins) — see
-// normalizeFuncs. Any error these two now return comes from the BPF load
-// itself (this test environment may lack CAP_BPF/root), not from a
-// rejection of empty funcs, so we only assert that behavior directly via
-// normalizeFuncs rather than asserting on NewTracer's error here.
-func TestNormalizeFuncs_DefaultsEmptyAndNil(t *testing.T) {
+// A nil/empty funcs map supports pure runtime dynamic-library tracing (a
+// binary with no static functions of its own, relying entirely on dlopen'd
+// plugins) — flattenFuncs must handle it directly (ranging a nil map is
+// legal Go) without any normalization step.
+func TestFlattenFuncs_HandlesNilAndEmpty(t *testing.T) {
 	for name, in := range map[string]map[string][]string{
 		"nil":   nil,
 		"empty": {},
 	} {
-		got := normalizeFuncs(in)
-		if got == nil {
-			t.Errorf("normalizeFuncs(%s): got nil, want non-nil empty map", name)
+		refs, syms, cookies := flattenFuncs(in)
+		if len(refs) != 0 || len(syms) != 0 || len(cookies) != 0 {
+			t.Errorf("flattenFuncs(%s): got refs=%v syms=%v cookies=%v, want all empty", name, refs, syms, cookies)
 		}
-		if len(got) != 0 {
-			t.Errorf("normalizeFuncs(%s): got %v, want empty", name, got)
-		}
-	}
-
-	in := map[string][]string{"/bin/foo": {"main"}}
-	if got := normalizeFuncs(in); !reflect.DeepEqual(got, in) {
-		t.Errorf("normalizeFuncs(non-empty): got %v, want unchanged %v", got, in)
 	}
 }
 
