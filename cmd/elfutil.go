@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"funkoverage/internal/funkutil"
 )
 
 var globalDebugRoot = "/usr/lib/debug"
@@ -75,6 +77,66 @@ func mergeDebugIfExternal(binPath, origPath string) error {
 		return err
 	}
 	return unstrip(binPath, debugPath)
+}
+
+// mergeLibraryDebugInfo merges external debug info into each library in
+// funcs (in place, at its real system path — every other library-linking
+// funkoverage target on the system will pick up the merged copy too) so
+// that uprobe attach, which resolves symbol names against the exact file
+// the kernel maps at runtime, can find local functions that enumeration
+// only discovered via an external debug file. mainImage (the already-moved
+// and already-merged target binary) is skipped.
+//
+// ponytail: no cross-target reference counting — if two installed targets
+// share a library, uninstalling one restores it for both. Add a refcount
+// sidecar under SAFE_BIN_DIR/libs/ if that becomes a real problem.
+//
+// Returns the set of libraries actually modified (original path -> backup
+// path under SAFE_BIN_DIR/libs/), so uninstall can restore exactly what
+// this install call changed.
+func mergeLibraryDebugInfo(funcs map[string][]string, mainImage string) map[string]string {
+	backups := make(map[string]string)
+	for lib := range funcs {
+		if lib == mainImage {
+			continue
+		}
+		debugPath, err := locateExternalDebugForMerge(lib, lib)
+		if err != nil || debugPath == "" {
+			continue // no external debug found, or lib is already self-sufficient
+		}
+		info, err := os.Stat(lib)
+		if err != nil {
+			continue
+		}
+		backupPath := filepath.Join(funkutil.SafeBinDir(), "libs", lib)
+		if err := os.MkdirAll(filepath.Dir(backupPath), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: backup dir for %s: %v\n", lib, err)
+			continue
+		}
+		if err := copyFile(lib, backupPath, info.Mode().Perm()); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: back up %s before merge: %v\n", lib, err)
+			continue
+		}
+		if err := unstrip(lib, debugPath); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: merge debug symbols into %s: %v\n", lib, err)
+			os.Remove(backupPath)
+			continue
+		}
+		backups[lib] = backupPath
+	}
+	return backups
+}
+
+// restoreLibraryBackups reverses mergeLibraryDebugInfo for the libraries
+// this specific install call modified, per safePath's backup sidecar.
+func restoreLibraryBackups(safePath string) {
+	backups := funkutil.ReadLibBackups(safePath)
+	for lib, backupPath := range backups {
+		if err := move(backupPath, lib); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: restore %s: %v\n", lib, err)
+		}
+	}
+	_ = funkutil.WriteLibBackups(safePath, nil)
 }
 
 // locateExternalDebugForMerge returns the external debug file path to merge
