@@ -3,7 +3,9 @@ package main
 import (
 	"debug/elf"
 	"encoding/xml"
+	"errors"
 	"flag"
+	"io"
 	"maps"
 	"os"
 	"os/exec"
@@ -1734,5 +1736,241 @@ func TestTraceInline(t *testing.T) {
 	files, _ := filepath.Glob(filepath.Join(tmpLog, "*_functions.log"))
 	if len(files) == 0 {
 		t.Error("expected functions log to be written in LOG_DIR")
+	}
+}
+
+// captureStdout runs fn with os.Stdout redirected to a pipe and returns
+// everything it wrote.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	fn()
+	w.Close()
+	os.Stdout = old
+	out, _ := io.ReadAll(r)
+	return string(out)
+}
+
+// --- addFilterFlags tests ---
+
+func TestAddFilterFlags(t *testing.T) {
+	fs := flag.NewFlagSet("x", flag.ContinueOnError)
+	build := addFilterFlags(fs)
+	if err := fs.Parse([]string{"--include", "^str_", "--exclude", "_internal$"}); err != nil {
+		t.Fatal(err)
+	}
+	filter, err := build()
+	if err != nil {
+		t.Fatalf("build filter: %v", err)
+	}
+	if !filter.Match("str_len") {
+		t.Error("str_len should match")
+	}
+	if filter.Match("math_add") {
+		t.Error("math_add should not match (not included)")
+	}
+	if filter.Match("str_internal") {
+		t.Error("str_internal should not match (excluded)")
+	}
+
+	// A bad regex is surfaced by the returned closure, not at flag-parse time.
+	fsBad := flag.NewFlagSet("y", flag.ContinueOnError)
+	buildBad := addFilterFlags(fsBad)
+	if err := fsBad.Parse([]string{"--include", "[unterminated"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildBad(); err == nil {
+		t.Error("expected error for invalid include regex")
+	}
+}
+
+// --- cmdVersion / cmdHelp tests ---
+
+func TestCmdVersion(t *testing.T) {
+	out := captureStdout(t, func() {
+		if err := cmdVersion(nil); err != nil {
+			t.Errorf("cmdVersion: %v", err)
+		}
+	})
+	if !strings.Contains(out, "funkoverage version") {
+		t.Errorf("cmdVersion output = %q, want it to contain %q", out, "funkoverage version")
+	}
+}
+
+func TestCmdHelp(t *testing.T) {
+	out := captureStdout(t, func() {
+		if err := cmdHelp(nil); err != nil {
+			t.Errorf("cmdHelp: %v", err)
+		}
+	})
+	if !strings.Contains(out, "Usage:") {
+		t.Errorf("cmdHelp output missing usage text: %q", out)
+	}
+}
+
+// --- readGnuDebugAltLink tests ---
+
+func TestReadGnuDebugAltLink(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(tmp, "bin")
+	if out, err := exec.Command("gcc", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+
+	// No .gnu_debugaltlink section present → empty string.
+	f, err := elf.Open(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := readGnuDebugAltLink(f)
+	f.Close()
+	if got != "" {
+		t.Errorf("readGnuDebugAltLink (no section) = %q, want empty", got)
+	}
+
+	if _, err := exec.LookPath("objcopy"); err != nil {
+		t.Skip("objcopy not found")
+	}
+	// Section layout: null-terminated filename followed by build-id bytes.
+	secFile := filepath.Join(tmp, "altlink")
+	content := append([]byte("alt.debug\x00"), make([]byte, 20)...)
+	if err := os.WriteFile(secFile, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("objcopy", "--add-section", ".gnu_debugaltlink="+secFile, bin).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --add-section: %v\n%s", err, out)
+	}
+	f2, err := elf.Open(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f2.Close()
+	if got := readGnuDebugAltLink(f2); got != "alt.debug" {
+		t.Errorf("readGnuDebugAltLink = %q, want %q", got, "alt.debug")
+	}
+}
+
+// --- getBuildID error-path test ---
+
+func TestGetBuildID_NoSection(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(tmp, "nobuildid")
+	if out, err := exec.Command("gcc", "-Wl,--build-id=none", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	f, err := elf.Open(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := getBuildID(f); err == nil {
+		t.Error("getBuildID on a binary built with --build-id=none should error")
+	}
+}
+
+// --- writeBuffered tests ---
+
+func TestWriteBuffered(t *testing.T) {
+	tmp := t.TempDir()
+
+	okPath := filepath.Join(tmp, "ok")
+	if err := writeBuffered(okPath, func(w io.Writer) error {
+		_, err := io.WriteString(w, "hello")
+		return err
+	}); err != nil {
+		t.Fatalf("writeBuffered (success): %v", err)
+	}
+	if b, _ := os.ReadFile(okPath); string(b) != "hello" {
+		t.Errorf("writeBuffered wrote %q, want %q", b, "hello")
+	}
+
+	// A write callback error propagates.
+	wantErr := errors.New("boom")
+	if err := writeBuffered(filepath.Join(tmp, "e"), func(io.Writer) error { return wantErr }); !errors.Is(err, wantErr) {
+		t.Errorf("writeBuffered error = %v, want %v", err, wantErr)
+	}
+
+	// os.Create failure (path under a nonexistent directory) is returned.
+	if err := writeBuffered(filepath.Join(tmp, "no", "such", "dir", "f"), func(io.Writer) error { return nil }); err == nil {
+		t.Error("writeBuffered should error when os.Create fails")
+	}
+}
+
+// --- enumerateOne external-debug fallback test ---
+
+// TestEnumerateOne_ExternalDebugFallback exercises the fallback chain past
+// the binary's own (stripped-away) symbol table: enumerateOne must find
+// functions via an external .build-id debug file's .symtab. -no-pie keeps a
+// PIE binary's leftover .dynsym from masking the "no symtab" state.
+func TestEnumerateOne_ExternalDebugFallback(t *testing.T) {
+	for _, tool := range []string{"gcc", "objcopy", "strip"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found", tool)
+		}
+	}
+	tmp := t.TempDir()
+	orig := globalDebugRoot
+	globalDebugRoot = tmp
+	defer func() { globalDebugRoot = orig }()
+
+	src := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(src, []byte("int enum_helper() { return 7; }\nint main() { return enum_helper(); }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(tmp, "prog")
+	if out, err := exec.Command("gcc", "-g", "-no-pie", "-Wl,--build-id", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	f, err := elf.Open(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildID, err := getBuildID(f)
+	f.Close()
+	if err != nil {
+		t.Fatalf("get build id: %v", err)
+	}
+	dir := filepath.Join(tmp, ".build-id", buildID[:2])
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	debugFile := filepath.Join(dir, buildID[2:]+".debug")
+	if out, err := exec.Command("objcopy", "--only-keep-debug", bin, debugFile).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --only-keep-debug: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("strip", "--strip-all", bin).CombinedOutput(); err != nil {
+		t.Fatalf("strip --strip-all: %v\n%s", err, out)
+	}
+	// Binary's own tables are gone now: enumeration must resolve via the
+	// external debug file.
+	if got := symtabFunctions(bin, nil); slices.Contains(got, "enum_helper") {
+		t.Fatalf("test setup: enum_helper should be gone from the stripped binary, got %v", got)
+	}
+
+	funcs, err := enumerateOne(bin, nil)
+	if err != nil {
+		t.Fatalf("enumerateOne: %v", err)
+	}
+	if !slices.Contains(funcs, "enum_helper") {
+		t.Errorf("enumerateOne via external debug = %v, want it to contain enum_helper", funcs)
 	}
 }

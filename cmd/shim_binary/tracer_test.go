@@ -1,14 +1,33 @@
 package main
 
 import (
+	"io"
 	"os"
 	"reflect"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 
 	"funkoverage/internal/funkutil"
 )
+
+// captureStderr runs fn with os.Stderr redirected to a pipe and returns
+// everything it wrote.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	fn()
+	w.Close()
+	os.Stderr = old
+	out, _ := io.ReadAll(r)
+	return string(out)
+}
 
 func TestFlattenFuncs_StableOrderAndCookies(t *testing.T) {
 	funcs := map[string][]string{
@@ -180,5 +199,39 @@ func TestGetMappedSharedLibraries_NoDuplicates(t *testing.T) {
 			t.Errorf("duplicate library path returned: %s", l)
 		}
 		seen[l] = true
+	}
+}
+
+func TestGetMappedSharedLibraries_BadPID(t *testing.T) {
+	// A PID that cannot exist: /proc/<pid>/maps is absent → ReadFile error.
+	if _, err := getMappedSharedLibraries(^uint32(0)); err == nil {
+		t.Error("getMappedSharedLibraries on a nonexistent pid should error")
+	}
+}
+
+func TestDebugLog(t *testing.T) {
+	t.Setenv("FUNKOVERAGE_DEBUG", "")
+	if out := captureStderr(t, func() { debugLog("silent %d", 1) }); out != "" {
+		t.Errorf("debugLog without FUNKOVERAGE_DEBUG wrote %q, want nothing", out)
+	}
+
+	t.Setenv("FUNKOVERAGE_DEBUG", "1")
+	out := captureStderr(t, func() { debugLog("loud %d", 42) })
+	if !strings.Contains(out, "loud 42") {
+		t.Errorf("debugLog with FUNKOVERAGE_DEBUG = %q, want it to contain %q", out, "loud 42")
+	}
+}
+
+func TestWarnCapacityExhausted_Once(t *testing.T) {
+	tr := &Tracer{seenCapacity: 128}
+	out := captureStderr(t, func() {
+		tr.warnCapacityExhausted()
+		tr.warnCapacityExhausted()
+	})
+	if n := strings.Count(out, "capacity"); n != 1 {
+		t.Errorf("warnCapacityExhausted warned %d times, want exactly 1: %q", n, out)
+	}
+	if !tr.capacityWarned {
+		t.Error("capacityWarned should be set after the first warning")
 	}
 }
