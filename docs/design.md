@@ -255,6 +255,7 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
 
 - **Install**: must run as root (moves files in `/usr/bin`, runs `setcap`)
 - **Runtime**: shim must have `cap_bpf`, `cap_perfmon`, `cap_dac_read_search` — granted via file capabilities at install time
+- **`LOG_DIR` mode is `1777`** (world-writable + sticky, like `/tmp`): a shim installed with file capabilities can be run by any non-owning user, who must still be able to create their own `_called.log`; the sticky bit stops one user deleting another's. Not `0755` — that would let only the dir owner write.
 - **Recursion guard**: `FUNKOVERAGE_ACTIVE=1` in env tells nested shim invocations to `exec` the real binary directly (no second tracer)
 
 ## Repo layout
