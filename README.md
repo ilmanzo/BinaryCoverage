@@ -94,6 +94,14 @@ Pre-captured coverage logs are available in `tests/sample_data/` to develop or t
 - **Function Filtering**: `--include`/`--exclude` regex filters to focus on specific namespaces.
 - **`dlopen()` Support**: Dynamically loaded libraries are traced on-the-fly via JIT instrumentation of `dlopen` calls using eBPF uretprobes and automatic maps monitoring. **Known limitation**: this only hooks the *public* `dlopen()` ELF symbol. glibc's own NSS module loading (`getpwnam`, `gethostbyname`, etc. pulling in `libnss_*.so`) goes through an internal, non-exported `__libc_dlopen_mode` instead, so NSS modules are never JIT-instrumented — verified on real hardware, see [docs/dlopen_realworld_testing.md](docs/dlopen_realworld_testing.md#7-nss-known-limitation). Everything else that calls the public `dlopen()` (PAM modules, nginx dynamic modules, application plugins, etc.) is captured correctly.
 
+## 🤝 Contributing
+
+Want to help? Start by getting confidence with the project: build it (`./build.sh`), run the tests (`./run_unit_tests.sh`), try it on a sample binary (`./funkoverage enumerate tests/sample/sample`), see what works and what doesn't, and suggest improvements. Check the [good first issue](https://github.com/ilmanzo/BinaryCoverage/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label if you want a place to start.
+
+Since this traces live binaries via eBPF, install a spare, clean Tumbleweed VM as your test bed rather than running it on your main machine.
+
+Remember: fun is the first thing (fun - coverage).
+
 ## License
 
 Dual licensed: **MIT** (Go userspace code) and **GPL-2.0-only** (eBPF kernel code in `cmd/shim_binary/bpf/`). The eBPF programs must be GPL to use GPL-only BPF kernel helpers.
