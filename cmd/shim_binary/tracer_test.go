@@ -1,12 +1,33 @@
 package main
 
 import (
+	"io"
 	"os"
 	"reflect"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
+
+	"funkoverage/internal/funkutil"
 )
+
+// captureStderr runs fn with os.Stderr redirected to a pipe and returns
+// everything it wrote.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	fn()
+	w.Close()
+	os.Stderr = old
+	out, _ := io.ReadAll(r)
+	return string(out)
+}
 
 func TestFlattenFuncs_StableOrderAndCookies(t *testing.T) {
 	funcs := map[string][]string{
@@ -52,30 +73,19 @@ func TestFlattenFuncs_DeterministicAcrossRuns(t *testing.T) {
 	}
 }
 
-// NewTracer used to reject empty/nil funcs outright. It now defaults them
-// to support pure runtime dynamic-library tracing (a binary with no static
-// functions of its own, relying entirely on dlopen'd plugins) — see
-// normalizeFuncs. Any error these two now return comes from the BPF load
-// itself (this test environment may lack CAP_BPF/root), not from a
-// rejection of empty funcs, so we only assert that behavior directly via
-// normalizeFuncs rather than asserting on NewTracer's error here.
-func TestNormalizeFuncs_DefaultsEmptyAndNil(t *testing.T) {
+// A nil/empty funcs map supports pure runtime dynamic-library tracing (a
+// binary with no static functions of its own, relying entirely on dlopen'd
+// plugins) — flattenFuncs must handle it directly (ranging a nil map is
+// legal Go) without any normalization step.
+func TestFlattenFuncs_HandlesNilAndEmpty(t *testing.T) {
 	for name, in := range map[string]map[string][]string{
 		"nil":   nil,
 		"empty": {},
 	} {
-		got := normalizeFuncs(in)
-		if got == nil {
-			t.Errorf("normalizeFuncs(%s): got nil, want non-nil empty map", name)
+		refs, syms, cookies := flattenFuncs(in)
+		if len(refs) != 0 || len(syms) != 0 || len(cookies) != 0 {
+			t.Errorf("flattenFuncs(%s): got refs=%v syms=%v cookies=%v, want all empty", name, refs, syms, cookies)
 		}
-		if len(got) != 0 {
-			t.Errorf("normalizeFuncs(%s): got %v, want empty", name, got)
-		}
-	}
-
-	in := map[string][]string{"/bin/foo": {"main"}}
-	if got := normalizeFuncs(in); !reflect.DeepEqual(got, in) {
-		t.Errorf("normalizeFuncs(non-empty): got %v, want unchanged %v", got, in)
 	}
 }
 
@@ -109,8 +119,10 @@ func TestClipToCapacity(t *testing.T) {
 
 func TestTracer_MatchesFilter(t *testing.T) {
 	tr := &Tracer{
-		includeRe: regexp.MustCompile(`^plugin_`),
-		excludeRe: regexp.MustCompile(`_internal$`),
+		filter: &funkutil.FuncFilter{
+			Include: regexp.MustCompile(`^plugin_`),
+			Exclude: regexp.MustCompile(`_internal$`),
+		},
 	}
 	cases := []struct {
 		name string
@@ -121,15 +133,15 @@ func TestTracer_MatchesFilter(t *testing.T) {
 		{"other_func", false},
 	}
 	for _, c := range cases {
-		if got := tr.matchesFilter(c.name); got != c.want {
-			t.Errorf("matchesFilter(%q) = %v, want %v", c.name, got, c.want)
+		if got := tr.filter.Match(c.name); got != c.want {
+			t.Errorf("filter.Match(%q) = %v, want %v", c.name, got, c.want)
 		}
 	}
 
-	// No filter configured: everything passes.
+	// No filter configured (nil *FuncFilter): everything passes.
 	tr2 := &Tracer{}
-	if !tr2.matchesFilter("anything") {
-		t.Error("matchesFilter with no filter configured should pass everything")
+	if !tr2.filter.Match("anything") {
+		t.Error("filter.Match with no filter configured should pass everything")
 	}
 }
 
@@ -187,5 +199,39 @@ func TestGetMappedSharedLibraries_NoDuplicates(t *testing.T) {
 			t.Errorf("duplicate library path returned: %s", l)
 		}
 		seen[l] = true
+	}
+}
+
+func TestGetMappedSharedLibraries_BadPID(t *testing.T) {
+	// A PID that cannot exist: /proc/<pid>/maps is absent → ReadFile error.
+	if _, err := getMappedSharedLibraries(^uint32(0)); err == nil {
+		t.Error("getMappedSharedLibraries on a nonexistent pid should error")
+	}
+}
+
+func TestDebugLog(t *testing.T) {
+	t.Setenv("FUNKOVERAGE_DEBUG", "")
+	if out := captureStderr(t, func() { debugLog("silent %d", 1) }); out != "" {
+		t.Errorf("debugLog without FUNKOVERAGE_DEBUG wrote %q, want nothing", out)
+	}
+
+	t.Setenv("FUNKOVERAGE_DEBUG", "1")
+	out := captureStderr(t, func() { debugLog("loud %d", 42) })
+	if !strings.Contains(out, "loud 42") {
+		t.Errorf("debugLog with FUNKOVERAGE_DEBUG = %q, want it to contain %q", out, "loud 42")
+	}
+}
+
+func TestWarnCapacityExhausted_Once(t *testing.T) {
+	tr := &Tracer{seenCapacity: 128}
+	out := captureStderr(t, func() {
+		tr.warnCapacityExhausted()
+		tr.warnCapacityExhausted()
+	})
+	if n := strings.Count(out, "capacity"); n != 1 {
+		t.Errorf("warnCapacityExhausted warned %d times, want exactly 1: %q", n, out)
+	}
+	if !tr.capacityWarned {
+		t.Error("capacityWarned should be set after the first warning")
 	}
 }

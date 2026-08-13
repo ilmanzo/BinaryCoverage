@@ -4,6 +4,7 @@
 package funkutil
 
 import (
+	"cmp"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -18,19 +19,28 @@ const (
 	DefaultSafeBinDir = "/var/coverage/bin"
 )
 
-// EnvOr returns the value of the named env var, or fallback if unset/empty.
-func EnvOr(name, fallback string) string {
-	if v := os.Getenv(name); v != "" {
-		return v
-	}
-	return fallback
-}
-
 // LogDir returns LOG_DIR or DefaultLogDir.
-func LogDir() string { return EnvOr("LOG_DIR", DefaultLogDir) }
+func LogDir() string { return cmp.Or(os.Getenv("LOG_DIR"), DefaultLogDir) }
 
 // SafeBinDir returns SAFE_BIN_DIR or DefaultSafeBinDir.
-func SafeBinDir() string { return EnvOr("SAFE_BIN_DIR", DefaultSafeBinDir) }
+func SafeBinDir() string { return cmp.Or(os.Getenv("SAFE_BIN_DIR"), DefaultSafeBinDir) }
+
+// EnsureLogDir creates dir as 1777 (world-writable + sticky, same contract
+// as /tmp). The shim is installed with file capabilities specifically so it
+// can be invoked by users other than whoever ran `setup`/`install`; they
+// must be able to create their own _called.log, and the sticky bit stops
+// one user from deleting or renaming another's. MkdirAll applies the
+// umask, so the mode is re-applied with Chmod — best-effort: once the
+// directory exists with the right mode (typically created by root during
+// `setup`), a later non-root caller can't Chmod a directory it doesn't
+// own, and that failure must not be treated as fatal.
+func EnsureLogDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o1777); err != nil {
+		return err
+	}
+	_ = os.Chmod(dir, os.ModeSticky|0o777)
+	return nil
+}
 
 // StripVersion removes a trailing "@VERSION" suffix from a symbol name.
 // e.g. "memcpy@GLIBC_2.14" → "memcpy".

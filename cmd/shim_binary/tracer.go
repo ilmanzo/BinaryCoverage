@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -54,8 +53,7 @@ type Tracer struct {
 	rootPID        uint32
 	seenCapacity   uint32 // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
 	capacityWarned bool
-	includeRe      *regexp.Regexp // dlopen JIT filter, mirrors install-time --include
-	excludeRe      *regexp.Regexp // dlopen JIT filter, mirrors install-time --exclude
+	filter         *funkutil.FuncFilter // dlopen JIT filter, mirrors the install-time --include/--exclude filter
 
 	wg       sync.WaitGroup
 	stopOnce sync.Once
@@ -67,6 +65,10 @@ type Tracer struct {
 // `funcs` maps each ELF image path (main binary or shared library) to the
 // list of symbol names to trace. The flattened order — images sorted, symbols
 // in input order — defines the global cookie space used to identify events.
+// A nil/empty funcs map is valid: it supports pure runtime dynamic-library
+// tracing, a binary with no static functions of its own that relies
+// entirely on dlopen'd plugins for coverage — flattenFuncs below ranges it
+// (a no-op on nil) and simply produces no initial cookies.
 //
 // `includePattern`/`excludePattern` are the source regex patterns from the
 // install-time --include/--exclude filter (empty string = no filter). They
@@ -74,25 +76,16 @@ type Tracer struct {
 // instrumentation, matching the filtering already applied at enumeration
 // time to statically discovered functions.
 func NewTracer(funcs map[string][]string, logPath, includePattern, excludePattern string) (*Tracer, error) {
-	funcs = normalizeFuncs(funcs)
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
 	}
 
-	var includeRe, excludeRe *regexp.Regexp
-	if includePattern != "" {
-		if re, err := regexp.Compile(includePattern); err == nil {
-			includeRe = re
-		} else {
-			debugLog("funkoverage-shim: bad --include pattern %q: %v", includePattern, err)
-		}
+	filter := funkutil.FilterFromSidecar(funkutil.FilterSidecar{Include: includePattern, Exclude: excludePattern})
+	if includePattern != "" && filter.Include == nil {
+		debugLog("funkoverage-shim: bad --include pattern %q", includePattern)
 	}
-	if excludePattern != "" {
-		if re, err := regexp.Compile(excludePattern); err == nil {
-			excludeRe = re
-		} else {
-			debugLog("funkoverage-shim: bad --exclude pattern %q: %v", excludePattern, err)
-		}
+	if excludePattern != "" && filter.Exclude == nil {
+		debugLog("funkoverage-shim: bad --exclude pattern %q", excludePattern)
 	}
 
 	refs, imgSyms, imgCookies := flattenFuncs(funcs)
@@ -130,23 +123,8 @@ func NewTracer(funcs map[string][]string, logPath, includePattern, excludePatter
 		logFile:      logFile,
 		funcsLogPath: funcsLogPath,
 		seenCapacity: seenCapacity,
-		includeRe:    includeRe,
-		excludeRe:    excludeRe,
+		filter:       filter,
 	}, nil
-}
-
-// matchesFilter reports whether demangled passes the install-time
-// --include/--exclude filter: include must match if set, exclude must not
-// match. Mirrors FuncFilter.Match in cmd/enumerate.go (unavailable here —
-// separate package main).
-func (t *Tracer) matchesFilter(demangled string) bool {
-	if t.includeRe != nil && !t.includeRe.MatchString(demangled) {
-		return false
-	}
-	if t.excludeRe != nil && t.excludeRe.MatchString(demangled) {
-		return false
-	}
-	return true
 }
 
 // ensureFuncsLog opens the per-run dynamic functions log on first use.
@@ -162,16 +140,6 @@ func (t *Tracer) ensureFuncsLog() (*os.File, error) {
 	}
 	t.funcsLogFile = f
 	return f, nil
-}
-
-// normalizeFuncs defaults a nil/empty funcs map to an empty (non-nil) map,
-// supporting pure runtime dynamic-library tracing: a binary with no static
-// functions of its own, relying entirely on dlopen'd plugins for coverage.
-func normalizeFuncs(funcs map[string][]string) map[string][]string {
-	if len(funcs) == 0 {
-		return make(map[string][]string)
-	}
-	return funcs
 }
 
 // flattenFuncs builds the global cookie space. Images are sorted so that
@@ -354,19 +322,12 @@ func hasSymbol(path, name string) bool {
 	}
 	defer f.Close()
 
-	if syms, err := f.DynamicSymbols(); err == nil {
-		for _, s := range syms {
-			if s.Name == name {
-				return true
-			}
-		}
+	hasName := func(s elf.Symbol) bool { return s.Name == name }
+	if syms, err := f.DynamicSymbols(); err == nil && slices.ContainsFunc(syms, hasName) {
+		return true
 	}
-	if syms, err := f.Symbols(); err == nil {
-		for _, s := range syms {
-			if s.Name == name {
-				return true
-			}
-		}
+	if syms, err := f.Symbols(); err == nil && slices.ContainsFunc(syms, hasName) {
+		return true
 	}
 	return false
 }
@@ -428,10 +389,9 @@ func getMappedSharedLibraries(pid uint32) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(string(data), "\n")
 	seen := make(map[string]struct{})
 	var libs []string
-	for _, line := range lines {
+	for line := range strings.Lines(string(data)) {
 		if strings.Contains(line, ".so") && strings.Contains(line, "r-xp") {
 			parts := strings.Fields(line)
 			if len(parts) >= 6 {
@@ -446,6 +406,12 @@ func getMappedSharedLibraries(pid uint32) ([]string, error) {
 	return libs, nil
 }
 
+// getSharedLibrarySymbols delegates the actual symbol walk (union of
+// .symtab and .dynsym, STT_FUNC + size/address filtering, address+name
+// dedup — shared with install-time enumeration) to
+// funkutil.SymtabFunctions, keeping only relevance filtering here; the
+// --include/--exclude filter is applied separately by the caller
+// (handleDynamicLoad), after capacity clipping.
 func getSharedLibrarySymbols(path string) ([]string, error) {
 	f, err := elf.Open(path)
 	if err != nil {
@@ -453,48 +419,9 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 	}
 	defer f.Close()
 
-	// Union .dynsym and .symtab rather than falling back only on a hard
-	// error: a present-but-stripped-down .symtab (common for shared libs —
-	// glibc's libc.so.6 ships one that omits exported functions like
-	// dlopen, which live only in .dynsym) would otherwise silently hide
-	// real, callable functions instead of triggering the fallback.
-	var syms []elf.Symbol
-	if dynSyms, err := f.DynamicSymbols(); err == nil {
-		syms = append(syms, dynSyms...)
-	}
-	if statSyms, err := f.Symbols(); err == nil {
-		syms = append(syms, statSyms...)
-	}
-	if len(syms) == 0 {
+	funcs := funkutil.SymtabFunctions(f, funkutil.FuncIsRelevant)
+	if len(funcs) == 0 {
 		return nil, fmt.Errorf("no symbol table (dynamic or static) in %s", path)
-	}
-
-	var funcs []string
-	seen := make(map[string]struct{})
-	seenAddr := make(map[uint64]struct{})
-	for _, sym := range syms {
-		if elf.ST_TYPE(sym.Info) != elf.STT_FUNC {
-			continue
-		}
-		if sym.Value == 0 || sym.Size == 0 {
-			continue
-		}
-		if sym.Name == "" || !funkutil.FuncIsRelevant(sym.Name) {
-			continue
-		}
-		// Same symbol can appear in both .dynsym and .symtab, and Itanium
-		// ABI C1/C2 (D1/D2) ctor/dtor pairs alias one address for classes
-		// without virtual bases — dedup by address, not name, to avoid
-		// double-attaching a uprobe at the same address under two cookies.
-		if _, dup := seenAddr[sym.Value]; dup {
-			continue
-		}
-		if _, dup := seen[sym.Name]; dup {
-			continue
-		}
-		seen[sym.Name] = struct{}{}
-		seenAddr[sym.Value] = struct{}{}
-		funcs = append(funcs, sym.Name)
 	}
 	return funcs, nil
 }
@@ -551,10 +478,10 @@ func (t *Tracer) handleDynamicLoad() {
 			continue
 		}
 
-		if t.includeRe != nil || t.excludeRe != nil {
+		if t.filter.Include != nil || t.filter.Exclude != nil {
 			filtered := syms[:0]
 			for _, name := range syms {
-				if t.matchesFilter(demangle.Filter(funkutil.StripVersion(name))) {
+				if t.filter.Match(demangle.Filter(funkutil.StripVersion(name))) {
 					filtered = append(filtered, name)
 				}
 			}

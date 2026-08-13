@@ -97,13 +97,10 @@ func childMain() {
 // exits. Returns the child's exit code (or 1 with err on tracer failure).
 func runWithTracing(realBin string) (exitCode int, err error) {
 	funcs := funkutil.ReadFuncList(realBin)
-	if funcs == nil {
-		funcs = make(map[string][]string)
-	}
 	filter := funkutil.ReadFilterSidecar(realBin)
 
 	dir := funkutil.LogDir()
-	if err := os.MkdirAll(dir, 0777); err != nil {
+	if err := funkutil.EnsureLogDir(dir); err != nil {
 		return 1, fmt.Errorf("create log dir: %w", err)
 	}
 
@@ -204,15 +201,12 @@ func envSafeName(s string) string {
 }
 
 func cleanEnv(extra ...string) []string {
-	skip := map[string]bool{childEnvVar: true, waitFdEnvVar: true, arg0EnvVar: true}
-	for _, k := range extra {
-		skip[k] = true
-	}
+	skip := append([]string{childEnvVar, waitFdEnvVar, arg0EnvVar}, extra...)
 	src := os.Environ()
 	env := make([]string, 0, len(src))
 	for _, e := range src {
 		k, _, _ := strings.Cut(e, "=")
-		if !skip[k] {
+		if !slices.Contains(skip, k) {
 			env = append(env, e)
 		}
 	}

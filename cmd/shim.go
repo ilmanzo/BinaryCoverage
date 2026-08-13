@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"funkoverage/internal/funkutil"
 )
@@ -19,7 +18,7 @@ const defaultShimSearchDir = "/usr/lib64/coverage-tools"
 // install moves the real binary to SAFE_BIN_DIR/<basename>, writes a
 // _functions.log, and puts the shim binary at the original path.
 // No JSON config — the shim finds the real binary by path convention.
-func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
+func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter) error {
 	logDir := funkutil.LogDir()
 	safeBinDir := funkutil.SafeBinDir()
 
@@ -54,7 +53,7 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 	if err != nil {
 		return fmt.Errorf("debug info check: %w", err)
 	}
-	if !found && noLibs {
+	if !found && libScope == MainBinaryOnly {
 		return fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
 	}
 
@@ -62,7 +61,6 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 	if err != nil {
 		return fmt.Errorf("stat original binary: %w", err)
 	}
-	origMode := origInfo.Mode().Perm()
 
 	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
 		return err
@@ -83,13 +81,13 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 	}
 
 	// Enumerate functions after merging debug info so all symbols are available
-	funcs, err := EnumerateFunctions(safePath, noLibs, filter)
+	funcs, err := EnumerateFunctions(safePath, libScope, filter)
 	if err != nil {
 		_ = move(safePath, realTarget)
 		return fmt.Errorf("function enumeration: %w", err)
 	}
 	if len(funcs) == 0 {
-		if noLibs {
+		if libScope == MainBinaryOnly {
 			_ = move(safePath, realTarget)
 			return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
 		}
@@ -99,7 +97,7 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 
-	if !noLibs {
+	if libScope == WithLibraries {
 		backups := mergeLibraryDebugInfo(funcs, safePath)
 		if err := funkutil.WriteLibBackups(safePath, backups); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: write library backup sidecar: %v\n", err)
@@ -114,7 +112,7 @@ func install(targetBinary string, noLibs bool, filter *FuncFilter) error {
 		return fmt.Errorf("write func list sidecar: %w", err)
 	}
 
-	if err := copyFile(shimBinary, realTarget, origMode); err != nil {
+	if err := copyFile(shimBinary, realTarget, origInfo); err != nil {
 		return fmt.Errorf("install shim binary: %w", err)
 	}
 
@@ -209,9 +207,9 @@ func forEachBinary(binaries []string, verb string, fn func(string) error) error 
 	return nil
 }
 
-func installMany(binaries []string, noLibs bool, filter *FuncFilter) error {
+func installMany(binaries []string, libScope LibScope, filter *funkutil.FuncFilter) error {
 	return forEachBinary(binaries, "install", func(bin string) error {
-		return install(bin, noLibs, filter)
+		return install(bin, libScope, filter)
 	})
 }
 
@@ -234,10 +232,14 @@ func setupEnv() error {
 		return fmt.Errorf("BTF unavailable at /sys/kernel/btf/vmlinux: %w "+
 			"(kernel must be built with CONFIG_DEBUG_INFO_BTF=y)", err)
 	}
-	for _, dir := range []string{funkutil.LogDir(), funkutil.SafeBinDir()} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("create %s: %w", dir, err)
-		}
+	// LOG_DIR is 1777 (like /tmp), not 0755: the shim is installed with file
+	// capabilities so non-root users can invoke a shimmed binary and still
+	// write their own _called.log. SAFE_BIN_DIR is root-only.
+	if err := funkutil.EnsureLogDir(funkutil.LogDir()); err != nil {
+		return fmt.Errorf("create %s: %w", funkutil.LogDir(), err)
+	}
+	if err := os.MkdirAll(funkutil.SafeBinDir(), 0755); err != nil {
+		return fmt.Errorf("create %s: %w", funkutil.SafeBinDir(), err)
 	}
 	fmt.Println("Environment OK: kernel + BTF + log/bin directories ready.")
 	fmt.Println("Run 'funkoverage install <binary>' as root to install a shim.")
@@ -247,19 +249,13 @@ func setupEnv() error {
 // checkKernelVersion parses `uname -r` and ensures the running kernel is
 // at least major.minor. Patch and suffix are ignored.
 func checkKernelVersion(wantMajor, wantMinor int) error {
-	var uts syscall.Utsname
-	if err := syscall.Uname(&uts); err != nil {
-		return fmt.Errorf("uname: %w", err)
+	data, err := os.ReadFile("/proc/sys/kernel/osrelease")
+	if err != nil {
+		return fmt.Errorf("read kernel release: %w", err)
 	}
-	release := utsString(uts.Release[:])
-	parts := strings.SplitN(release, ".", 3)
-	if len(parts) < 2 {
-		return fmt.Errorf("cannot parse kernel release %q", release)
-	}
-	maj, err1 := strconv.Atoi(parts[0])
-	min, err2 := strconv.Atoi(strings.SplitN(parts[1], "-", 2)[0])
-	if err1 != nil || err2 != nil {
-		return fmt.Errorf("cannot parse kernel release %q", release)
+	maj, min, err := parseKernelVersion(strings.TrimSpace(string(data)))
+	if err != nil {
+		return err
 	}
 	if maj < wantMajor || (maj == wantMajor && min < wantMinor) {
 		return fmt.Errorf("kernel %d.%d+ required (have %d.%d) for uprobe_multi support",
@@ -268,15 +264,20 @@ func checkKernelVersion(wantMajor, wantMinor int) error {
 	return nil
 }
 
-func utsString(b []int8) string {
-	out := make([]byte, 0, len(b))
-	for _, c := range b {
-		if c == 0 {
-			break
-		}
-		out = append(out, byte(c))
+// parseKernelVersion extracts the major.minor version from a kernel release
+// string (e.g. "6.6.0-1-default" -> 6, 6), as reported by
+// /proc/sys/kernel/osrelease.
+func parseKernelVersion(release string) (major, minor int, err error) {
+	parts := strings.SplitN(release, ".", 3)
+	if len(parts) < 2 {
+		return 0, 0, fmt.Errorf("cannot parse kernel release %q", release)
 	}
-	return string(out)
+	maj, err1 := strconv.Atoi(parts[0])
+	min, err2 := strconv.Atoi(strings.SplitN(parts[1], "-", 2)[0])
+	if err1 != nil || err2 != nil {
+		return 0, 0, fmt.Errorf("cannot parse kernel release %q", release)
+	}
+	return maj, min, nil
 }
 
 func findShimBinary() (string, error) {
@@ -303,13 +304,24 @@ func shimSearchPaths() []string {
 	return paths
 }
 
-func copyFile(src, dst string, perm os.FileMode) error {
+// copyFile copies src's bytes to dst, applying info's mode (including any
+// setuid/setgid/sticky bits) and, best-effort, its owner/group — so a
+// shimmed binary keeps the exact privilege semantics of the file it
+// replaces. info describes the metadata to apply to dst, independent of
+// src's own metadata: the shim-install call site copies bytes from the
+// generic shim binary but wears the original target's mode/owner.
+func copyFile(src, dst string, info os.FileInfo) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	mode := info.Mode() & preservedModeBits
+	// Create with the plain permission bits only — setuid/setgid go on in
+	// the final Chmod below. chown (like write) clears any setuid/setgid
+	// bit already present, so applying ownership before the create mode
+	// could stick would be immediately undone.
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode.Perm())
 	if err != nil {
 		return err
 	}
@@ -319,5 +331,6 @@ func copyFile(src, dst string, perm os.FileMode) error {
 		os.Remove(dst)
 		return err
 	}
-	return os.Chmod(dst, perm)
+	chownLike(dst, info)
+	return os.Chmod(dst, mode)
 }

@@ -6,20 +6,6 @@ import (
 	"testing"
 )
 
-func TestEnvOr(t *testing.T) {
-	t.Setenv("FUNKUTIL_TEST_X", "value")
-	if got := EnvOr("FUNKUTIL_TEST_X", "fallback"); got != "value" {
-		t.Errorf("EnvOr set: got %q, want %q", got, "value")
-	}
-	if got := EnvOr("FUNKUTIL_TEST_UNSET", "fallback"); got != "fallback" {
-		t.Errorf("EnvOr unset: got %q, want %q", got, "fallback")
-	}
-	t.Setenv("FUNKUTIL_TEST_EMPTY", "")
-	if got := EnvOr("FUNKUTIL_TEST_EMPTY", "fallback"); got != "fallback" {
-		t.Errorf("EnvOr empty: got %q, want %q", got, "fallback")
-	}
-}
-
 func TestStripVersion(t *testing.T) {
 	cases := map[string]string{
 		"memcpy":            "memcpy",
@@ -156,6 +142,32 @@ func TestEnvOverrides(t *testing.T) {
 	os.Unsetenv("SAFE_BIN_DIR")
 	if got := SafeBinDir(); got != DefaultSafeBinDir {
 		t.Errorf("SafeBinDir() unset: got %q, want %q", got, DefaultSafeBinDir)
+	}
+}
+
+func TestEnsureLogDir(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "coverage", "data")
+
+	if err := EnsureLogDir(dir); err != nil {
+		t.Fatalf("EnsureLogDir: %v", err)
+	}
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if !fi.IsDir() {
+		t.Fatal("EnsureLogDir did not create a directory")
+	}
+	wantMode := os.ModeSticky | 0o777
+	if fi.Mode()&(os.ModeSticky|os.ModePerm) != wantMode {
+		t.Errorf("mode = %v, want sticky+0777 (%v)", fi.Mode(), wantMode)
+	}
+
+	// Calling again on an existing directory must not error, even though
+	// the Chmod re-application is best-effort.
+	if err := EnsureLogDir(dir); err != nil {
+		t.Errorf("EnsureLogDir on existing dir: %v", err)
 	}
 }
 

@@ -11,9 +11,31 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"funkoverage/internal/funkutil"
 )
+
+// preservedModeBits are the mode bits that must survive a merge/copy/move so
+// a shimmed binary's original privilege semantics (setuid tools, a
+// group-writable setgid service binary, ...) keep working exactly as before
+// instrumentation — losing them silently breaks the wrapped program's
+// functionality, not just its coverage numbers.
+const preservedModeBits = os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky
+
+// chownLike applies path's owner/group to match info, best-effort: requires
+// root/CAP_CHOWN, and a failure (e.g. a non-root test run) must not be
+// fatal — mode is what governs exec/setuid semantics, ownership is
+// secondary fidelity (ls -l, rpm -V, and "nothing changes but the
+// wrapping"). Callers MUST chown before the final chmod: a successful
+// chown clears any setuid/setgid bit already on the file (the kernel does
+// this to prevent ownership-change privilege tricks), so setting those
+// bits must be the last step, not this one.
+func chownLike(path string, info os.FileInfo) {
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		_ = os.Chown(path, int(stat.Uid), int(stat.Gid))
+	}
+}
 
 var globalDebugRoot = "/usr/lib/debug"
 
@@ -24,7 +46,10 @@ func isELF(path string) bool {
 	}
 	defer f.Close()
 	magic := make([]byte, 4)
-	if _, err := f.Read(magic); err != nil {
+	// io.ReadFull, not f.Read: a short file can return fewer than 4 bytes
+	// with a nil error, which would otherwise compare the ELF magic against
+	// a zero-padded buffer instead of correctly reporting "not ELF".
+	if _, err := io.ReadFull(f, magic); err != nil {
 		return false
 	}
 	return string(magic) == "\x7fELF"
@@ -47,14 +72,8 @@ func hasDebugInfo(path string) (bool, error) {
 		}
 	}
 
-	buildID, err := getBuildID(f)
-	if err == nil && len(buildID) > 2 {
-		debugPath := buildIDDebugPath(buildID)
-		if _, err := os.Stat(debugPath); err == nil {
-			return true, nil
-		}
-	}
-
+	// externalDebugPath's first step is the same .build-id lookup, so a
+	// separate check here would only ever duplicate it.
 	if debugPath := externalDebugPath(path); debugPath != "" {
 		return true, nil
 	}
@@ -100,29 +119,39 @@ func mergeLibraryDebugInfo(funcs map[string][]string, mainImage string) map[stri
 		if lib == mainImage {
 			continue
 		}
-		debugPath, err := locateExternalDebugForMerge(lib, lib)
-		if err != nil || debugPath == "" {
-			continue // no external debug found, or lib is already self-sufficient
-		}
-		info, err := os.Stat(lib)
+		// ldd reports a library's SONAME path as-is (e.g. /lib64/libgmp.so.10),
+		// which is commonly a symlink to the real versioned file
+		// (libgmp.so.10.5.0). Operate on the resolved real path so unstrip's
+		// final move() never overwrites the symlink itself — os.Rename onto a
+		// symlink path replaces the link, not its target, silently turning
+		// the SONAME symlink into a plain-file copy forever.
+		realLib, err := filepath.EvalSymlinks(lib)
 		if err != nil {
 			continue
 		}
-		backupPath := filepath.Join(funkutil.SafeBinDir(), "libs", lib)
+		debugPath, err := locateExternalDebugForMerge(realLib, realLib)
+		if err != nil || debugPath == "" {
+			continue // no external debug found, or lib is already self-sufficient
+		}
+		info, err := os.Stat(realLib)
+		if err != nil {
+			continue
+		}
+		backupPath := filepath.Join(funkutil.SafeBinDir(), "libs", realLib)
 		if err := os.MkdirAll(filepath.Dir(backupPath), 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: backup dir for %s: %v\n", lib, err)
+			fmt.Fprintf(os.Stderr, "warning: backup dir for %s: %v\n", realLib, err)
 			continue
 		}
-		if err := copyFile(lib, backupPath, info.Mode().Perm()); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: back up %s before merge: %v\n", lib, err)
+		if err := copyFile(realLib, backupPath, info); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: back up %s before merge: %v\n", realLib, err)
 			continue
 		}
-		if err := unstrip(lib, debugPath); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: merge debug symbols into %s: %v\n", lib, err)
+		if err := unstrip(realLib, debugPath); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: merge debug symbols into %s: %v\n", realLib, err)
 			os.Remove(backupPath)
 			continue
 		}
-		backups[lib] = backupPath
+		backups[realLib] = backupPath
 	}
 	return backups
 }
@@ -143,15 +172,42 @@ func restoreLibraryBackups(safePath string) {
 // into binPath, or "" if the binary already has embedded debug info or no
 // external file is found.
 func locateExternalDebugForMerge(binPath, origPath string) (string, error) {
+	return resolveDebugFile(binPath, origPath, SkipIfEmbedded)
+}
+
+// embeddedDebugPolicy controls whether resolveDebugFile treats a binary
+// that already carries embedded .debug_* sections as having nothing to
+// resolve, or still returns an external candidate regardless.
+type embeddedDebugPolicy bool
+
+const (
+	// AllowEmbedded: still return an external candidate even if the binary
+	// already has embedded debug info — enumeration wants a fallback
+	// candidate for dwarfFunctions regardless of what's embedded.
+	AllowEmbedded embeddedDebugPolicy = false
+	// SkipIfEmbedded: resolve to "" if the binary already has embedded
+	// debug info — merging would have nothing useful to add.
+	SkipIfEmbedded embeddedDebugPolicy = true
+)
+
+// resolveDebugFile returns the external debug file for binPath, or "".
+// origPath is binPath's original absolute location (equal to binPath unless
+// the binary has already been moved to SAFE_BIN_DIR) — .gnu_debuglink
+// resolves relative to it. Tries, in order: .build-id, .gnu_debuglink (the
+// standard GNU separate-debug convention), then .gnu_debugaltlink
+// (dwz-compressed).
+func resolveDebugFile(binPath, origPath string, policy embeddedDebugPolicy) (string, error) {
 	f, err := elf.Open(binPath)
 	if err != nil {
 		return "", fmt.Errorf("open elf: %w", err)
 	}
 	defer f.Close()
 
-	for _, s := range f.Sections {
-		if (strings.HasPrefix(s.Name, ".debug_") || strings.HasPrefix(s.Name, ".zdebug_")) && s.Size > 0 {
-			return "", nil
+	if policy == SkipIfEmbedded {
+		for _, s := range f.Sections {
+			if (strings.HasPrefix(s.Name, ".debug_") || strings.HasPrefix(s.Name, ".zdebug_")) && s.Size > 0 {
+				return "", nil
+			}
 		}
 	}
 
@@ -234,14 +290,14 @@ func findDebugFile(altPath string) string {
 	if _, err := os.Stat(altPath); err == nil {
 		return altPath
 	}
-	// Try relative to /usr/lib/debug
-	relPath := filepath.Join("/usr/lib/debug", altPath)
+	// Try relative to globalDebugRoot
+	relPath := filepath.Join(globalDebugRoot, altPath)
 	if _, err := os.Stat(relPath); err == nil {
 		return relPath
 	}
-	// Try /usr/lib/debug/.dwz/<basename>
+	// Try globalDebugRoot/.dwz/<basename>
 	if base := filepath.Base(altPath); base != altPath {
-		dwzPath := filepath.Join("/usr/lib/debug/.dwz", base)
+		dwzPath := filepath.Join(globalDebugRoot, ".dwz", base)
 		if _, err := os.Stat(dwzPath); err == nil {
 			return dwzPath
 		}
@@ -252,6 +308,10 @@ func findDebugFile(altPath string) string {
 // unstrip merges debugPath into binPath using eu-unstrip.
 // Uses --force to handle ELF type mismatches (PIE binary + relocatable debug).
 func unstrip(binPath, debugPath string) error {
+	info, err := os.Stat(binPath)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", binPath, err)
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(binPath), ".unstrip-*")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
@@ -263,7 +323,11 @@ func unstrip(binPath, debugPath string) error {
 	if combined, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("eu-unstrip failed: %w: %s", err, combined)
 	}
-	if err := os.Chmod(out, 0755); err != nil {
+	// chown, THEN chmod: chown (like write) clears any setuid/setgid bit
+	// already present — a kernel security measure against ownership-change
+	// privilege tricks — so setting the final mode must come last.
+	chownLike(out, info)
+	if err := os.Chmod(out, info.Mode()&preservedModeBits); err != nil {
 		os.Remove(out)
 		return fmt.Errorf("chmod merged binary: %w", err)
 	}
@@ -306,32 +370,17 @@ func move(source, destination string) error {
 	return err
 }
 
+// moveCrossDevice copies source to destination (mode and, best-effort,
+// ownership included — see copyFile) and removes source, for the rare case
+// where SAFE_BIN_DIR and the original binary's directory are on different
+// filesystems and os.Rename can't do it atomically.
 func moveCrossDevice(source, destination string) error {
-	src, err := os.Open(source)
-	if err != nil {
-		return fmt.Errorf("open(source): %w", err)
-	}
-	dst, err := os.Create(destination)
-	if err != nil {
-		src.Close()
-		return fmt.Errorf("create(destination): %w", err)
-	}
-	_, err = io.Copy(dst, src)
-	src.Close()
-	dst.Close()
-	if err != nil {
-		return fmt.Errorf("copy: %w", err)
-	}
 	fi, err := os.Stat(source)
 	if err != nil {
-		os.Remove(destination)
 		return fmt.Errorf("stat: %w", err)
 	}
-	err = os.Chmod(destination, fi.Mode())
-	if err != nil {
-		os.Remove(destination)
-		return fmt.Errorf("chmod: %w", err)
+	if err := copyFile(source, destination, fi); err != nil {
+		return fmt.Errorf("copy: %w", err)
 	}
-	os.Remove(source)
-	return nil
+	return os.Remove(source)
 }

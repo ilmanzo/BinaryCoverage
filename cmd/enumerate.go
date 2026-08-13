@@ -18,65 +18,9 @@ import (
 	"github.com/ianlancetaylor/demangle"
 )
 
-// FuncFilter gates which functions pass enumeration based on regex patterns
-// applied to the demangled name.
-type FuncFilter struct {
-	Include *regexp.Regexp
-	Exclude *regexp.Regexp
-}
-
-func NewFuncFilter(include, exclude string) (*FuncFilter, error) {
-	f := &FuncFilter{}
-	if include != "" {
-		re, err := regexp.Compile(include)
-		if err != nil {
-			return nil, fmt.Errorf("bad --include regex: %w", err)
-		}
-		f.Include = re
-	}
-	if exclude != "" {
-		re, err := regexp.Compile(exclude)
-		if err != nil {
-			return nil, fmt.Errorf("bad --exclude regex: %w", err)
-		}
-		f.Exclude = re
-	}
-	return f, nil
-}
-
-func (f *FuncFilter) Match(demangled string) bool {
-	if f == nil {
-		return true
-	}
-	if f.Include != nil && !f.Include.MatchString(demangled) {
-		return false
-	}
-	if f.Exclude != nil && f.Exclude.MatchString(demangled) {
-		return false
-	}
-	return true
-}
-
-// Sidecar converts f to its serializable form (regex source patterns) so the
-// shim can re-apply the same filter to functions discovered via dlopen at
-// runtime. A nil filter yields the zero value (no filtering).
-func (f *FuncFilter) Sidecar() funkutil.FilterSidecar {
-	var s funkutil.FilterSidecar
-	if f == nil {
-		return s
-	}
-	if f.Include != nil {
-		s.Include = f.Include.String()
-	}
-	if f.Exclude != nil {
-		s.Exclude = f.Exclude.String()
-	}
-	return s
-}
-
 // acceptFunc reports whether to keep `raw` (mangled name) given a filter and
 // dedup set. On accept it marks `raw` as seen.
-func acceptFunc(seen map[string]struct{}, raw string, filter *FuncFilter) bool {
+func acceptFunc(seen map[string]struct{}, raw string, filter *funkutil.FuncFilter) bool {
 	demangled := demangleName(raw)
 	if !funkutil.FuncIsRelevant(demangled) || !filter.Match(demangled) {
 		return false
@@ -97,9 +41,21 @@ func demangleName(raw string) string {
 	return demangle.Filter(funkutil.StripVersion(raw))
 }
 
+// LibScope controls whether install/trace/enumerate also cover a binary's
+// shared library dependencies, or only the binary itself (the --no-libs
+// flag) — a named type so call sites read EnumerateFunctions(path,
+// MainBinaryOnly, filter) instead of an opaque EnumerateFunctions(path,
+// true, filter).
+type LibScope bool
+
+const (
+	WithLibraries  LibScope = false // default: also enumerate/trace shared library dependencies
+	MainBinaryOnly LibScope = true  // --no-libs: skip library dependencies entirely
+)
+
 // EnumerateFunctions returns map[imagePath][]functionName for the binary and
 // all its shared libraries that have debug info.
-func EnumerateFunctions(binPath string, noLibs bool, filter *FuncFilter) (map[string][]string, error) {
+func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
 	result := make(map[string][]string)
 
 	funcs, err := enumerateOne(binPath, filter)
@@ -110,7 +66,7 @@ func EnumerateFunctions(binPath string, noLibs bool, filter *FuncFilter) (map[st
 		result[binPath] = funcs
 	}
 
-	if noLibs {
+	if libScope == MainBinaryOnly {
 		return result, nil
 	}
 
@@ -142,7 +98,7 @@ func EnumerateFunctions(binPath string, noLibs bool, filter *FuncFilter) (map[st
 // .gnu_debugaltlink file that Go's debug/dwarf package cannot follow.
 //
 // Order: binary's .symtab → external .debug file's .symtab → DWARF.
-func enumerateOne(path string, filter *FuncFilter) ([]string, error) {
+func enumerateOne(path string, filter *funkutil.FuncFilter) ([]string, error) {
 	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
 		return funcs, nil
 	}
@@ -155,20 +111,16 @@ func enumerateOne(path string, filter *FuncFilter) ([]string, error) {
 	return dwarfFunctions(cmp.Or(debugPath, path), filter)
 }
 
-func symtabFunctions(path string, filter *FuncFilter) []string {
+func symtabFunctions(path string, filter *funkutil.FuncFilter) []string {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil
 	}
 	defer f.Close()
-	funcs, err := enumerateSymtab(f, filter)
-	if err != nil {
-		return nil
-	}
-	return funcs
+	return enumerateSymtab(f, filter)
 }
 
-func dwarfFunctions(path string, filter *FuncFilter) ([]string, error) {
+func dwarfFunctions(path string, filter *funkutil.FuncFilter) ([]string, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open elf: %w", err)
@@ -200,55 +152,18 @@ func hasEmbeddedDebugInfo(f *elf.File) bool {
 }
 
 // externalDebugPath returns the path to an external .debug file, or "".
-// Tries: .build-id layout, then .gnu_debuglink (standard GNU separate-debug
-// convention), then .gnu_debugaltlink (dwz-compressed).
+// Thin wrapper over resolveDebugFile (cmd/elfutil.go), which also backs the
+// install-time merge path — enumeration wants a candidate even when the
+// binary already carries embedded debug sections, so skipIfEmbedded is
+// false, and any elf.Open error degrades to "" (no candidate) rather than
+// propagating, matching this function's pre-existing (string, no error)
+// signature.
 func externalDebugPath(binPath string) string {
-	f, err := elf.Open(binPath)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-
-	// Try .build-id path
-	buildID, err := getBuildID(f)
-	if err == nil && len(buildID) > 2 {
-		p := buildIDDebugPath(buildID)
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-
-	// Try .gnu_debuglink: <debugRoot>/<canonical-dir-of-binary>/<name>
-	if linkPath := debugLinkPath(binPath, readGnuDebugLink(f)); linkPath != "" {
-		if _, err := os.Stat(linkPath); err == nil {
-			return linkPath
-		}
-	}
-
-	// Try .gnu_debugaltlink (dwz-compressed debug)
-	if altPath := readGnuDebugAltLink(f); altPath != "" {
-		// Try direct path from section
-		if _, err := os.Stat(altPath); err == nil {
-			return altPath
-		}
-		// Try relative to /usr/lib/debug
-		relPath := filepath.Join("/usr/lib/debug", altPath)
-		if _, err := os.Stat(relPath); err == nil {
-			return relPath
-		}
-		// Try /usr/lib/debug/.dwz/<basename>
-		if base := filepath.Base(altPath); base != altPath {
-			dwzPath := filepath.Join("/usr/lib/debug/.dwz", base)
-			if _, err := os.Stat(dwzPath); err == nil {
-				return dwzPath
-			}
-		}
-	}
-
-	return ""
+	path, _ := resolveDebugFile(binPath, binPath, AllowEmbedded)
+	return path
 }
 
-func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error) {
+func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]string, error) {
 	seen := make(map[string]struct{})
 	seenAddr := make(map[uint64]struct{})
 	var funcs []string
@@ -300,46 +215,14 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *FuncFilter) ([]string, error)
 	return funcs, nil
 }
 
-func enumerateSymtab(f *elf.File, filter *FuncFilter) ([]string, error) {
-	symbols, err := f.Symbols()
-	if err != nil {
-		// Try dynamic symbols as last resort
-		symbols, err = f.DynamicSymbols()
-		if err != nil {
-			return nil, fmt.Errorf("no symbol table: %w", err)
-		}
-	}
-	seen := make(map[string]struct{})
-	seenAddr := make(map[uint64]struct{})
-	var funcs []string
-	for _, sym := range symbols {
-		if elf.ST_TYPE(sym.Info) != elf.STT_FUNC {
-			continue
-		}
-		if sym.Value == 0 {
-			continue
-		}
-		// uprobe attach requires offset < symbol size; skip the CRT helpers
-		// (deregister_tm_clones, frame_dummy, etc.) that the linker emits
-		// with size 0.
-		if sym.Size == 0 {
-			continue
-		}
-		// Itanium ABI complete-object/base-object ctor-dtor pairs (C1/C2,
-		// D1/D2) are distinct symbols that alias the same address whenever
-		// the class has no virtual bases. Dedup by address, not name, so
-		// they count once instead of double-attaching and double-counting —
-		// this is safe even for virtual-base classes, where C1/C2 genuinely
-		// compile to different code at different addresses.
-		if _, dup := seenAddr[sym.Value]; dup {
-			continue
-		}
-		if acceptFunc(seen, sym.Name, filter) {
-			seenAddr[sym.Value] = struct{}{}
-			funcs = append(funcs, sym.Name)
-		}
-	}
-	return funcs, nil
+// enumerateSymtab delegates the actual symbol walk (union of .symtab and
+// .dynsym, STT_FUNC + size/address filtering, address+name dedup — shared
+// with the shim's runtime dlopen JIT discovery) to funkutil.SymtabFunctions,
+// supplying the relevance + --include/--exclude predicate.
+func enumerateSymtab(f *elf.File, filter *funkutil.FuncFilter) []string {
+	return funkutil.SymtabFunctions(f, func(demangled string) bool {
+		return funkutil.FuncIsRelevant(demangled) && filter.Match(demangled)
+	})
 }
 
 // lddLineRe matches both forms of ldd output:
@@ -358,9 +241,7 @@ func ParseLddLibraries(binPath string) ([]string, error) {
 		return nil, err
 	}
 	var libs []string
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		line := scanner.Text()
+	for line := range strings.Lines(string(out)) {
 		if strings.Contains(line, "linux-vdso") || strings.Contains(line, "not found") {
 			continue
 		}
@@ -379,7 +260,7 @@ func ParseLddLibraries(binPath string) ([]string, error) {
 
 // writeFunctionsLog writes a _functions.log file to logDir and returns its path.
 func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string) (string, error) {
-	if err := os.MkdirAll(logDir, 0777); err != nil {
+	if err := funkutil.EnsureLogDir(logDir); err != nil {
 		return "", err
 	}
 	ts := time.Now()
