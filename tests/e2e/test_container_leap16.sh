@@ -22,7 +22,13 @@ set -euo pipefail
 echo "--- Setting up repos and installing dependencies ---"
 zypper modifyrepo -e openSUSE:repo-oss-debug
 zypper ref
-zypper -n install which file go1.26 elfutils make gcc-c++ bzip2 bzip2-debuginfo libcap-progs
+zypper -n install which file go1.26 elfutils make gcc-c++ libcap-progs \
+    bzip2 bzip2-debuginfo \
+    gzip gzip-debuginfo \
+    gmp-devel libgmp10-debuginfo \
+    cpupower cpupower-debuginfo \
+    squid squid-debuginfo \
+    curl
 
 echo "--- Copying workspace ---"
 cp -r /host_workspace /workspace
@@ -36,6 +42,21 @@ export PATH="/workspace:$PATH"
 
 echo "--- Running test_bzip2.sh ---"
 bash tests/e2e/test_bzip2.sh
+
+echo "--- Running test_gzip.sh ---"
+bash tests/e2e/test_gzip.sh
+
+echo "--- Running test_gmp.sh ---"
+bash tests/e2e/test_gmp.sh
+
+echo "--- Running test_cpupower.sh ---"
+bash tests/e2e/test_cpupower.sh
+
+echo "--- Running test_openssl.sh ---"
+bash tests/e2e/test_openssl.sh
+
+echo "--- Running test_squid.sh ---"
+bash tests/e2e/test_squid.sh
 
 echo "--- Success ---"
 '
