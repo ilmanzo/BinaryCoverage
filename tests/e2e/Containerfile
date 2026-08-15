@@ -1,0 +1,15 @@
+FROM registry.opensuse.org/opensuse/leap:16.0
+
+# Enable debug repositories and install dependencies
+RUN zypper modifyrepo -e openSUSE:repo-oss-debug && \
+    zypper ref && \
+    zypper -n install -y which file go1.26 elfutils make gcc-c++ libcap-progs \
+    bzip2 bzip2-debuginfo \
+    gzip gzip-debuginfo \
+    gmp-devel libgmp10-debuginfo \
+    cpupower cpupower-debuginfo \
+    squid squid-debuginfo \
+    curl && \
+    zypper clean -a
+
+WORKDIR /workspace

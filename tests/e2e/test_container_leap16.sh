@@ -9,28 +9,23 @@ if ! command -v podman >/dev/null 2>&1; then
     RUNTIME="docker"
 fi
 
-# We use a temporary directory inside the container to avoid polluting the host workspace
-# but we map the current directory to copy from it.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+echo "--- Building Container Image (caching packages) ---"
+sudo $RUNTIME build -t leap16-e2e -f "$SCRIPT_DIR/Containerfile" "$WORKSPACE_DIR"
+
+echo "--- Running Tests inside Container ---"
 sudo $RUNTIME run --rm --privileged --pid=host \
-    -v "$PWD:/host_workspace:ro" \
+    -v "$WORKSPACE_DIR:/host_workspace:ro" \
     -v /sys/kernel/btf:/sys/kernel/btf:ro \
     -v /sys/kernel/tracing:/sys/kernel/tracing \
     -v /sys/kernel/debug:/sys/kernel/debug \
-    registry.opensuse.org/opensuse/leap:16.0 bash -c '
+    leap16-e2e bash -c '
 set -euo pipefail
 
-echo "--- Setting up repos and installing dependencies ---"
-zypper modifyrepo -e openSUSE:repo-oss-debug
-zypper ref
-zypper -n install which file go1.26 elfutils make gcc-c++ libcap-progs \
-    bzip2 bzip2-debuginfo \
-    gzip gzip-debuginfo \
-    gmp-devel libgmp10-debuginfo \
-    cpupower cpupower-debuginfo \
-    squid squid-debuginfo \
-    curl
-
-echo "--- Copying workspace ---"
+echo "--- Copying workspace to avoid host file ownership pollution ---"
+rm -rf /workspace
 cp -r /host_workspace /workspace
 cd /workspace
 
@@ -58,5 +53,5 @@ bash tests/e2e/test_openssl.sh
 echo "--- Running test_squid.sh ---"
 bash tests/e2e/test_squid.sh
 
-echo "--- Success ---"
+echo "--- All Leap 16.0 Container E2E Tests Succeeded ---"
 '
