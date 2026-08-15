@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -119,11 +121,48 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	}()
 	cleanups = append(cleanups, func() { pipeW.Close() })
 
+	proxySocketPath := ""
+	origNotifySocket := os.Getenv("NOTIFY_SOCKET")
+	if origNotifySocket != "" {
+		tmpDir, err := os.MkdirTemp("", "funkoverage-notify-XXXX")
+		if err == nil {
+			path := filepath.Join(tmpDir, "socket")
+			pc, err := net.ListenPacket("unixgram", path)
+			if err == nil {
+				proxySocketPath = path
+				cleanups = append(cleanups, func() {
+					_ = pc.Close()
+					_ = os.RemoveAll(tmpDir)
+				})
+				_ = os.Chmod(proxySocketPath, 0666)
+
+				go func() {
+					conn, err := net.Dial("unixgram", origNotifySocket)
+					if err != nil {
+						return
+					}
+					defer conn.Close()
+
+					buf := make([]byte, 4096)
+					for {
+						n, _, err := pc.ReadFrom(buf)
+						if err != nil {
+							break
+						}
+						_, _ = conn.Write(buf[:n])
+					}
+				}()
+			} else {
+				_ = os.RemoveAll(tmpDir)
+			}
+		}
+	}
+
 	shimExe, _ := os.Executable()
 	childCmd := exec.Command(shimExe, os.Args[1:]...)
 	childCmd.Stdin, childCmd.Stdout, childCmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	childCmd.ExtraFiles = []*os.File{pipeR}
-	childCmd.Env = buildChildEnv(realBin)
+	childCmd.Env = buildChildEnv(realBin, proxySocketPath)
 
 	if err := childCmd.Start(); err != nil {
 		pipeR.Close()
@@ -136,6 +175,21 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 			_, _ = childCmd.Process.Wait()
 		}
 	})
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
+	defer func() {
+		signal.Stop(sigChan)
+		close(sigChan)
+	}()
+
+	go func() {
+		for sig := range sigChan {
+			if childCmd.Process != nil {
+				_ = childCmd.Process.Signal(sig)
+			}
+		}
+	}()
 
 	logPath := calledLogPath(dir, realBin)
 	tracer, err := NewTracer(funcs, logPath, filter.Include, filter.Exclude)
@@ -168,13 +222,19 @@ func calledLogPath(dir, realBin string) string {
 	return filepath.Join(dir, name)
 }
 
-func buildChildEnv(realBin string) []string {
+func buildChildEnv(realBin string, proxySocketPath string) []string {
 	arg0 := os.Getenv(arg0EnvVar)
 	if arg0 == "" {
 		arg0 = os.Args[0]
 	}
 	activeEnvVar := activeEnvPrefix + envSafeName(filepath.Base(realBin))
 	env := cleanEnv(activeEnvVar)
+
+	if proxySocketPath != "" {
+		env = filterEnv(env, "NOTIFY_SOCKET")
+		env = append(env, "NOTIFY_SOCKET="+proxySocketPath)
+	}
+
 	env = append(env,
 		childEnvVar+"=1",
 		waitFdEnvVar+"=3",
@@ -186,6 +246,17 @@ func buildChildEnv(realBin string) []string {
 		env = append(env, "LOG_DIR="+v)
 	}
 	return env
+}
+
+func filterEnv(env []string, key string) []string {
+	res := make([]string, 0, len(env))
+	prefix := key + "="
+	for _, e := range env {
+		if !strings.HasPrefix(e, prefix) {
+			res = append(res, e)
+		}
+	}
+	return res
 }
 
 func envSafeName(s string) string {

@@ -34,6 +34,12 @@ bash tests/e2e/test_openssl.sh
 echo "--- Running test_squid.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_squid.sh
 
+echo "--- Running test_reproduce_signal.sh [INSIDE CONTAINER] ---"
+bash tests/e2e/test_reproduce_signal.sh
+
+echo "--- Running test_signal_forwarding.sh [INSIDE CONTAINER] ---"
+bash tests/e2e/test_signal_forwarding.sh
+
 echo "--- Running test_nginx_dlopen.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_nginx_dlopen.sh
 
