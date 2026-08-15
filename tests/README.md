@@ -69,19 +69,24 @@ These tests instrument real system utilities on the host to verify deep features
 
 ---
 
-## 4. Containerized E2E Testing (Leap 16.0)
+## 4. Containerized E2E Testing (Leap 16.0 & Tumbleweed)
 
-To run all major system binary E2E tests in a clean, reproducible, and isolated environment, use the openSUSE Leap 16.0 containerized test runner.
+To run all major system binary E2E tests in a clean, reproducible, and isolated environment, use the openSUSE Leap 16.0 or Tumbleweed containerized test runners.
 
-- **Location**: `tests/e2e/test_container_leap16.sh` and `tests/e2e/Containerfile`.
+- **Location**: `tests/e2e/test_container_leap16.sh`, `tests/e2e/test_container_tumbleweed.sh`, `tests/e2e/run_all_container_tests.sh`, and `tests/e2e/Containerfile`.
 - **Privileges**: Requires `sudo` (needs `--privileged` container runtime capabilities and `/sys/` resource sharing).
 - **Prerequisites**: `podman` (preferred) or `docker` installed.
-- **What it does**:
-  1. Builds a custom Leap 16.0 container image (`leap16-e2e`) containing Go, GCC, make, elfutils, and all debuginfo packages listed above.
-  2. Builds are cached, making repeat local execution extremely fast.
-  3. Launches the container in the host's PID namespace and mounts `/sys/kernel/btf`, `/sys/kernel/tracing`, and `/sys/kernel/debug`.
-  4. Automatically compiles and executes `test_bzip2.sh`, `test_gzip.sh`, `test_gmp.sh`, `test_cpupower.sh`, `test_openssl.sh`, and `test_squid.sh`.
-- **How to run**:
+- **What they do**:
+  1. Build a custom container image (`leap16-e2e` or `tumbleweed-e2e`) from the shared `Containerfile` via build-args.
+  2. The image contains Go, GCC, make, elfutils, gawk, and all debuginfo packages for tested binaries.
+  3. Image builds are cached, making repeat local execution extremely fast.
+  4. Launches the container in the host's PID namespace and mounts `/sys/kernel/btf`, `/sys/kernel/tracing`, and `/sys/kernel/debug`.
+  5. Automatically executes a shared runner (`run_all_container_tests.sh`) to build `funkoverage` and run tests for: `bzip2`, `gzip`, `gmp`, `cpupower`, `openssl`, `squid`, and `nginx_dlopen`.
+- **How to run openSUSE Leap 16.0 container tests**:
   ```bash
   ./tests/e2e/test_container_leap16.sh
+  ```
+- **How to run openSUSE Tumbleweed container tests**:
+  ```bash
+  ./tests/e2e/test_container_tumbleweed.sh
   ```
