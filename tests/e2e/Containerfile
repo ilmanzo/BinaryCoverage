@@ -1,0 +1,25 @@
+ARG BASE_IMAGE=registry.opensuse.org/opensuse/leap:16.0
+FROM $BASE_IMAGE
+
+ARG DISTRO_CODENAME=leap16
+
+# Setup debug repositories based on distro
+RUN if [ "$DISTRO_CODENAME" = "leap16" ]; then \
+        zypper modifyrepo -e openSUSE:repo-oss-debug || zypper ar -f http://download.opensuse.org/debug/distribution/leap/16.0/repo/oss/x86_64 repo-oss-debug; \
+    elif [ "$DISTRO_CODENAME" = "tumbleweed" ]; then \
+        zypper modifyrepo -e repo-debug || zypper modifyrepo -e openSUSE:repo-oss-debug || zypper ar -f http://download.opensuse.org/debug/tumbleweed/repo/oss/ repo-debug; \
+    fi
+
+# Refresh and install required packages
+RUN zypper ref && \
+    zypper -n install -y which file gawk go1.26 elfutils make gcc-c++ libcap-progs \
+    bzip2 bzip2-debuginfo \
+    gzip gzip-debuginfo \
+    gmp-devel libgmp10-debuginfo \
+    cpupower cpupower-debuginfo \
+    squid squid-debuginfo \
+    nginx nginx-debuginfo nginx-module-echo nginx-module-echo-debuginfo \
+    curl && \
+    zypper clean -a
+
+WORKDIR /workspace
