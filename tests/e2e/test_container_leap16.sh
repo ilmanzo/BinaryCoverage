@@ -24,6 +24,10 @@ sudo $RUNTIME run --rm --privileged --pid=host \
     leap16-e2e bash -c '
 set -euo pipefail
 
+echo "===================================================="
+echo "=== NOW RUNNING ENVIRONMENT INSIDE CONTAINER ==="
+echo "===================================================="
+
 echo "--- Copying workspace to avoid host file ownership pollution ---"
 rm -rf /workspace
 cp -r /host_workspace /workspace
@@ -35,22 +39,22 @@ echo "--- Building funkoverage ---"
 echo "--- Adding funkoverage to PATH ---"
 export PATH="/workspace:$PATH"
 
-echo "--- Running test_bzip2.sh ---"
+echo "--- Running test_bzip2.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_bzip2.sh
 
-echo "--- Running test_gzip.sh ---"
+echo "--- Running test_gzip.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_gzip.sh
 
-echo "--- Running test_gmp.sh ---"
+echo "--- Running test_gmp.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_gmp.sh
 
-echo "--- Running test_cpupower.sh ---"
+echo "--- Running test_cpupower.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_cpupower.sh
 
-echo "--- Running test_openssl.sh ---"
+echo "--- Running test_openssl.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_openssl.sh
 
-echo "--- Running test_squid.sh ---"
+echo "--- Running test_squid.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_squid.sh
 
 echo "--- All Leap 16.0 Container E2E Tests Succeeded ---"
