@@ -938,6 +938,59 @@ int main() { return add(1,2) + sub(3,1); }
 	}
 }
 
+// TestEnumerateFunctions_SymlinkAliasing_DuplicateKeys reproduces a
+// duplicated-library-report bug seen in real coverage runs: the same
+// physical shared library shows up twice in a merged report — once under
+// its SONAME symlink name and once under its fully-versioned real filename
+// (e.g. "libz.so.1" and "libz.so.1.3.1" side by side, identical function
+// counts and coverage data). That happens because an explicit install
+// target is keyed by whatever path string was given verbatim, while a
+// transitive ldd dependency is keyed by ldd's own arrow-resolved path —
+// and EnumerateFunctions never canonicalizes either one before using it as
+// a map key, so two spellings of the same file never collapse into one
+// image. Currently FAILS; should pass once the fix (canonicalize via
+// filepath.EvalSymlinks) lands. See plan.md.
+func TestEnumerateFunctions_SymlinkAliasing_DuplicateKeys(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "lib.c")
+	if err := os.WriteFile(src, []byte("int lib_func(void) { return 42; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	real := filepath.Join(tmp, "libfoo.so.1.2.3")
+	if out, err := exec.Command("gcc", "-shared", "-fPIC", "-g", "-o", real, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	link := filepath.Join(tmp, "libfoo.so.1") // mimics a SONAME symlink, e.g. libz.so.1 -> libz.so.1.3.1
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+
+	byReal, err := EnumerateFunctions(real, MainBinaryOnly, nil)
+	if err != nil {
+		t.Fatalf("EnumerateFunctions(real): %v", err)
+	}
+	byLink, err := EnumerateFunctions(link, MainBinaryOnly, nil)
+	if err != nil {
+		t.Fatalf("EnumerateFunctions(link): %v", err)
+	}
+	if len(byReal) != 1 || len(byLink) != 1 {
+		t.Fatalf("expected exactly one image per call, got real=%v link=%v", byReal, byLink)
+	}
+	var realKey, linkKey string
+	for k := range byReal {
+		realKey = k
+	}
+	for k := range byLink {
+		linkKey = k
+	}
+	if realKey != linkKey {
+		t.Errorf("same physical file keyed differently depending on path spelling: %q vs %q — this is what duplicates a library across images in a merged coverage report", realKey, linkKey)
+	}
+}
+
 // --- copyFile / unstrip mode+ownership preservation tests ---
 
 func TestCopyFilePreservesModeAndOwner(t *testing.T) {

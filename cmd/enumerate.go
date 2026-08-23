@@ -55,6 +55,17 @@ const (
 
 // EnumerateFunctions returns map[imagePath][]functionName for the binary and
 // all its shared libraries that have debug info.
+//
+// TODO(#141, plan.md section 4): result is keyed by whatever path string the
+// caller/ldd handed us, with no symlink canonicalization. An explicit
+// coverage target pointing straight at a library (its SONAME symlink, e.g.
+// /usr/lib64/libz.so.1) and the same physical library discovered
+// transitively via another target's ldd dependency (ldd's own arrow-
+// resolved path, e.g. /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1) never
+// collapse to the same key, even though they're the same file — confirmed
+// in production coverage reports (~40 libraries double-reported) and by
+// TestEnumerateFunctions_SymlinkAliasing_DuplicateKeys. Fix: run every path
+// through filepath.EvalSymlinks before using it as a map key below.
 func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
 	result := make(map[string][]string)
 
@@ -98,6 +109,16 @@ func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.Func
 // .gnu_debugaltlink file that Go's debug/dwarf package cannot follow.
 //
 // Order: binary's .symtab → external .debug file's .symtab → DWARF.
+//
+// TODO(#investigate-single-function-binaries): the first non-empty result
+// wins even when it's tiny. A stripped .so whose .dynsym exports just one
+// public symbol (e.g. a CPython extension's PyInit_* entry point) short-
+// circuits here and never checks its external debug file's .symtab, even
+// though that file — confirmed via readelf on python313-base's _bz2.so —
+// carries the real, far larger function list. Fix: when an external debug
+// file exists, prefer its .symtab over the main file's own (it's always a
+// superset for a stripped/debuglinked pair); fall back to the main file's
+// symtab only when no debug file is found. See plan.md.
 func enumerateOne(path string, filter *funkutil.FuncFilter) ([]string, error) {
 	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
 		return funcs, nil
