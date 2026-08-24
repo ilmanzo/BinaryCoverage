@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -119,11 +120,17 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	}()
 	cleanups = append(cleanups, func() { pipeW.Close() })
 
+	notifyProxy, notifyCleanup, err := startNotifyRelay()
+	if err != nil {
+		return 1, err
+	}
+	cleanups = append(cleanups, notifyCleanup)
+
 	shimExe, _ := os.Executable()
 	childCmd := exec.Command(shimExe, os.Args[1:]...)
 	childCmd.Stdin, childCmd.Stdout, childCmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	childCmd.ExtraFiles = []*os.File{pipeR}
-	childCmd.Env = buildChildEnv(realBin)
+	childCmd.Env = buildChildEnv(realBin, notifyProxy)
 
 	if err := childCmd.Start(); err != nil {
 		pipeR.Close()
@@ -153,12 +160,48 @@ func runWithTracing(realBin string) (exitCode int, err error) {
 	}
 	pipeW.Close()
 
-	state, _ := childCmd.Process.Wait()
+	state := waitForwardingSignals(childCmd.Process)
 	if state != nil {
 		exitCode = state.ExitCode()
 	}
 	_ = tracer.Stop()
 	return exitCode, nil
+}
+
+// waitForwardingSignals blocks until proc exits, relaying any termination
+// signal the shim itself receives to proc first. Without this, the shim
+// parent (which has no signal handler otherwise) would die immediately on
+// SIGTERM by OS default action, leaving proc running and its resources
+// (e.g. a bound socket) unreleased — breaking systemd restarts, which move
+// on as soon as the tracked MainPID (this parent) exits.
+func waitForwardingSignals(proc *os.Process) *os.ProcessState {
+	// No explicit signal list: forward everything. SIGUSR1/SIGUSR2 default
+	// to terminating the process just like SIGTERM does, and daemons vary
+	// widely in which signals they treat as meaningful (nginx alone reacts
+	// to HUP, QUIT, USR1, USR2, WINCH) — an allowlist here just relocates
+	// issue #143's bug to whichever signal wasn't on the list. Buffered
+	// beyond 1 in case more than one signal arrives before a select
+	// iteration drains it. SIGKILL/SIGSTOP can't be caught regardless, and
+	// Go's runtime already excludes its own SIGURG preemption signal from
+	// an argument-less Notify.
+	sigCh := make(chan os.Signal, 8)
+	signal.Notify(sigCh)
+	defer signal.Stop(sigCh)
+
+	done := make(chan *os.ProcessState, 1)
+	go func() {
+		state, _ := proc.Wait()
+		done <- state
+	}()
+
+	for {
+		select {
+		case sig := <-sigCh:
+			_ = proc.Signal(sig)
+		case state := <-done:
+			return state
+		}
+	}
 }
 
 func calledLogPath(dir, realBin string) string {
@@ -168,13 +211,20 @@ func calledLogPath(dir, realBin string) string {
 	return filepath.Join(dir, name)
 }
 
-func buildChildEnv(realBin string) []string {
+// buildChildEnv builds the child's environment. notifyProxy, when non-empty,
+// overrides NOTIFY_SOCKET so the child's sd_notify() calls reach
+// startNotifyRelay instead of the real systemd socket directly.
+func buildChildEnv(realBin, notifyProxy string) []string {
 	arg0 := os.Getenv(arg0EnvVar)
 	if arg0 == "" {
 		arg0 = os.Args[0]
 	}
 	activeEnvVar := activeEnvPrefix + envSafeName(filepath.Base(realBin))
-	env := cleanEnv(activeEnvVar)
+	skip := []string{activeEnvVar}
+	if notifyProxy != "" {
+		skip = append(skip, notifySocketEnvVar)
+	}
+	env := cleanEnv(skip...)
 	env = append(env,
 		childEnvVar+"=1",
 		waitFdEnvVar+"=3",
@@ -184,6 +234,9 @@ func buildChildEnv(realBin string) []string {
 	)
 	if v := os.Getenv("LOG_DIR"); v != "" {
 		env = append(env, "LOG_DIR="+v)
+	}
+	if notifyProxy != "" {
+		env = append(env, notifySocketEnvVar+"="+notifyProxy)
 	}
 	return env
 }
