@@ -251,6 +251,31 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
              (idempotent via sync.Once)
 ```
 
+### Signal forwarding and sd_notify relay
+
+The parent catches every signal it can (`waitForwardingSignals`, a bare
+`signal.Notify(sigCh)` with no filter) and relays whatever it receives to
+the child, then keeps blocking until the child actually exits before
+returning. No hand-picked allowlist: SIGUSR1/SIGUSR2 default to terminating
+the process just like SIGTERM does, and daemons vary widely in which
+signals they treat as meaningful (nginx alone reacts to HUP, QUIT, USR1,
+USR2, WINCH) — a fixed list just relocates issue #143's bug to whichever
+signal wasn't on it. Without any handler, the parent dies immediately on
+the OS default action, leaving the child (the real daemon) running
+unsignalled — under systemd this means the tracked MainPID (the parent)
+exits before the child releases its resources (e.g. a bound socket), so a
+`systemctl restart` races the old instance and can fail to bind (issue
+#143).
+
+If `NOTIFY_SOCKET` is set (a `Type=notify` systemd unit), the parent proxies
+it (`startNotifyRelay`) rather than passing it through unchanged: systemd's
+default `NotifyAccess=main` only trusts `sd_notify` datagrams from the
+MainPID it's tracking, which is the parent — but the real daemon runs as
+the *child* (a different PID, via `syscall.Exec` in `childMain`). The parent
+points the child at a private unix datagram socket instead and forwards
+every datagram it receives to the real socket itself, so the kernel-attached
+sender credentials on the relayed datagram are the parent's.
+
 ## Permissions model
 
 - **Install**: must run as root (moves files in `/usr/bin`, runs `setcap`)
@@ -273,6 +298,7 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
 │   ├── templates/            # *.html for report rendering
 │   └── shim_binary/
 │       ├── main.go           # shim main + child fork dance
+│       ├── notify.go         # sd_notify relay (Type=notify units)
 │       ├── tracer.go         # cilium/ebpf wiring, ringbuf reader
 │       ├── tracer_{x86,arm64}_bpfel.{go,o}  # bpf2go-generated bindings
 │       └── bpf/
