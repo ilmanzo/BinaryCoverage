@@ -55,17 +55,6 @@ const (
 
 // EnumerateFunctions returns map[imagePath][]functionName for the binary and
 // all its shared libraries that have debug info.
-//
-// TODO(#141, plan.md section 4): result is keyed by whatever path string the
-// caller/ldd handed us, with no symlink canonicalization. An explicit
-// coverage target pointing straight at a library (its SONAME symlink, e.g.
-// /usr/lib64/libz.so.1) and the same physical library discovered
-// transitively via another target's ldd dependency (ldd's own arrow-
-// resolved path, e.g. /lib64/glibc-hwcaps/x86-64-v3/libz.so.1.3.1) never
-// collapse to the same key, even though they're the same file — confirmed
-// in production coverage reports (~40 libraries double-reported) and by
-// TestEnumerateFunctions_SymlinkAliasing_DuplicateKeys. Fix: run every path
-// through filepath.EvalSymlinks before using it as a map key below.
 func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
 	result := make(map[string][]string)
 
@@ -74,7 +63,7 @@ func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.Func
 		return nil, fmt.Errorf("enumerate %s: %w", binPath, err)
 	}
 	if len(funcs) > 0 {
-		result[binPath] = funcs
+		result[canonicalPath(binPath)] = funcs
 	}
 
 	if libScope == MainBinaryOnly {
@@ -95,10 +84,21 @@ func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.Func
 			continue
 		}
 		if len(libFuncs) > 0 {
-			result[lib] = libFuncs
+			result[canonicalPath(lib)] = libFuncs
 		}
 	}
 	return result, nil
+}
+
+// canonicalPath resolves symlinks so the same physical file always maps to
+// the same report key, regardless of which symlink/SONAME name discovered
+// it (e.g. libz.so.1 vs. libz.so.1.3.1). Falls back to path if resolution
+// fails, so a permission error can't drop an otherwise-enumerable image.
+func canonicalPath(path string) string {
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		return real
+	}
+	return path
 }
 
 // enumerateOne enumerates functions from a single ELF file (binary or library).
@@ -305,4 +305,29 @@ func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string)
 		}
 	}
 	return path, w.Flush()
+}
+
+// enumerateFuncs runs EnumerateFunctions against path and writes the
+// functions log to logDir (best-effort — a log-write failure only warns).
+// A zero-function result is a hard error when libScope is MainBinaryOnly;
+// otherwise it's returned as an empty/partial map with no error, leaving it
+// up to the caller whether that's worth a warning — install() warns about
+// it, traceInline() doesn't, matching each one's pre-existing behavior.
+//
+// Shared between install (cmd/shim.go, permanent) and traceInline
+// (cmd/trace.go, temporary) — both enumerate, then log, the same way; they
+// differ in what happens to the result afterward (install additionally
+// rolls back its move on error).
+func enumerateFuncs(path, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
+	funcs, err := EnumerateFunctions(path, libScope, filter)
+	if err != nil {
+		return nil, fmt.Errorf("function enumeration: %w", err)
+	}
+	if len(funcs) == 0 && libScope == MainBinaryOnly {
+		return nil, fmt.Errorf("no functions found in %s (debug symbols missing?)", path)
+	}
+	if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
+	}
+	return funcs, nil
 }

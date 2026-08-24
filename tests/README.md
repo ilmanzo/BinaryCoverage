@@ -81,7 +81,7 @@ To run all major system binary E2E tests in a clean, reproducible, and isolated 
   2. The image contains Go, GCC, make, elfutils, gawk, and all debuginfo packages for tested binaries.
   3. Image builds are cached, making repeat local execution extremely fast.
   4. Launches the container in the host's PID namespace and mounts `/sys/kernel/btf`, `/sys/kernel/tracing`, and `/sys/kernel/debug`.
-  5. Automatically executes a shared runner (`run_all_container_tests.sh`) to build `funkoverage` and run tests for: `bzip2`, `gzip`, `gmp`, `cpupower`, `openssl`, `squid`, and `nginx_dlopen`.
+  5. Automatically executes a shared runner (`run_all_container_tests.sh`) to build `funkoverage` and run tests for: `bzip2`, `gzip`, `gmp`, `cpupower`, `openssl`, `squid`, `nginx_dlopen`, and `duplicate_library_symlink`.
 - **How to run openSUSE Leap 16.0 container tests**:
   ```bash
   ./tests/e2e/test_container_leap16.sh

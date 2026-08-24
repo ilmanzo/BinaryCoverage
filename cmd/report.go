@@ -77,6 +77,14 @@ func safeImageName(image string) string {
 	return safeNameRe.ReplaceAllString(filepath.Base(image), "_")
 }
 
+// pctOf returns num/den as a percentage, or 0 if den is 0.
+func pctOf(num, den int) float64 {
+	if den == 0 {
+		return 0
+	}
+	return float64(num) / float64(den) * 100
+}
+
 // logType identifies which log file a line came from — used everywhere
 // coverage/report code needs to distinguish _functions.log from
 // _called.log, instead of ad-hoc bools or magic strings.
@@ -294,10 +302,7 @@ func generateXUnitReport(image string, data *CoverageData, outputDir string) err
 	outfile := filepath.Join(outputDir, fmt.Sprintf("coverage_%s.xml", safeName))
 
 	calledCount := len(calledList)
-	pct := 0.0
-	if totalCount > 0 {
-		pct = float64(calledCount) / float64(totalCount) * 100
-	}
+	pct := pctOf(calledCount, totalCount)
 	// Totals here are a single-image report, so they're identical to the
 	// per-image numbers above (was previously recomputed via a throwaway
 	// single-entry map + summarizeCoverage call).
@@ -367,11 +372,8 @@ type AggregateData struct {
 // generateHTMLReport generates an HTML report for a single image's coverage data.
 func generateHTMLReport(image string, data *CoverageData, outputDir string) error {
 	called, uncalled := splitCalledUncalled(data)
-	totalCount := len(called) + len(uncalled)
-	coveragePct := 0.0
-	if totalCount > 0 {
-		coveragePct = float64(len(called)) / float64(totalCount) * 100
-	}
+	totalCount := len(data.TotalFunctions)
+	coveragePct := pctOf(len(called), totalCount)
 	functions := make([]FunctionEntry, 0, totalCount)
 	for _, fn := range called {
 		functions = append(functions, FunctionEntry{Name: fn, Status: "called"})
@@ -441,10 +443,7 @@ func summarizeCoverage(coverage map[string]*CoverageData) CoverageTotals {
 		data := coverage[image]
 		total := len(data.TotalFunctions)
 		called := len(data.CalledFunctions)
-		coveragePct := 0.0
-		if total > 0 {
-			coveragePct = float64(called) / float64(total) * 100
-		}
+		coveragePct := pctOf(called, total)
 		rows = append(rows, CoverageSummary{
 			ImageName:   image,
 			TotalCount:  total,
@@ -454,10 +453,7 @@ func summarizeCoverage(coverage map[string]*CoverageData) CoverageTotals {
 		totalFunctions += total
 		totalCalled += called
 	}
-	averageCoverage := 0.0
-	if totalFunctions > 0 {
-		averageCoverage = float64(totalCalled) / float64(totalFunctions) * 100
-	}
+	averageCoverage := pctOf(totalCalled, totalFunctions)
 	return CoverageTotals{
 		Rows:            rows,
 		TotalFunctions:  totalFunctions,

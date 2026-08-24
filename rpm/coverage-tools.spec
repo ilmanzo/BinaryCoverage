@@ -24,7 +24,7 @@ License:        MIT AND GPL-2.0-only
 URL:            https://github.com/ilmanzo/CodeCoverage
 Source0:        %{dname}.tar.gz
 Source1:        vendor.tar.gz
-BuildRequires:  go >= 1.26
+BuildRequires:  go >= 1.27
 ExclusiveArch:  x86_64
 # Runtime: setcap is invoked by `funkoverage install` to grant CAP_BPF /
 # CAP_PERFMON / CAP_DAC_READ_SEARCH to each shim copy. elfutils is used by
