@@ -12,7 +12,7 @@ RUN if [ "$DISTRO_CODENAME" = "leap16" ]; then \
 
 # Refresh and install required packages
 RUN zypper ref && \
-    zypper -n install -y which file gawk go1.26 elfutils make gcc-c++ libcap-progs \
+    zypper -n install -y which file gawk findutils go1.26 elfutils make gcc-c++ libcap-progs \
     bzip2 bzip2-debuginfo \
     gzip gzip-debuginfo \
     gmp-devel libgmp10-debuginfo \

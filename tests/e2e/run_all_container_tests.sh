@@ -37,6 +37,9 @@ bash tests/e2e/test_squid.sh
 echo "--- Running test_nginx_dlopen.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_nginx_dlopen.sh
 
+echo "--- Running test_duplicate_library_symlink.sh [INSIDE CONTAINER] ---"
+bash tests/e2e/test_duplicate_library_symlink.sh
+
 echo "===================================================="
 echo "=== ALL E2E CONTAINER TESTS SUCCEEDED ==="
 echo "===================================================="
