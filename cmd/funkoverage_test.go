@@ -991,6 +991,65 @@ func TestEnumerateFunctions_SymlinkAliasing_DuplicateKeys(t *testing.T) {
 	}
 }
 
+// TestEnumerateFunctions_DifferentVersions_DistinctKeys guards the flip side
+// of the symlink-aliasing fix: two distinct real versions of a library
+// (different content, different directories) must never collapse into one
+// image just because they're both reachable through a same-named SONAME
+// symlink (e.g. two library search paths that each have their own
+// "libfoo.so.1" pointing at a different real file). Canonicalizing via
+// filepath.EvalSymlinks must key by the resolved real path, not the
+// symlink's basename.
+func TestEnumerateFunctions_DifferentVersions_DistinctKeys(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+
+	build := func(dir, body string) string {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		src := filepath.Join(dir, "lib.c")
+		if err := os.WriteFile(src, []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+		real := filepath.Join(dir, "libfoo.so.real")
+		if out, err := exec.Command("gcc", "-shared", "-fPIC", "-g", "-o", real, src).CombinedOutput(); err != nil {
+			t.Fatalf("compile: %v\n%s", err, out)
+		}
+		link := filepath.Join(dir, "libfoo.so.1") // same basename in both dirs, different targets
+		if err := os.Symlink(real, link); err != nil {
+			t.Fatal(err)
+		}
+		return link
+	}
+
+	v1 := build(filepath.Join(tmp, "v1"), "int lib_func(void) { return 1; }")
+	v2 := build(filepath.Join(tmp, "v2"), "int lib_func(void) { return 2; }")
+
+	byV1, err := EnumerateFunctions(v1, MainBinaryOnly, nil)
+	if err != nil {
+		t.Fatalf("EnumerateFunctions(v1): %v", err)
+	}
+	byV2, err := EnumerateFunctions(v2, MainBinaryOnly, nil)
+	if err != nil {
+		t.Fatalf("EnumerateFunctions(v2): %v", err)
+	}
+	if len(byV1) != 1 || len(byV2) != 1 {
+		t.Fatalf("expected exactly one image per call, got v1=%v v2=%v", byV1, byV2)
+	}
+	var v1Key, v2Key string
+	for k := range byV1 {
+		v1Key = k
+	}
+	for k := range byV2 {
+		v2Key = k
+	}
+	if v1Key == v2Key {
+		t.Errorf("two distinct library versions collapsed to the same key %q — same-named symlinks must not merge different real files", v1Key)
+	}
+}
+
 // --- copyFile / unstrip mode+ownership preservation tests ---
 
 func TestCopyFilePreservesModeAndOwner(t *testing.T) {
