@@ -27,69 +27,138 @@ func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter
 		return err
 	}
 
+	target, err := validateInstallTarget(targetBinary, safeBinDir, libScope)
+	if err != nil {
+		return err
+	}
+
+	origInfo, err := os.Stat(target.realTarget)
+	if err != nil {
+		return fmt.Errorf("stat original binary: %w", err)
+	}
+
+	safePath, err := relocateOriginal(target.realTarget, safeBinDir, target.binaryName)
+	if err != nil {
+		return err
+	}
+
+	installMulticallSymlink(safeBinDir, target.isSymlink, filepath.Base(targetBinary), target.binaryName)
+
+	// Enumerate functions after merging debug info so all symbols are available
+	funcs, err := enumerateAndPersist(safePath, target.realTarget, target.binaryName, logDir, libScope, filter)
+	if err != nil {
+		return err
+	}
+
+	if err := funkutil.WriteFuncList(safePath, funcs); err != nil {
+		return fmt.Errorf("write func list sidecar: %w", err)
+	}
+
+	if err := finishInstall(shimBinary, target.realTarget, origInfo); err != nil {
+		return err
+	}
+
+	fmt.Printf("Installed shim for %s (original at %s)\n", targetBinary, safePath)
+	return nil
+}
+
+// installTarget bundles what validateInstallTarget discovers about the
+// binary being installed.
+type installTarget struct {
+	realTarget string // symlink-resolved absolute path to the real binary
+	binaryName string // filepath.Base(realTarget)
+	isSymlink  bool   // true if targetBinary itself was a symlink
+}
+
+// validateInstallTarget resolves targetBinary to its real path and checks
+// it's an installable ELF binary that isn't already shimmed. libScope
+// controls whether missing debug info is a hard failure (MainBinaryOnly)
+// or just informational (library functions can still come from ldd deps).
+func validateInstallTarget(targetBinary, safeBinDir string, libScope LibScope) (installTarget, error) {
 	fileInfo, err := os.Lstat(targetBinary)
 	if err != nil {
-		return fmt.Errorf("lstat %s: %w", targetBinary, err)
+		return installTarget{}, fmt.Errorf("lstat %s: %w", targetBinary, err)
 	}
 	isSymlink := (fileInfo.Mode() & os.ModeSymlink) != 0
-	originalName := filepath.Base(targetBinary)
 
 	realTarget, err := filepath.EvalSymlinks(targetBinary)
 	if err != nil {
-		return fmt.Errorf("resolve symlink: %w", err)
+		return installTarget{}, fmt.Errorf("resolve symlink: %w", err)
 	}
 
 	binaryName := filepath.Base(realTarget)
 	safePath := filepath.Join(safeBinDir, binaryName)
 
 	if _, err := os.Stat(safePath); err == nil {
-		return fmt.Errorf("'%s' already has a shim installed (found %s). Use uninstall first", targetBinary, safePath)
+		return installTarget{}, fmt.Errorf("'%s' already has a shim installed (found %s). Use uninstall first", targetBinary, safePath)
 	}
 
 	if !isELF(realTarget) {
-		return fmt.Errorf("'%s' is not an ELF executable", targetBinary)
+		return installTarget{}, fmt.Errorf("'%s' is not an ELF executable", targetBinary)
 	}
 	found, err := hasDebugInfo(realTarget)
 	if err != nil {
-		return fmt.Errorf("debug info check: %w", err)
+		return installTarget{}, fmt.Errorf("debug info check: %w", err)
 	}
 	if !found && libScope == MainBinaryOnly {
-		return fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
+		return installTarget{}, fmt.Errorf("'%s' has no debug information. Install the debug symbols package first", targetBinary)
 	}
 
-	origInfo, err := os.Stat(realTarget)
-	if err != nil {
-		return fmt.Errorf("stat original binary: %w", err)
-	}
+	return installTarget{realTarget: realTarget, binaryName: binaryName, isSymlink: isSymlink}, nil
+}
 
+// relocateOriginal moves realTarget into safeBinDir (as binaryName) and
+// merges any external debug info into the relocated copy. Returns the new
+// safePath.
+func relocateOriginal(realTarget, safeBinDir, binaryName string) (string, error) {
+	safePath := filepath.Join(safeBinDir, binaryName)
 	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
-		return err
+		return "", err
 	}
 	if err := move(realTarget, safePath); err != nil {
-		return err
+		return "", err
 	}
 	if err := mergeDebugIfExternal(safePath, realTarget); err != nil {
 		_ = move(safePath, realTarget)
-		return fmt.Errorf("merge debug symbols: %w", err)
+		return "", fmt.Errorf("merge debug symbols: %w", err)
 	}
+	return safePath, nil
+}
 
-	if isSymlink && originalName != binaryName {
-		symlinkPath := filepath.Join(safeBinDir, originalName)
-		if err := os.Symlink(binaryName, symlinkPath); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: multicall symlink %s -> %s: %v\n", symlinkPath, binaryName, err)
-		}
+// installMulticallSymlink creates safeBinDir/originalName -> binaryName
+// when targetBinary was invoked through a symlink with a different name
+// (multicall binaries, e.g. busybox-style tools invoked under several
+// names) so the alternate name keeps working after install. Soft-fails
+// with a warning — a missing multicall alias breaks the alternate name,
+// not the whole install.
+func installMulticallSymlink(safeBinDir string, isSymlink bool, originalName, binaryName string) {
+	if !isSymlink || originalName == binaryName {
+		return
 	}
+	symlinkPath := filepath.Join(safeBinDir, originalName)
+	if err := os.Symlink(binaryName, symlinkPath); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: multicall symlink %s -> %s: %v\n", symlinkPath, binaryName, err)
+	}
+}
 
-	// Enumerate functions after merging debug info so all symbols are available
+// enumerateAndPersist runs EnumerateFunctions against safePath and writes
+// the functions log, merged library debug info (WithLibraries only), and
+// the filter sidecar. Rolls back the move to realTarget (undoing
+// relocateOriginal) on enumeration failure or, for MainBinaryOnly, on
+// finding zero functions — those are the two failure modes serious enough
+// that leaving the binary relocated would be worse than restoring it.
+// (A later WriteFuncList failure back in install does NOT roll back this
+// move — a pre-existing asymmetry, preserved here rather than fixed.)
+func enumerateAndPersist(safePath, realTarget, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
 	funcs, err := EnumerateFunctions(safePath, libScope, filter)
 	if err != nil {
 		_ = move(safePath, realTarget)
-		return fmt.Errorf("function enumeration: %w", err)
+		return nil, fmt.Errorf("function enumeration: %w", err)
 	}
 	if len(funcs) == 0 {
 		if libScope == MainBinaryOnly {
 			_ = move(safePath, realTarget)
-			return fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
+			return nil, fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
 		}
 		fmt.Fprintf(os.Stderr, "warning: no functions found in %s statically; coverage will rely entirely on runtime dlopen() discovery\n", safePath)
 	}
@@ -108,21 +177,20 @@ func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter
 		fmt.Fprintf(os.Stderr, "warning: write filter sidecar: %v\n", err)
 	}
 
-	if err := funkutil.WriteFuncList(safePath, funcs); err != nil {
-		return fmt.Errorf("write func list sidecar: %w", err)
-	}
+	return funcs, nil
+}
 
+// finishInstall copies the shim binary over the original target's path and
+// applies its runtime capabilities.
+func finishInstall(shimBinary, realTarget string, origInfo os.FileInfo) error {
 	if err := copyFile(shimBinary, realTarget, origInfo); err != nil {
 		return fmt.Errorf("install shim binary: %w", err)
 	}
-
 	if err := setShimCaps(realTarget); err != nil {
 		// Soft-fail: caps only matter for non-root invocation of the shim.
 		// Root install + root invocation works without them.
 		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
 	}
-
-	fmt.Printf("Installed shim for %s (original at %s)\n", targetBinary, safePath)
 	return nil
 }
 
