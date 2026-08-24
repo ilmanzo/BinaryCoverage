@@ -1,6 +1,6 @@
 module funkoverage
 
-go 1.26
+go 1.27
 
 require (
 	github.com/cilium/ebpf v0.22.0
@@ -8,4 +8,4 @@ require (
 	golang.org/x/sync v0.22.0
 )
 
-require golang.org/x/sys v0.44.0 // indirect
+require golang.org/x/sys v0.47.0 // indirect
