@@ -306,3 +306,28 @@ func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string)
 	}
 	return path, w.Flush()
 }
+
+// enumerateFuncs runs EnumerateFunctions against path and writes the
+// functions log to logDir (best-effort — a log-write failure only warns).
+// A zero-function result is a hard error when libScope is MainBinaryOnly;
+// otherwise it's returned as an empty/partial map with no error, leaving it
+// up to the caller whether that's worth a warning — install() warns about
+// it, traceInline() doesn't, matching each one's pre-existing behavior.
+//
+// Shared between install (cmd/shim.go, permanent) and traceInline
+// (cmd/trace.go, temporary) — both enumerate, then log, the same way; they
+// differ in what happens to the result afterward (install additionally
+// rolls back its move on error).
+func enumerateFuncs(path, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
+	funcs, err := EnumerateFunctions(path, libScope, filter)
+	if err != nil {
+		return nil, fmt.Errorf("function enumeration: %w", err)
+	}
+	if len(funcs) == 0 && libScope == MainBinaryOnly {
+		return nil, fmt.Errorf("no functions found in %s (debug symbols missing?)", path)
+	}
+	if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
+	}
+	return funcs, nil
+}

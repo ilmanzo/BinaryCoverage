@@ -141,29 +141,22 @@ func installMulticallSymlink(safeBinDir string, isSymlink bool, originalName, bi
 	}
 }
 
-// enumerateAndPersist runs EnumerateFunctions against safePath and writes
-// the functions log, merged library debug info (WithLibraries only), and
-// the filter sidecar. Rolls back the move to realTarget (undoing
-// relocateOriginal) on enumeration failure or, for MainBinaryOnly, on
-// finding zero functions — those are the two failure modes serious enough
-// that leaving the binary relocated would be worse than restoring it.
-// (A later WriteFuncList failure back in install does NOT roll back this
-// move — a pre-existing asymmetry, preserved here rather than fixed.)
+// enumerateAndPersist enumerates+logs safePath's functions (via the shared
+// enumerateFuncs, cmd/enumerate.go), then writes merged library debug info
+// (WithLibraries only) and the filter sidecar. Rolls back the move to
+// realTarget (undoing relocateOriginal) on enumeration failure — the
+// failure mode serious enough that leaving the binary relocated would be
+// worse than restoring it. (A later WriteFuncList failure back in install
+// does NOT roll back this move — a pre-existing asymmetry, preserved here
+// rather than fixed.)
 func enumerateAndPersist(safePath, realTarget, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
-	funcs, err := EnumerateFunctions(safePath, libScope, filter)
+	funcs, err := enumerateFuncs(safePath, binaryName, logDir, libScope, filter)
 	if err != nil {
 		_ = move(safePath, realTarget)
-		return nil, fmt.Errorf("function enumeration: %w", err)
+		return nil, err
 	}
 	if len(funcs) == 0 {
-		if libScope == MainBinaryOnly {
-			_ = move(safePath, realTarget)
-			return nil, fmt.Errorf("no functions found in %s (debug symbols missing?)", safePath)
-		}
 		fmt.Fprintf(os.Stderr, "warning: no functions found in %s statically; coverage will rely entirely on runtime dlopen() discovery\n", safePath)
-	}
-	if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 
 	if libScope == WithLibraries {

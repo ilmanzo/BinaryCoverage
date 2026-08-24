@@ -31,15 +31,9 @@ func traceInline(binaryPath string, args []string, libScope LibScope, filter *fu
 		return 1, err
 	}
 
-	funcs, err := EnumerateFunctions(realBin, libScope, filter)
+	funcs, err := enumerateFuncs(realBin, filepath.Base(realBin), logDir, libScope, filter)
 	if err != nil {
-		return 1, fmt.Errorf("function enumeration: %w", err)
-	}
-	if len(funcs) == 0 && libScope == MainBinaryOnly {
-		return 1, fmt.Errorf("no functions found in %s (debug symbols missing?)", realBin)
-	}
-	if _, err := writeFunctionsLog(logDir, filepath.Base(realBin), funcs); err != nil {
-		fmt.Fprintf(os.Stderr, "trace: write functions log warning: %v\n", err)
+		return 1, err
 	}
 
 	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
