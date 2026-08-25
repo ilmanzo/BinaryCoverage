@@ -16,7 +16,7 @@
 
 ## 📦 Prerequisites
 
-- **Go 1.26+**
+- **Go 1.27+**
 - **Clang/LLVM** (only for BPF regeneration with `REGEN_BPF=1`)
 - **bpftool** (only for BPF regeneration with `REGEN_BPF=1`)
 - **libbpf-devel** (only for BPF regeneration with `REGEN_BPF=1`)
