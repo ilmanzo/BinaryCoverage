@@ -21,7 +21,7 @@ go build -o funkoverage-shim ./cmd/shim_binary/
 cd tests/sample && make    # compile 100-function C++ test binary
 ```
 
-The repo ships pre-generated BPF bindings for x86_64 and ARM64 (`cmd/shim_binary/tracer_{x86,arm64}_bpfel.{go,o}`); a normal build needs only Go ≥1.26. Build tags ensure the correct variant is compiled for each architecture. To regenerate after editing `cmd/shim_binary/bpf/tracer.bpf.c`:
+The repo ships pre-generated BPF bindings for x86_64 and ARM64 (`cmd/shim_binary/tracer_{x86,arm64}_bpfel.{go,o}`); a normal build needs only Go ≥1.27. Build tags ensure the correct variant is compiled for each architecture. To regenerate after editing `cmd/shim_binary/bpf/tracer.bpf.c`:
 
 ```bash
 REGEN_BPF=1 ./build.sh    # needs clang, llvm-strip, bpftool, libbpf-devel
@@ -137,4 +137,4 @@ Uses Go stdlib `debug/dwarf`. Visits `DW_TAG_subprogram` entries with `DW_AT_Low
 - **CONFIG_DEBUG_INFO_BTF=y** (BTF for CO-RE relocations)
 - `eu-unstrip` (elfutils) needed only for binaries with separate `.debug` files
 - `setcap` is invoked at install time on each shim copy; install must run as root
-- Go module root is repo root (`go.mod` at `/`); requires Go ≥1.26
+- Go module root is repo root (`go.mod` at `/`); requires Go ≥1.27

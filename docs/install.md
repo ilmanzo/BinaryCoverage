@@ -9,7 +9,7 @@ Fresh-system installation verified on **openSUSE Tumbleweed 20260511** with kern
 | **OS** | GNU/Linux x86_64 or ARM64 | openSUSE Tumbleweed |
 | **Kernel** | 6.6+ | 7.0.5 |
 | **BTF** | `CONFIG_DEBUG_INFO_BTF=y` | `/sys/kernel/btf/vmlinux` (5.7MB) |
-| **Go** | 1.26+ | 1.26.3 |
+| **Go** | 1.27+ | 1.27.0 |
 
 Check BTF availability:
 ```bash
@@ -23,7 +23,7 @@ ls -lh /sys/kernel/btf/vmlinux
 
 ```bash
 # openSUSE/SUSE
-sudo zypper install go1.26 elfutils make gcc-c++
+sudo zypper install go1.27 elfutils make gcc-c++
 
 # Fedora/RHEL
 sudo dnf install golang elfutils make gcc-c++

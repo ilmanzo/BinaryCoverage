@@ -82,7 +82,7 @@ func FuncIsRelevant(name string) bool {
 // \b: "+" is not a word character, so a \b immediately after it can never
 // match a following "." (both sides non-word) — under the combined pattern
 // this alternative could never actually match a real "libstdc++.so*" path.
-var coreSystemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|libthread_db|ld-linux|libgcc_s|libresolv|libnsl|libutil|libcrypt|libanl)\b|libstdc\+\+`)
+var coreSystemLibRe = regexp.MustCompile(`(?i)(?:libc|libm|libpthread|librt|libdl|libthread_db|ld-linux|libgcc_s|libresolv|libnsl|libutil|libanl)\b|libstdc\+\+`)
 
 // noisyDlopenLibRe matches additional libraries that carry thousands of
 // symbols and are common dlopen() targets (NSS/PAM/D-Bus modules, systemd,
