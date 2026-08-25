@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if ! command -v go &>/dev/null; then
-    echo "Error: 'go' not found. Install Go ≥1.26 first." >&2
+    echo "Error: 'go' not found. Install Go ≥1.27 first." >&2
     exit 1
 fi
 

@@ -145,6 +145,16 @@ Reverses install: move `/var/coverage/bin/foo` back to `/usr/bin/foo`, delete si
 │  → tracing follows fork() across process tree                  │
 └────────────────────────────────────────────────────────────────┘
 
+┌────────────────────────────────────────────────────────────────┐
+│  uretprobe/dlopen                                              │
+│  ─────────────────                                             │
+│  on dlopen return:                                             │
+│    tgid = pid_tgid >> 32                                       │
+│    if !watched[tgid]: return                                   │
+│    if return_register == NULL: return  ← skip failed loads     │
+│    ringbuf_submit({0xFFFFFFFF})  ← reserved JIT token          │
+└────────────────────────────────────────────────────────────────┘
+
 Maps:
   watched     HASH (4096 entries)        u32 tgid → u8
   seen        ARRAY (resized to N funcs) u32 idx  → u64 atomic flag
@@ -275,6 +285,23 @@ the *child* (a different PID, via `syscall.Exec` in `childMain`). The parent
 points the child at a private unix datagram socket instead and forwards
 every datagram it receives to the real socket itself, so the kernel-attached
 sender credentials on the relayed datagram are the parent's.
+
+### JIT Dynamic Library Tracing (dlopen)
+
+To support coverage for dynamic libraries loaded on-the-fly at runtime via `dlopen()` or `dlmopen()`, the shim implements an event-driven Just-In-Time (JIT) instrumentation mechanism:
+
+1. **eBPF Hooking:** During tracer startup, the shim locates the target's mapped `libc.so.6` or `libdl.so.2` by parsing `/proc/<child_pid>/maps`. It then attaches a `uretprobe` to the `dlopen` symbol, mapping it to the `trace_dlopen_return` eBPF handler.
+2. **Detection:** When `dlopen` returns successfully (non-NULL handle), the eBPF program writes a special reserved token (`0xFFFFFFFF`) to the `events` ring buffer.
+3. **Rescan & Enumerate:** The shim's userspace ringbuffer reader intercepts the `0xFFFFFFFF` event, triggers `handleDynamicLoad()`, and rescans `/proc/<child_pid>/maps` to identify newly mapped executable files (`PROT_EXEC` segments) that are not yet instrumented.
+4. **JIT Attach:** For each new library, the shim:
+   - Discovers functions via `enumerateOne()` using the saved sidecar filters (`--include` / `--exclude`).
+   - Assigns global function indices/cookies sequentially, dynamically expanding its internal function list.
+   - Attaches BPF multi-uprobes to the new symbols via a single `link.UprobeMulti()` call for the entire library.
+   - Appends the newly discovered functions to the functions log (`_functions.log`) so they appear in reports.
+
+This event-driven JIT approach scales efficiently to thousands of concurrent tracing processes without active polling, keeping idle CPU and I/O overhead at **0%**.
+
+**Scope Boundary:** Because it relies on the public `dlopen` ELF symbol, it does not trace internal glibc library loads like NSS modules (e.g. `libnss_*.so` invoked by `getpwnam()`), which use glibc's private, non-exported `__libc_dlopen_mode` helper instead.
 
 ## Permissions model
 
