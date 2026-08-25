@@ -14,10 +14,10 @@
 
 # Please submit bugfixes or comments via https://bugs.opensuse.org/
 
-%define bversion 0.8.1
+%define bversion 0.8.2
 %define dname BinaryCoverage-%{bversion}
 Name:           coverage-tools
-Version:        0.8.1
+Version:        0.8.2
 Release:        0
 Summary:        Tools to test binary coverage of different packages
 License:        MIT AND GPL-2.0-only
