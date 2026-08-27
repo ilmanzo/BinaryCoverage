@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -111,6 +112,44 @@ func TestWaitForTargetExit_PollFallback(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("waitForTargetExit did not fall back to polling for a dead target")
+	}
+}
+
+// TestRunHelper_BadTargetPid covers runHelper's env-parsing validation
+// without touching eBPF: an unparseable FUNKOVERAGE_TARGET_PID must fail
+// fast, before any tracer setup is attempted.
+func TestRunHelper_BadTargetPid(t *testing.T) {
+	t.Setenv(targetPidEnvVar, "not-a-pid")
+
+	if err := runHelper(nil); err == nil {
+		t.Error("runHelper with a non-numeric target pid should return an error")
+	}
+}
+
+// TestRunHelper_ParentAlreadyGone covers the race guard: if our parent (by
+// pid) no longer matches os.Getppid() by the time we check, it must return
+// immediately (nil, no tracer attach attempted) rather than trace a pid
+// that's no longer ours to trace.
+func TestRunHelper_ParentAlreadyGone(t *testing.T) {
+	// Getppid() is a real, currently-running process (the test harness'
+	// parent); using it as the fake pid guarantees it never equals our own.
+	t.Setenv(targetPidEnvVar, strconv.Itoa(os.Getppid()+1))
+
+	if err := runHelper(nil); err != nil {
+		t.Errorf("runHelper with a mismatched parent pid should return nil, got %v", err)
+	}
+}
+
+// TestRunHelper_MissingRealBin covers the FUNKOVERAGE_REAL_BIN validation,
+// which runs before any sidecar/tracer setup — reachable without eBPF by
+// passing the parent-pid check first.
+func TestRunHelper_MissingRealBin(t *testing.T) {
+	t.Setenv(targetPidEnvVar, strconv.Itoa(os.Getppid()))
+	os.Unsetenv(realBinEnvVar)
+
+	err := runHelper(nil)
+	if err == nil || !strings.Contains(err.Error(), realBinEnvVar) {
+		t.Errorf("runHelper with no %s should report it missing, got %v", realBinEnvVar, err)
 	}
 }
 
