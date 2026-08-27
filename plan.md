@@ -11,8 +11,8 @@ This document outlines upcoming features, architectural improvements, and TODOs 
   1. During the installation phase inside `cmd/shim.go`, inspect the target binary before proceeding.
   2. Parse the target's ELF symbol table (using the standard `debug/elf` package).
   3. Search for known, shim-specific runtime symbols, such as:
-     - `main.childMain`
      - `main.runWithTracing`
+     - `main.runHelper`
      - `main.calledLogPath`
   4. If any of these symbols are detected in the symbol table, immediately abort the installation with a user-friendly error (e.g., `"Error: binary is already a funkoverage-shim. Aborting to avoid double shimming."`).
   5. Add dedicated test cases in `cmd/funkoverage_test.go` to verify that attempting to install on a shim binary is correctly blocked.

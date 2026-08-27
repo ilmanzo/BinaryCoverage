@@ -58,6 +58,10 @@ func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter
 		return err
 	}
 
+	if err := funkutil.WriteShimBinary(safePath, shimBinary); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: write shim binary sidecar: %v\n", err)
+	}
+
 	fmt.Printf("Installed shim for %s (original at %s)\n", targetBinary, safePath)
 	return nil
 }
@@ -182,6 +186,16 @@ func finishInstall(shimBinary, realTarget string, origInfo os.FileInfo) error {
 	if err := setShimCaps(realTarget); err != nil {
 		// Soft-fail: caps only matter for non-root invocation of the shim.
 		// Root install + root invocation works without them.
+		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
+	// The background tracer helper re-execs shimBinary directly (see
+	// docs/design.md's process-identity section) rather than realTarget, so
+	// it needs the SAME capabilities on that file too. Otherwise a target
+	// whose systemd unit sets User= at the unit level (e.g. postgresql.service)
+	// forks its helper as that unprivileged user from the start, and the
+	// helper's tracer setup fails outright (e.g. RemoveMemlock: operation
+	// not permitted) even though the per-target copy is correctly capable.
+	if err := setShimCaps(shimBinary); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
 	}
 	return nil
