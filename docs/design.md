@@ -72,35 +72,55 @@ Steps:
 ### Run (transparent — user invokes `foo`)
 
 ```
-  user runs `foo arg1`
+  user/systemd runs `foo arg1`
          │
          ▼
-  /usr/bin/foo  ◄── this is now the shim
+  /usr/bin/foo  ◄── this is now the shim, pid P
          │
          ├── locate real binary at /var/coverage/bin/foo
-         ├── read foo.funcs.json (mangled names per image)
          │
-         ├── fork a child shim process (paused on a pipe)
-         │   ├── set FUNKOVERAGE_CHILD=1, FUNKOVERAGE_WAIT_FD=3
-         │   └── child blocks reading the pipe
+         ├── fork the *stable* funkoverage-shim binary (per foo.shimbin.json,
+         │   NOT os.Executable() — that would resolve to /usr/bin/foo itself,
+         │   and the helper holding it open as its own running text would
+         │   make a later `funkoverage uninstall foo` fail with ETXTBSY)
+         │   as a background helper (paused on a pipe, fd 3)
+         │   ├── set FUNKOVERAGE_HELPER=1, FUNKOVERAGE_TARGET_PID=P,
+         │   │   FUNKOVERAGE_REAL_BIN=/var/coverage/bin/foo
+         │   └── release it immediately (Process.Release) — we can never
+         │       Wait() on it, we're about to exec away for good
          │
-         ├── load embedded BPF program (arch-specific, build-tag selected)
-         ├── for each image: link.UprobeMulti(symbols, cookies)
-         │   (one syscall per image, all symbols at once)
-         ├── attach sched_process_fork tracepoint
-         ├── seed `watched` map with child's TGID
-         ├── start ringbuf reader goroutine
+         │   [in the helper, a separate process:]
+         │   ├── PR_SET_PDEATHSIG so it's notified when P eventually dies
+         │   │   (exec doesn't trigger this — only P's actual termination,
+         │   │   which by then means the real daemon has exited)
+         │   ├── read foo.funcs.json (mangled names per image) — via
+         │   │   FUNKOVERAGE_REAL_BIN, since the helper isn't running from
+         │   │   /usr/bin/foo and can't derive this from os.Executable()
+         │   ├── load embedded BPF program (arch-specific, build-tag
+         │   │   selected), for each image: link.UprobeMulti(symbols,
+         │   │   cookies) (one syscall per image, all symbols at once)
+         │   ├── attach sched_process_fork tracepoint
+         │   ├── seed `watched` map with P's TGID
+         │   ├── start ringbuf reader goroutine
+         │   └── write "OK" to the pipe
          │
-         ├── unblock child via pipe (1 byte)
-         │   └── child execs the real binary
+         ├── read "OK" from the pipe (blocks until the helper is attached)
          │
-         ├── ringbuf events → demangle → write to $LOG_DIR/foo_<ts>_called.log
-         │
-         └── child exits → tracer.Stop()
-                            ├── detach all links (stops new events)
-                            ├── sleep 100ms (drain in-flight events)
-                            ├── close ringbuf reader
-                            └── close log + release BPF objects
+         └── syscall.Exec(real binary) — IN THIS PROCESS, replacing it;
+             pid stays P throughout. Supervisors that check process
+             identity (systemd's LISTEN_PID/NotifyAccess=main, pg_ctl's
+             postmaster.pid pid field, ...) see the real daemon running
+             exactly where they expect (issue #152) — no signal-forwarding
+             or sd_notify-relay layer is needed, because there's no longer
+             a separate tracked-vs-actual pid to bridge.
+                            │
+                            ▼
+             kernel fires uprobes → ringbuf → helper's reader →
+             demangle → write to $LOG_DIR/foo_<ts>_called.log
+                            │
+                            ▼
+             P (the real daemon) exits → helper's PDEATHSIG fires →
+             tracer.Stop() (detach links, drain, close log)
 ```
 
 ### Report (`funkoverage report /var/coverage/data /tmp/report --formats html,xml,txt`)
@@ -178,8 +198,13 @@ Maps:
 
 - `<name>.funcs.json` — `{"image_path": ["mangled_name", ...], ...}`
 - `<name>.libs.json` — `["lib_path", ...]`
+- `<name>.shimbin.json` — the stable `funkoverage-shim` binary path resolved at install time. The background helper (which no longer runs from `<name>`'s own path — see the process-identity section above) reads this instead of `os.Executable()` to know which binary to re-exec itself from.
 
 Mangled names are mandatory: BPF uprobe attach resolves names against the ELF symbol table directly. Demangling happens **only at output time** (writes to `_called.log`, `_functions.log`, and stdout).
+
+### Drain lock (`$LOG_DIR/.drain.lock`)
+
+An advisory flock, not a sidecar of any one binary. The background helper holds a shared lock on it only while flushing its log after the traced process exits (not for the tracer's whole lifetime — a still-running daemon must never block this). `funkoverage report` waits (bounded, best-effort) to acquire it exclusively before reading any logs, so a `report` run immediately after a short-lived traced tool exits doesn't race the helper's now-asynchronous shutdown and undercount coverage.
 
 ### Log files (in `$LOG_DIR/`)
 
@@ -236,10 +261,12 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  parent shim process                                │
+│  background helper process (fork of the shim)       │
 │                                                     │
 │  main goroutine:                                    │
-│    fork child, attach probes, start reader, wait    │
+│    attach probes to target pid, start reader,       │
+│    signal ready, waitForTargetExit (PDEATHSIG,      │
+│    with a 5s liveness-poll backup)                  │
 │                                                     │
 │  reader goroutine (started by Tracer.Start):        │
 │    loop:                                            │
@@ -248,12 +275,13 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
 │    exit on reader.Close() → ErrClosed               │
 └─────────────────────────────────────────────────────┘
         │
-        ├──► fork ──► child shim (paused on pipe)
-        │              ├── exec real binary
-        │              └── kernel fires uprobes →
-        │                  → ringbuf → parent's reader
+        ├──► original shim process execs the real binary
+        │    (same pid throughout) →
+        │    kernel fires uprobes → ringbuf → helper's reader
         │
-        └──► tracer.Stop():
+        └──► real daemon exits → PR_SET_PDEATHSIG fires (or, on a
+             miss, the 5s liveness poll notices) →
+             tracer.Stop():
              1. detach links (no new events)
              2. sleep 100ms (drain in-flight)
              3. close reader (reader goroutine exits)
@@ -261,30 +289,56 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
              (idempotent via sync.Once)
 ```
 
-### Signal forwarding and sd_notify relay
+### Process identity, signal handling, and sd_notify (issues #143, #152)
 
-The parent catches every signal it can (`waitForwardingSignals`, a bare
-`signal.Notify(sigCh)` with no filter) and relays whatever it receives to
-the child, then keeps blocking until the child actually exits before
-returning. No hand-picked allowlist: SIGUSR1/SIGUSR2 default to terminating
-the process just like SIGTERM does, and daemons vary widely in which
-signals they treat as meaningful (nginx alone reacts to HUP, QUIT, USR1,
-USR2, WINCH) — a fixed list just relocates issue #143's bug to whichever
-signal wasn't on it. Without any handler, the parent dies immediately on
-the OS default action, leaving the child (the real daemon) running
-unsignalled — under systemd this means the tracked MainPID (the parent)
-exits before the child releases its resources (e.g. a bound socket), so a
-`systemctl restart` races the old instance and can fail to bind (issue
-#143).
+Earlier versions forked a child to run the real daemon and kept the
+original (supervisor-tracked) process alive as a relay: forwarding signals
+to the child, and proxying `sd_notify` datagrams since systemd's default
+`NotifyAccess=main` only trusts datagrams from the MainPID it's tracking —
+which was the parent, not the child actually running the daemon. That fixed
+sshd/tcpdump/apache/snapper (issue #143) but still broke rpcbind (systemd
+socket activation checks `LISTEN_PID`, and on systemd ≥257 a pidfd-based
+`LISTEN_PIDFDID` that can't be satisfied by a different process at all) and
+postgres (`pg_ctl start -w` checks that the pid it forked matches the pid
+postgres wrote to its own `postmaster.pid`) — both are supervisors checking
+process identity in ways a forked child can never satisfy (issue #152).
 
-If `NOTIFY_SOCKET` is set (a `Type=notify` systemd unit), the parent proxies
-it (`startNotifyRelay`) rather than passing it through unchanged: systemd's
-default `NotifyAccess=main` only trusts `sd_notify` datagrams from the
-MainPID it's tracking, which is the parent — but the real daemon runs as
-the *child* (a different PID, via `syscall.Exec` in `childMain`). The parent
-points the child at a private unix datagram socket instead and forwards
-every datagram it receives to the real socket itself, so the kernel-attached
-sender credentials on the relayed datagram are the parent's.
+The current design sidesteps the whole class of bug: the *original* shim
+process — the one the supervisor exec'd and whose pid it's tracking —
+`syscall.Exec`s into the real binary itself, in place. A background helper
+(forked *before* that exec) owns the tracer and eBPF attachment instead, so
+attaching to a pid still doesn't require running that pid's actual target
+code inside the same process that hosts the Go runtime's ring-buffer
+reader — exec would destroy that runtime, which is why a second process is
+still unavoidable. What changed is *which* of the two processes keeps its
+identity: now it's the one the supervisor already knows about.
+
+Consequences:
+- **No signal forwarding.** The supervisor's signals land on the real
+  daemon directly (same pid) — there's nothing left to forward *to*.
+- **No sd_notify relay.** The real daemon's `sd_notify()` calls go straight
+  to the real `NOTIFY_SOCKET`, from the exact pid `NotifyAccess=main`
+  expects.
+- **No LISTEN_FDS/LISTEN_PID handling.** `syscall.Exec` in the same process
+  preserves the fd table and pid exactly as systemd set them up — nothing
+  to preserve or rewrite.
+- **The helper can't `waitpid()` its own parent** (only a parent can wait on
+  a child), so it uses `PR_SET_PDEATHSIG` to learn when the original process
+  (now the real daemon) exits, whether normally or via crash.
+- **PDEATHSIG alone isn't fully reliable, so it needs a backup.** Per
+  `PR_SET_PDEATHSIG(2const)`'s CAVEATS, "the parent" is scoped to the
+  specific *thread* that created the child, not the process in general —
+  `runtime.LockOSThread()` (pinning the helper's goroutine to one OS thread
+  for its whole life) closes the most common way Go code gets this wrong,
+  but a real, direct leak was still observed on real hardware (a helper
+  blocked on the signal channel for 50+ minutes after its target had
+  genuinely exited). Units with the default `KillMode=control-group` mask a
+  missed signal — systemd kills the whole cgroup, including the helper, on
+  stop regardless — but `KillMode=process` units (sshd.service is the one
+  exception among this project's tested targets) have no such backup.
+  `waitForTargetExit` polls `kill(targetPid, 0)` every 5s alongside the
+  signal channel, so a missed PDEATHSIG costs a few seconds of delayed
+  cleanup instead of leaking the helper (and its attached tracer) forever.
 
 ### JIT Dynamic Library Tracing (dlopen)
 
@@ -324,8 +378,7 @@ This event-driven JIT approach scales efficiently to thousands of concurrent tra
 │   ├── templates.go          # embedded help text + HTML templates
 │   ├── templates/            # *.html for report rendering
 │   └── shim_binary/
-│       ├── main.go           # shim main + child fork dance
-│       ├── notify.go         # sd_notify relay (Type=notify units)
+│       ├── main.go           # shim main, background helper, exec-in-place
 │       ├── tracer.go         # cilium/ebpf wiring, ringbuf reader
 │       ├── tracer_{x86,arm64}_bpfel.{go,o}  # bpf2go-generated bindings
 │       └── bpf/

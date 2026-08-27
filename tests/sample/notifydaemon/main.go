@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -34,6 +35,11 @@ func main() {
 	if sock := os.Getenv("NOTIFY_SOCKET"); sock != "" {
 		notify(sock, "READY=1")
 	}
+	// Printed so e2e tests can confirm the shim preserves process identity
+	// through the exec into this binary (issue #152: supervisors ranging
+	// from systemd's LISTEN_PID to pg_ctl's postmaster.pid check that the
+	// pid they started matches the pid actually running the daemon).
+	fmt.Println("PID=" + strconv.Itoa(os.Getpid()))
 	fmt.Println("READY")
 
 	sigCh := make(chan os.Signal, 1)

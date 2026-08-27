@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"time"
 
 	"funkoverage/internal/funkutil"
 
@@ -234,6 +235,12 @@ func cmdReport(args []string) error {
 		return fmt.Errorf("usage: report <inputdir|log1,log2> <outputdir> [--formats html,xml,txt]")
 	}
 	inputArg, outputDir := positional[0], positional[1]
+
+	// A traced short-lived binary may have just exited: its shim's
+	// background tracer helper flushes and closes the log asynchronously,
+	// so a report run immediately afterward (as e2e/CI scripts commonly
+	// do) can otherwise race an in-progress flush and undercount coverage.
+	funkutil.WaitForDrain(5 * time.Second)
 
 	logFiles := collectLogFiles(inputArg)
 	if len(logFiles) == 0 {
