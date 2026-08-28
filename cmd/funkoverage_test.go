@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"maps"
 	"os"
@@ -1051,6 +1052,89 @@ func TestEnumerateFunctions_DifferentVersions_DistinctKeys(t *testing.T) {
 	}
 	if v1Key == v2Key {
 		t.Errorf("two distinct library versions collapsed to the same key %q — same-named symlinks must not merge different real files", v1Key)
+	}
+}
+
+// TestEnumerateFunctions_WithLibraries_Concurrent covers the library loop,
+// which enumerates its dependencies in parallel: every library must land in
+// *both* returned maps under the same key, and repeated runs must produce the
+// identical result regardless of the order the goroutines happen to finish in.
+// Run under -race this is also the only test that would catch a concurrent
+// write to either map.
+func TestEnumerateFunctions_WithLibraries_Concurrent(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+
+	// Several libraries, so the loop actually has something to overlap.
+	const nlibs = 4
+	var libPaths []string
+	for i := range nlibs {
+		src := filepath.Join(tmp, fmt.Sprintf("lib%d.c", i))
+		body := fmt.Sprintf("int lib%d_func(void) { return %d; }", i, i)
+		if err := os.WriteFile(src, []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+		lib := filepath.Join(tmp, fmt.Sprintf("libpar%d.so", i))
+		if out, err := exec.Command("gcc", "-shared", "-fPIC", "-g", "-o", lib, src).CombinedOutput(); err != nil {
+			t.Fatalf("compile lib%d: %v\n%s", i, err, out)
+		}
+		libPaths = append(libPaths, lib)
+	}
+
+	var calls, decls string
+	for i := range nlibs {
+		decls += fmt.Sprintf("int lib%d_func(void);\n", i)
+		calls += fmt.Sprintf("r += lib%d_func();\n", i)
+	}
+	mainSrc := filepath.Join(tmp, "main.c")
+	if err := os.WriteFile(mainSrc, []byte(decls+"int main(void){int r=0;\n"+calls+"return r;}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(tmp, "par_bin")
+	args := append([]string{"-g", "-O0", "-o", bin, mainSrc}, libPaths...)
+	args = append(args, "-Wl,-rpath,"+tmp)
+	if out, err := exec.Command("gcc", args...).CombinedOutput(); err != nil {
+		t.Fatalf("compile main: %v\n%s", err, out)
+	}
+
+	funcs, display, err := EnumerateFunctions(bin, WithLibraries, nil)
+	if err != nil {
+		t.Fatalf("EnumerateFunctions: %v", err)
+	}
+	if len(funcs) != len(display) {
+		t.Fatalf("map sizes differ: funcs=%d display=%d", len(funcs), len(display))
+	}
+	for key := range funcs {
+		if _, ok := display[key]; !ok {
+			t.Errorf("image %q present in funcs but missing from display names", key)
+		}
+	}
+	for i, lib := range libPaths {
+		key := canonicalPath(lib)
+		got, ok := funcs[key]
+		if !ok {
+			t.Fatalf("library %s missing from result (got keys %v)", lib, slices.Sorted(maps.Keys(funcs)))
+		}
+		want := fmt.Sprintf("lib%d_func", i)
+		if !slices.Contains(slices.Collect(got.All()), want) {
+			t.Errorf("library %s: expected %q among its functions", lib, want)
+		}
+	}
+
+	// Same input, same output — the merge must not depend on scheduling.
+	second, secondDisplay, err := EnumerateFunctions(bin, WithLibraries, nil)
+	if err != nil {
+		t.Fatalf("EnumerateFunctions (second run): %v", err)
+	}
+	if !maps.EqualFunc(funcs, second, func(a, b funkutil.ImageFuncs) bool {
+		return slices.Equal(a.Names, b.Names) && slices.Equal(a.Offsets, b.Offsets) && a.BuildID == b.BuildID
+	}) {
+		t.Error("two identical runs produced different image maps")
+	}
+	if !maps.EqualFunc(display, secondDisplay, slices.Equal) {
+		t.Error("two identical runs produced different display-name maps")
 	}
 }
 
