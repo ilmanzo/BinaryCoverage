@@ -266,9 +266,15 @@ func TestGetSharedLibrarySymbols(t *testing.T) {
 	if len(syms) == 0 {
 		t.Fatalf("getSharedLibrarySymbols(%s) returned no symbols", path)
 	}
-	found := slices.Contains(syms, "dlopen")
+	found := slices.ContainsFunc(syms, func(fn funkutil.Func) bool { return fn.Raw == "dlopen" })
 	if !found {
 		t.Errorf("expected dlopen among discovered symbols in %s", path)
+	}
+	// The dlopen path attaches by Raw and logs Demangled; neither may be empty.
+	for _, fn := range syms {
+		if fn.Raw == "" || fn.Demangled == "" {
+			t.Fatalf("incomplete symbol %+v", fn)
+		}
 	}
 }
 

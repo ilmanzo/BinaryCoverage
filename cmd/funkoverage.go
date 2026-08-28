@@ -221,15 +221,15 @@ func cmdEnumerate(args []string) error {
 	if err != nil {
 		return err
 	}
-	funcs, err := EnumerateFunctions(positional[0], LibScope(*noLibs), filter)
+	_, display, err := EnumerateFunctions(positional[0], LibScope(*noLibs), filter)
 	if err != nil {
 		return err
 	}
 	type entry struct{ image, name string }
 	var entries []entry
-	for image, imgFuncs := range funcs {
-		for name := range imgFuncs.All() {
-			entries = append(entries, entry{image, demangleName(name)})
+	for image, names := range display {
+		for _, name := range names {
+			entries = append(entries, entry{image, name})
 		}
 	}
 	slices.SortFunc(entries, func(a, b entry) int {
@@ -241,7 +241,7 @@ func cmdEnumerate(args []string) error {
 	for _, e := range entries {
 		fmt.Printf("%s %s\n", e.image, e.name)
 	}
-	fmt.Fprintf(os.Stderr, "Total: %d functions across %d image(s)\n", len(entries), len(funcs))
+	fmt.Fprintf(os.Stderr, "Total: %d functions across %d image(s)\n", len(entries), len(display))
 	return nil
 }
 

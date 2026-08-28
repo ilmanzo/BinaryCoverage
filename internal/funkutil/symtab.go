@@ -6,7 +6,17 @@ import (
 	"github.com/ianlancetaylor/demangle"
 )
 
-// SymtabFunctions returns raw (mangled) names of STT_FUNC symbols in f,
+// Func is one symbol in the two forms funkoverage needs: Raw as the symbol
+// table spells it, which is what uprobe attach resolves against, and Demangled
+// as reports print it and as the filters match on.
+//
+// They travel together because demangling has to happen anyway to evaluate
+// keep, and callers were recomputing it afterwards: demangling libstdc++'s
+// 3986 symbols a second time costs 15 ms, against 20 ms for the entire symbol
+// walk that produced them.
+type Func struct{ Raw, Demangled string }
+
+// SymtabFunctions returns the STT_FUNC symbols of f in both forms,
 // unioning .symtab and .dynsym rather than falling back to .dynsym only on
 // a hard error: a present-but-stripped-down .symtab (common for shared
 // libraries — glibc's libc.so.6 ships one that omits exported functions
@@ -23,7 +33,7 @@ import (
 // bases — attaching a uprobe at the same address under two cookies would
 // double-count a single call (this is safe even for virtual-base classes,
 // where C1/C2 genuinely compile to different code at different addresses).
-func SymtabFunctions(f *elf.File, keep func(demangled string) bool) []string {
+func SymtabFunctions(f *elf.File, keep func(demangled string) bool) []Func {
 	// .dynsym first: address-based dedup below keeps whichever name is
 	// encountered first at a given address, and a library can have a
 	// .symtab-only local alias sharing an exported function's address
@@ -41,7 +51,7 @@ func SymtabFunctions(f *elf.File, keep func(demangled string) bool) []string {
 
 	seen := make(map[string]struct{})
 	seenAddr := make(map[uint64]struct{})
-	var funcs []string
+	var funcs []Func
 	for _, sym := range syms {
 		if elf.ST_TYPE(sym.Info) != elf.STT_FUNC {
 			continue
@@ -55,12 +65,13 @@ func SymtabFunctions(f *elf.File, keep func(demangled string) bool) []string {
 		if _, dup := seen[sym.Name]; dup {
 			continue
 		}
-		if !keep(demangle.Filter(StripVersion(sym.Name))) {
+		demangled := demangle.Filter(StripVersion(sym.Name))
+		if !keep(demangled) {
 			continue
 		}
 		seen[sym.Name] = struct{}{}
 		seenAddr[sym.Value] = struct{}{}
-		funcs = append(funcs, sym.Name)
+		funcs = append(funcs, Func{Raw: sym.Name, Demangled: demangled})
 	}
 	return funcs
 }

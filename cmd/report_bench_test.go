@@ -179,7 +179,7 @@ func BenchmarkEnumerateFunctions(b *testing.B) {
 	}
 	b.ResetTimer()
 	for b.Loop() {
-		if _, err := EnumerateFunctions(sample, WithLibraries, nil); err != nil {
+		if _, _, err := EnumerateFunctions(sample, WithLibraries, nil); err != nil {
 			b.Fatal(err)
 		}
 	}

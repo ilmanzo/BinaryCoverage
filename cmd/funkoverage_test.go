@@ -406,7 +406,7 @@ func buildStrippedLibFixture(t *testing.T, libDir, name string) (lib string, str
 	if err != nil {
 		t.Fatal(err)
 	}
-	if funcs := symtabFunctions(lib, nil); slices.Contains(funcs, "lib_local_func") {
+	if funcs := rawNames(symtabFunctions(lib, nil)); slices.Contains(funcs, "lib_local_func") {
 		t.Fatalf("test setup: lib_local_func should NOT be resolvable pre-merge, got %v", funcs)
 	}
 	return lib, strippedBytes
@@ -433,7 +433,7 @@ func TestEnumerateOne_PrefersExternalDebugSymtab(t *testing.T) {
 
 	// Precondition: the runtime file alone resolves only the public symbol,
 	// so the old "first non-empty wins" order really would have stopped here.
-	if got := symtabFunctions(lib, nil); slices.Contains(got, "lib_local_func") {
+	if got := rawNames(symtabFunctions(lib, nil)); slices.Contains(got, "lib_local_func") {
 		t.Fatalf("fixture broken: runtime symtab already has lib_local_func: %v", got)
 	} else if len(got) == 0 {
 		t.Fatalf("fixture broken: runtime symtab is empty, the old order would not have short-circuited")
@@ -447,7 +447,7 @@ func TestEnumerateOne_PrefersExternalDebugSymtab(t *testing.T) {
 		t.Error("enumerateOne did not report the debug file it used")
 	}
 	for _, want := range []string{"lib_public_func", "lib_local_func"} {
-		if !slices.Contains(funcs, want) {
+		if !slices.Contains(rawNames(funcs), want) {
 			t.Errorf("enumerateOne(%s) missing %q, got %v", lib, want, funcs)
 		}
 	}
@@ -471,9 +471,17 @@ func TestEnumerateImage_PartitionsByResolvability(t *testing.T) {
 
 	lib, before := buildStrippedLibFixture(t, filepath.Join(tmp, "usr", "lib64"), "libdemo.so")
 
-	got, err := enumerateImage(lib, nil)
+	got, display, err := enumerateImage(lib, nil)
 	if err != nil {
 		t.Fatalf("enumerateImage: %v", err)
+	}
+	// display feeds the functions log, so it must cover every function the
+	// sidecar carries — by-name and by-offset alike — in All()'s order.
+	if want := slices.Collect(got.All()); len(display) != len(want) {
+		t.Errorf("display has %d names, want %d (one per %v)", len(display), len(want), want)
+	}
+	if !slices.Contains(display, "lib_local_func") {
+		t.Errorf("display = %v, want the by-offset function in it too", display)
 	}
 	if !slices.Contains(got.Names, "lib_public_func") {
 		t.Errorf("Names = %v, want it to contain lib_public_func", got.Names)
@@ -524,7 +532,7 @@ func TestEnumerateImage_NoBuildIDDropsOffsets(t *testing.T) {
 		t.Fatalf("objcopy --remove-section: %v\n%s", err, out)
 	}
 
-	got, err := enumerateImage(lib, nil)
+	got, _, err := enumerateImage(lib, nil)
 	if err != nil {
 		t.Fatalf("enumerateImage: %v", err)
 	}
@@ -635,12 +643,15 @@ int main() { return dwarf_add(1, 2) + dwarf_sub(3, 1); }
 		t.Fatalf("dwarfFunctions: %v", err)
 	}
 	hasAdd, hasSub := false, false
-	for _, name := range funcs {
-		if name == "dwarf_add" {
+	for _, fn := range funcs {
+		if fn.Raw == "dwarf_add" {
 			hasAdd = true
 		}
-		if name == "dwarf_sub" {
+		if fn.Raw == "dwarf_sub" {
 			hasSub = true
+		}
+		if fn.Demangled == "" {
+			t.Errorf("%s: DWARF path returned an empty Demangled", fn.Raw)
 		}
 	}
 	if !hasAdd || !hasSub {
@@ -902,7 +913,7 @@ int main() { return add(1,2) + sub(3,1); }
 		t.Fatalf("compile: %v\n%s", err, out)
 	}
 
-	funcs, err := EnumerateFunctions(bin, MainBinaryOnly, nil)
+	funcs, _, err := EnumerateFunctions(bin, MainBinaryOnly, nil)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions: %v", err)
 	}
@@ -961,11 +972,11 @@ func TestEnumerateFunctions_SymlinkAliasing_DuplicateKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	byReal, err := EnumerateFunctions(real, MainBinaryOnly, nil)
+	byReal, _, err := EnumerateFunctions(real, MainBinaryOnly, nil)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions(real): %v", err)
 	}
-	byLink, err := EnumerateFunctions(link, MainBinaryOnly, nil)
+	byLink, _, err := EnumerateFunctions(link, MainBinaryOnly, nil)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions(link): %v", err)
 	}
@@ -1020,11 +1031,11 @@ func TestEnumerateFunctions_DifferentVersions_DistinctKeys(t *testing.T) {
 	v1 := build(filepath.Join(tmp, "v1"), "int lib_func(void) { return 1; }")
 	v2 := build(filepath.Join(tmp, "v2"), "int lib_func(void) { return 2; }")
 
-	byV1, err := EnumerateFunctions(v1, MainBinaryOnly, nil)
+	byV1, _, err := EnumerateFunctions(v1, MainBinaryOnly, nil)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions(v1): %v", err)
 	}
-	byV2, err := EnumerateFunctions(v2, MainBinaryOnly, nil)
+	byV2, _, err := EnumerateFunctions(v2, MainBinaryOnly, nil)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions(v2): %v", err)
 	}
@@ -1794,7 +1805,7 @@ int main() { return str_length() + str_upper() + math_add(); }
 	}
 
 	filter, _ := funkutil.NewFuncFilter("^str_", "")
-	funcs, err := EnumerateFunctions(bin, MainBinaryOnly, filter)
+	funcs, _, err := EnumerateFunctions(bin, MainBinaryOnly, filter)
 	if err != nil {
 		t.Fatalf("EnumerateFunctions: %v", err)
 	}
@@ -1948,13 +1959,10 @@ func TestCommands(t *testing.T) {
 
 func TestWriteFunctionsLog(t *testing.T) {
 	tmp := t.TempDir()
-	funcs := map[string]funkutil.ImageFuncs{
-		"/bin/test": {
-			Names:   []string{"main"},
-			Offsets: []funkutil.FuncAddr{{Name: "foo_bar", Offset: 0x1234}},
-		},
-	}
-	path, err := writeFunctionsLog(tmp, "testbin", funcs)
+	// What enumerateImage hands over: one demangled name per function, both
+	// halves of the by-name/by-offset split included.
+	display := map[string][]string{"/bin/test": {"main", "foo_bar"}}
+	path, err := writeFunctionsLog(tmp, "testbin", display)
 	if err != nil {
 		t.Fatalf("writeFunctionsLog failed: %v", err)
 	}
@@ -2199,7 +2207,7 @@ func TestEnumerateOne_ExternalDebugFallback(t *testing.T) {
 	}
 	// Binary's own tables are gone now: enumeration must resolve via the
 	// external debug file.
-	if got := symtabFunctions(bin, nil); slices.Contains(got, "enum_helper") {
+	if got := rawNames(symtabFunctions(bin, nil)); slices.Contains(got, "enum_helper") {
 		t.Fatalf("test setup: enum_helper should be gone from the stripped binary, got %v", got)
 	}
 
@@ -2207,7 +2215,7 @@ func TestEnumerateOne_ExternalDebugFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enumerateOne: %v", err)
 	}
-	if !slices.Contains(funcs, "enum_helper") {
+	if !slices.Contains(rawNames(funcs), "enum_helper") {
 		t.Errorf("enumerateOne via external debug = %v, want it to contain enum_helper", funcs)
 	}
 	if debugPath != debugFile {

@@ -569,7 +569,7 @@ func getMappedSharedLibraries(pid uint32) ([]string, error) {
 // funkutil.SymtabFunctions, keeping only relevance filtering here; the
 // --include/--exclude filter is applied separately by the caller
 // (handleDynamicLoad), after capacity clipping.
-func getSharedLibrarySymbols(path string) ([]string, error) {
+func getSharedLibrarySymbols(path string) ([]funkutil.Func, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil, err
@@ -648,9 +648,9 @@ func (t *Tracer) handleDynamicLoad() {
 
 		if t.filter.Include != nil || t.filter.Exclude != nil {
 			filtered := syms[:0]
-			for _, name := range syms {
-				if t.filter.Match(demangle.Filter(funkutil.StripVersion(name))) {
-					filtered = append(filtered, name)
+			for _, fn := range syms {
+				if t.filter.Match(fn.Demangled) {
+					filtered = append(filtered, fn)
 				}
 			}
 			syms = filtered
@@ -685,16 +685,15 @@ func (t *Tracer) handleDynamicLoad() {
 
 		var cookies []uint64
 		var names []string
-		for _, name := range syms {
+		for _, fn := range syms {
 			cookie := uint64(len(t.funcs))
 			cookies = append(cookies, cookie)
-			names = append(names, name)
+			names = append(names, fn.Raw)
 
-			t.funcs = append(t.funcs, FuncRef{Image: lib, Name: name})
+			t.funcs = append(t.funcs, FuncRef{Image: lib, Name: fn.Raw})
 
 			// Write to functions log so report captures it as a total function!
-			demangledName := demangle.Filter(funkutil.StripVersion(name))
-			fmt.Fprintf(funcsLog, "FUNC %s %s\n", lib, demangledName)
+			fmt.Fprintf(funcsLog, "FUNC %s %s\n", lib, fn.Demangled)
 		}
 
 		attached := t.attachProbes(ex, lib, names, nil, cookies)
@@ -706,7 +705,7 @@ func (t *Tracer) handleDynamicLoad() {
 // (seenCapacity - alreadyUsed), reporting whether any symbols were dropped
 // as a result (either all of them, if capacity is already exhausted, or
 // the tail beyond what fits).
-func clipToCapacity(syms []string, alreadyUsed int, seenCapacity uint32) (clipped []string, warn bool) {
+func clipToCapacity[T any](syms []T, alreadyUsed int, seenCapacity uint32) (clipped []T, warn bool) {
 	remaining := int(seenCapacity) - alreadyUsed
 	if remaining <= 0 {
 		return nil, true
