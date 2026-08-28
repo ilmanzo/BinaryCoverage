@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"debug/elf"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -98,66 +96,14 @@ func mergeDebugIfExternal(binPath, origPath string) error {
 	return unstrip(binPath, debugPath)
 }
 
-// mergeLibraryDebugInfo merges external debug info into each library in
-// funcs (in place, at its real system path — every other library-linking
-// funkoverage target on the system will pick up the merged copy too) so
-// that uprobe attach, which resolves symbol names against the exact file
-// the kernel maps at runtime, can find local functions that enumeration
-// only discovered via an external debug file. mainImage (the already-moved
-// and already-merged target binary) is skipped.
+// restoreLibraryBackups puts back the system libraries that a pre-0.8.4
+// install unstripped in place, per safePath's backup sidecar.
 //
-// ponytail: no cross-target reference counting — if two installed targets
-// share a library, uninstalling one restores it for both. Add a refcount
-// sidecar under SAFE_BIN_DIR/libs/ if that becomes a real problem.
-//
-// Returns the set of libraries actually modified (original path -> backup
-// path under SAFE_BIN_DIR/libs/), so uninstall can restore exactly what
-// this install call changed.
-func mergeLibraryDebugInfo(funcs map[string][]string, mainImage string) map[string]string {
-	backups := make(map[string]string)
-	for lib := range funcs {
-		if lib == mainImage {
-			continue
-		}
-		// ldd reports a library's SONAME path as-is (e.g. /lib64/libgmp.so.10),
-		// which is commonly a symlink to the real versioned file
-		// (libgmp.so.10.5.0). Operate on the resolved real path so unstrip's
-		// final move() never overwrites the symlink itself — os.Rename onto a
-		// symlink path replaces the link, not its target, silently turning
-		// the SONAME symlink into a plain-file copy forever.
-		realLib, err := filepath.EvalSymlinks(lib)
-		if err != nil {
-			continue
-		}
-		debugPath, err := locateExternalDebugForMerge(realLib, realLib)
-		if err != nil || debugPath == "" {
-			continue // no external debug found, or lib is already self-sufficient
-		}
-		info, err := os.Stat(realLib)
-		if err != nil {
-			continue
-		}
-		backupPath := filepath.Join(funkutil.SafeBinDir(), "libs", realLib)
-		if err := os.MkdirAll(filepath.Dir(backupPath), 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: backup dir for %s: %v\n", realLib, err)
-			continue
-		}
-		if err := copyFile(realLib, backupPath, info); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: back up %s before merge: %v\n", realLib, err)
-			continue
-		}
-		if err := unstrip(realLib, debugPath); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: merge debug symbols into %s: %v\n", realLib, err)
-			os.Remove(backupPath)
-			continue
-		}
-		backups[realLib] = backupPath
-	}
-	return backups
-}
-
-// restoreLibraryBackups reverses mergeLibraryDebugInfo for the libraries
-// this specific install call modified, per safePath's backup sidecar.
+// Nothing writes that sidecar any more — libraries are attached by address
+// now (see funkutil.SymbolFileOffsets) and are never modified. This is purely
+// so that uninstalling a shim installed by an older funkoverage still leaves
+// the host as it found it. Drop it, along with internal/funkutil/libbackup.go,
+// one release after 0.8.4.
 func restoreLibraryBackups(safePath string) {
 	backups := funkutil.ReadLibBackups(safePath)
 	for lib, backupPath := range backups {
@@ -211,7 +157,7 @@ func resolveDebugFile(binPath, origPath string, policy embeddedDebugPolicy) (str
 		}
 	}
 
-	if buildID, err := getBuildID(f); err == nil && len(buildID) > 2 {
+	if buildID, err := funkutil.BuildID(f); err == nil && len(buildID) > 2 {
 		debugPath := buildIDDebugPath(buildID)
 		if _, err := os.Stat(debugPath); err == nil {
 			return debugPath, nil
@@ -332,34 +278,6 @@ func unstrip(binPath, debugPath string) error {
 		return fmt.Errorf("chmod merged binary: %w", err)
 	}
 	return move(out, binPath)
-}
-
-func getBuildID(f *elf.File) (string, error) {
-	sec := f.Section(".note.gnu.build-id")
-	if sec == nil {
-		return "", fmt.Errorf("no build-id section")
-	}
-	data, err := sec.Data()
-	if err != nil {
-		return "", err
-	}
-	if len(data) < 16 {
-		return "", fmt.Errorf("malformed note")
-	}
-	var namesz, descsz, noteType uint32
-	reader := bytes.NewReader(data)
-	for _, p := range []*uint32{&namesz, &descsz, &noteType} {
-		if err := binary.Read(reader, f.ByteOrder, p); err != nil {
-			return "", fmt.Errorf("read note header: %w", err)
-		}
-	}
-	if namesz != 4 || noteType != 3 {
-		return "", fmt.Errorf("not a gnu build id note")
-	}
-	if int(16+descsz) > len(data) {
-		return "", fmt.Errorf("note descsz overflows section")
-	}
-	return hex.EncodeToString(data[16 : 16+descsz]), nil
 }
 
 func move(source, destination string) error {

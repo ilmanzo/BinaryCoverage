@@ -166,27 +166,27 @@ func installMulticallSymlink(safeBinDir string, isSymlink bool, originalName, bi
 
 // clearSidecars removes the sidecar files keyed on safePath. Each writer
 // deletes its file when handed an empty value (see writeJSON), so this is
-// just three writes. The library-backup sidecar is deliberately not included:
-// restoreLibraryBackups owns it, and must put the libraries back before the
-// record of where their backups live is thrown away.
+// just three writes. The legacy library-backup sidecar is deliberately not
+// included: restoreLibraryBackups owns it, and must put the libraries back
+// before the record of where their backups live is thrown away.
 func clearSidecars(safePath string) {
 	_ = funkutil.WriteFuncList(safePath, nil)
 	_ = funkutil.WriteFilterSidecar(safePath, funkutil.FilterSidecar{})
 	_ = funkutil.WriteShimBinary(safePath, "")
 }
 
-// rollbackInstall undoes a partial install: it restores any system libraries
-// that were unstripped in place, clears the sidecars keyed on safePath, drops
-// the multicall alias, and finally moves the original binary back where it
-// came from. os.Rename overwrites, so a half-written shim at realTarget is
-// replaced rather than left behind.
+// rollbackInstall undoes a partial install: it clears the sidecars keyed on
+// safePath, drops the multicall alias, and finally moves the original binary
+// back where it came from. os.Rename overwrites, so a half-written shim at
+// realTarget is replaced rather than left behind. Nothing outside safePath and
+// the target's own path is touched during an install, so there is nothing else
+// to undo.
 //
 // A failure here is the one case install cannot paper over — the binary is
 // off its path and could not be put back — so it is reported loudly instead
 // of being folded into the returned error, which installMany would otherwise
 // print as just one more line in a list of failed targets.
 func rollbackInstall(safePath, realTarget, multicallLink string) {
-	restoreLibraryBackups(safePath)
 	clearSidecars(safePath)
 	if multicallLink != "" {
 		_ = os.Remove(multicallLink)
@@ -200,24 +200,16 @@ func rollbackInstall(safePath, realTarget, multicallLink string) {
 }
 
 // enumerateAndPersist enumerates+logs safePath's functions (via the shared
-// enumerateFuncs, cmd/enumerate.go), then writes merged library debug info
-// (WithLibraries only) and the filter sidecar. Undoing a failure part-way
-// through is install's job, via the rollback it arms as soon as the original
-// binary has been relocated.
-func enumerateAndPersist(safePath, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
+// enumerateFuncs, cmd/enumerate.go) and writes the filter sidecar. Undoing a
+// failure part-way through is install's job, via the rollback it arms as soon
+// as the original binary has been relocated.
+func enumerateAndPersist(safePath, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, error) {
 	funcs, err := enumerateFuncs(safePath, binaryName, logDir, libScope, filter)
 	if err != nil {
 		return nil, err
 	}
 	if len(funcs) == 0 {
 		fmt.Fprintf(os.Stderr, "warning: no functions found in %s statically; coverage will rely entirely on runtime dlopen() discovery\n", safePath)
-	}
-
-	if libScope == WithLibraries {
-		backups := mergeLibraryDebugInfo(funcs, safePath)
-		if err := funkutil.WriteLibBackups(safePath, backups); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: write library backup sidecar: %v\n", err)
-		}
 	}
 
 	if err := funkutil.WriteFilterSidecar(safePath, filter.Sidecar()); err != nil {

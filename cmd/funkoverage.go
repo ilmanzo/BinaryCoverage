@@ -206,8 +206,8 @@ func cmdEnumerate(args []string) error {
 	}
 	type entry struct{ image, name string }
 	var entries []entry
-	for image, names := range funcs {
-		for _, name := range names {
+	for image, imgFuncs := range funcs {
+		for name := range imgFuncs.All() {
 			entries = append(entries, entry{image, demangleName(name)})
 		}
 	}

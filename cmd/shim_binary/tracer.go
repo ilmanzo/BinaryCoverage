@@ -39,9 +39,9 @@ type FuncRef struct {
 // uprobe+tracepoint links, ringbuf reader goroutine, and the _called.log file.
 // All resources are released by Stop, which is safe to call once.
 type Tracer struct {
-	funcs      []FuncRef           // global cookie/index → ref (parallel to attach order)
-	imgSymbols map[string][]string // image path → symbols (for UprobeMulti)
-	imgCookies map[string][]uint64 // image path → per-symbol cookies (global indices)
+	funcs        []FuncRef              // global cookie/index → ref (parallel to attach order)
+	plans        map[string]*attachPlan // image path → what to attach and under which cookies
+	instrumented map[string]struct{}    // image paths already covered, so dlopen rescans skip them
 
 	objs           tracerObjects
 	linksMu        sync.Mutex // guards links: Stop (caller goroutine) vs handleDynamicLoad (readLoop goroutine)
@@ -75,7 +75,7 @@ type Tracer struct {
 // are re-applied to functions discovered later via dlopen JIT
 // instrumentation, matching the filtering already applied at enumeration
 // time to statically discovered functions.
-func NewTracer(funcs map[string][]string, logPath, includePattern, excludePattern string) (*Tracer, error) {
+func NewTracer(funcs map[string]funkutil.ImageFuncs, logPath, includePattern, excludePattern string) (*Tracer, error) {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
 	}
@@ -88,7 +88,7 @@ func NewTracer(funcs map[string][]string, logPath, includePattern, excludePatter
 		debugLog("funkoverage-shim: bad --exclude pattern %q", excludePattern)
 	}
 
-	refs, imgSyms, imgCookies := flattenFuncs(funcs)
+	refs, plans := flattenFuncs(funcs)
 
 	spec, err := loadTracer()
 	if err != nil {
@@ -117,8 +117,8 @@ func NewTracer(funcs map[string][]string, logPath, includePattern, excludePatter
 
 	return &Tracer{
 		funcs:        refs,
-		imgSymbols:   imgSyms,
-		imgCookies:   imgCookies,
+		plans:        plans,
+		instrumented: make(map[string]struct{}, len(plans)),
 		objs:         objs,
 		logFile:      logFile,
 		funcsLogPath: funcsLogPath,
@@ -142,70 +142,174 @@ func (t *Tracer) ensureFuncsLog() (*os.File, error) {
 	return f, nil
 }
 
+// attachPlan is one image's uprobe batches. UprobeMulti takes either names or
+// addresses, never both, so an image whose external debug file contributed
+// functions needs two links; nameCookies and addrCookies keep each batch
+// aligned with the global cookie space.
+type attachPlan struct {
+	buildID     string
+	names       []string
+	nameCookies []uint64
+	addrs       []uint64
+	addrCookies []uint64
+}
+
 // flattenFuncs builds the global cookie space. Images are sorted so that
 // repeated invocations against the same input produce identical cookies —
 // useful for debugging and for cross-run analysis.
-func flattenFuncs(funcs map[string][]string) ([]FuncRef, map[string][]string, map[string][]uint64) {
+func flattenFuncs(funcs map[string]funkutil.ImageFuncs) ([]FuncRef, map[string]*attachPlan) {
 	images := slices.Sorted(maps.Keys(funcs))
 
 	var refs []FuncRef
-	imgSyms := make(map[string][]string, len(images))
-	imgCookies := make(map[string][]uint64, len(images))
+	plans := make(map[string]*attachPlan, len(images))
 
 	for _, img := range images {
-		names := funcs[img]
-		cookies := make([]uint64, 0, len(names))
-		syms := make([]string, 0, len(names))
-		for _, name := range names {
-			cookies = append(cookies, uint64(len(refs)))
-			syms = append(syms, name)
+		imgFuncs := funcs[img]
+		plan := &attachPlan{
+			buildID:     imgFuncs.BuildID,
+			names:       make([]string, 0, len(imgFuncs.Names)),
+			nameCookies: make([]uint64, 0, len(imgFuncs.Names)),
+		}
+		for _, name := range imgFuncs.Names {
+			plan.names = append(plan.names, name)
+			plan.nameCookies = append(plan.nameCookies, uint64(len(refs)))
 			refs = append(refs, FuncRef{Image: img, Name: name})
 		}
-		imgSyms[img] = syms
-		imgCookies[img] = cookies
+		for _, fa := range imgFuncs.Offsets {
+			plan.addrs = append(plan.addrs, fa.Offset)
+			plan.addrCookies = append(plan.addrCookies, uint64(len(refs)))
+			refs = append(refs, FuncRef{Image: img, Name: fa.Name})
+		}
+		plans[img] = plan
 	}
-	return refs, imgSyms, imgCookies
+	return refs, plans
 }
 
-// attachableSymbols drops the names img cannot resolve, keeping every
-// surviving name paired with the cookie it was assigned in flattenFuncs.
+// verify adapts the plan to the file actually on disk at attach time.
 //
-// UprobeMulti resolves the whole batch up front and fails on the first miss,
-// so a single unresolvable name silently costs the entire image's coverage.
-// That is not hypothetical: enumeration prefers an external debug file's
-// .symtab, and the install-time merge that folds those symbols into the
-// runtime library is best-effort — on Leap 16 elfutils rejects the section
-// layout and the merge is skipped with a warning, leaving names that exist
-// only in the debug file. Attaching the resolvable subset degrades to the
-// unmerged coverage instead of losing the library entirely.
+// It drops names the mapped file cannot resolve. UprobeMulti resolves the
+// whole batch up front and fails on the first miss, so one stale name would
+// otherwise cost the entire image's coverage — and names do go stale: they are
+// chosen at install time against a file that can be replaced by a package
+// upgrade before the binary is ever run.
 //
-// A file that cannot be read, or that yields no function symbols at all, is
-// passed through untouched so UprobeMulti reports the real reason.
-func attachableSymbols(img string, syms []string, cookies []uint64) ([]string, []uint64) {
+// It drops the address batch outright unless the build-id still matches.
+// Offsets are only meaningful for the exact build they were computed from, and
+// a wrong one puts a uprobe mid-instruction, killing the target with SIGILL —
+// strictly worse than missing coverage, so the check is mandatory, not
+// best-effort. A file that cannot be read leaves the plan untouched, so
+// UprobeMulti reports the real reason.
+func (p *attachPlan) verify(img string) *attachPlan {
 	f, err := elf.Open(img)
 	if err != nil {
-		return syms, cookies
+		return p
 	}
 	defer f.Close()
 
-	resolvable := funkutil.ResolvableFuncNames(f)
-	if len(resolvable) == 0 {
-		return syms, cookies
-	}
+	out := &attachPlan{buildID: p.buildID}
 
-	keptSyms := make([]string, 0, len(syms))
-	keptCookies := make([]uint64, 0, len(cookies))
-	for i, sym := range syms {
-		if _, ok := resolvable[sym]; ok {
-			keptSyms = append(keptSyms, sym)
-			keptCookies = append(keptCookies, cookies[i])
+	if len(p.addrs) > 0 {
+		switch id, err := funkutil.BuildID(f); {
+		case err != nil || id != p.buildID:
+			debugLog("funkoverage-shim: %s: build-id changed since install (%s -> %s); dropping %d address probes",
+				img, p.buildID, id, len(p.addrs))
+		default:
+			out.addrs, out.addrCookies = p.addrs, p.addrCookies
 		}
 	}
-	if dropped := len(syms) - len(keptSyms); dropped > 0 {
-		debugLog("funkoverage-shim: %s: %d of %d symbols not in the mapped file, attaching the rest",
-			img, dropped, len(syms))
+
+	resolvable := funkutil.ResolvableFuncNames(f)
+	if len(resolvable) == 0 {
+		out.names, out.nameCookies = p.names, p.nameCookies
+		return out
 	}
-	return keptSyms, keptCookies
+	out.names = make([]string, 0, len(p.names))
+	out.nameCookies = make([]uint64, 0, len(p.nameCookies))
+	for i, name := range p.names {
+		if _, ok := resolvable[name]; ok {
+			out.names = append(out.names, name)
+			out.nameCookies = append(out.nameCookies, p.nameCookies[i])
+		}
+	}
+	if dropped := len(p.names) - len(out.names); dropped > 0 {
+		debugLog("funkoverage-shim: %s: %d of %d symbols not in the mapped file, attaching the rest",
+			img, dropped, len(p.names))
+	}
+	return out
+}
+
+// attachProbes attaches one uprobe batch — by name if names is set, by file
+// offset if addrs is — and returns how many probes went live.
+//
+// UprobeMulti is all-or-nothing: the kernel rejects the whole request over a
+// single bad entry, so a batch that fails is halved and retried until the
+// failures are isolated to individual probes, which are logged and dropped.
+// The alternative is losing an entire library over a couple of functions, and
+// those functions exist: libcrypto's hand-written AES-NI assembly
+// (_aesni_ctr32_ghash_6x, _aesni_ctr32_6x) starts with an instruction the x86
+// uprobe decoder refuses (EOPNOTSUPP), and those two alone cost the other 7165
+// offsets in that image — measured, not hypothetical.
+//
+// ponytail: bisection is ~2k·log2(n) attach syscalls for k bad probes, so an
+// image that is mostly unprobeable degrades to ~2n. Pre-filtering would need an
+// x86 instruction decoder in the shim; revisit only if such an image shows up.
+func (t *Tracer) attachProbes(ex *link.Executable, img string, names []string, addrs, cookies []uint64) int {
+	n := len(cookies)
+	if n == 0 {
+		return 0
+	}
+
+	return attachBisect(n, func(lo, hi int) error {
+		opts := &link.UprobeMultiOptions{Cookies: cookies[lo:hi]}
+		if names == nil {
+			opts.Addresses = addrs[lo:hi]
+		}
+		l, err := ex.UprobeMulti(subslice(names, lo, hi), t.objs.TraceUprobe, opts)
+		if err != nil {
+			return err
+		}
+		t.addLink(l)
+		return nil
+	}, func(i int, err error) {
+		debugLog("funkoverage-shim: %s: dropping probe %s: %v", img, probeLabel(names, addrs, i), err)
+	})
+}
+
+// attachBisect attaches [0,n) via attach, halving and retrying any range that
+// fails until every failure is pinned to a single index, which is reported to
+// drop. Returns how many probes attached.
+func attachBisect(n int, attach func(lo, hi int) error, drop func(i int, err error)) int {
+	var walk func(lo, hi int) int
+	walk = func(lo, hi int) int {
+		err := attach(lo, hi)
+		if err == nil {
+			return hi - lo
+		}
+		if hi-lo == 1 {
+			drop(lo, err)
+			return 0
+		}
+		mid := lo + (hi-lo)/2
+		return walk(lo, mid) + walk(mid, hi)
+	}
+	return walk(0, n)
+}
+
+// subslice slices s, preserving nil — attachProbes distinguishes name mode from
+// address mode by which of its two slices is nil, and an empty non-nil slice
+// would send it down the wrong path.
+func subslice[T any](s []T, lo, hi int) []T {
+	if s == nil {
+		return nil
+	}
+	return s[lo:hi]
+}
+
+func probeLabel(names []string, addrs []uint64, i int) string {
+	if names != nil {
+		return names[i]
+	}
+	return fmt.Sprintf("offset %#x", addrs[i])
 }
 
 // Start seeds the watched-pid set with rootPID, attaches all uprobes plus
@@ -222,26 +326,21 @@ func (t *Tracer) Start(rootPID uint32) error {
 	}
 	t.rootPID = rootPID
 
-	for img, cookies := range t.imgCookies {
+	for img, plan := range t.plans {
+		// Marked instrumented regardless of what follows: a dlopen rescan
+		// re-enumerating an image install already accounted for would allocate
+		// a second set of cookies for the same functions and double-count them.
+		t.instrumented[img] = struct{}{}
+
 		ex, err := link.OpenExecutable(img)
 		if err != nil {
 			// Some libraries lack the execute bit (packaging bug); skip rather than abort.
 			debugLog("funkoverage-shim: skipping %s: %v", img, err)
 			continue
 		}
-		syms, cookies := attachableSymbols(img, t.imgSymbols[img], cookies)
-		if len(syms) == 0 {
-			debugLog("funkoverage-shim: no attachable symbols in %s", img)
-			continue
-		}
-		l, err := ex.UprobeMulti(syms, t.objs.TraceUprobe, &link.UprobeMultiOptions{
-			Cookies: cookies,
-		})
-		if err != nil {
-			debugLog("funkoverage-shim: skipping uprobes on %s: %v", img, err)
-			continue
-		}
-		t.addLink(l)
+		plan = plan.verify(img)
+		t.attachProbes(ex, img, plan.names, nil, plan.nameCookies)
+		t.attachProbes(ex, img, nil, plan.addrs, plan.addrCookies)
 	}
 
 	fl, err := link.Tracepoint("sched", "sched_process_fork", t.objs.TraceFork, nil)
@@ -503,7 +602,7 @@ func (t *Tracer) handleDynamicLoad() {
 
 	for _, lib := range libs {
 		// Skip already instrumented images
-		if _, exists := t.imgCookies[lib]; exists {
+		if _, exists := t.instrumented[lib]; exists {
 			continue
 		}
 
@@ -575,19 +674,10 @@ func (t *Tracer) handleDynamicLoad() {
 			fmt.Fprintf(funcsLog, "FUNC %s %s\n", lib, demangledName)
 		}
 
-		l, err := ex.UprobeMulti(names, t.objs.TraceUprobe, &link.UprobeMultiOptions{
-			Cookies: cookies,
-		})
-		if err != nil {
-			debugLog("funkoverage-shim: skipping uprobes on %s: %v", lib, err)
-			continue
-		}
+		attached := t.attachProbes(ex, lib, names, nil, cookies)
+		t.instrumented[lib] = struct{}{}
 
-		t.addLink(l)
-		t.imgSymbols[lib] = names
-		t.imgCookies[lib] = cookies
-
-		debugLog("funkoverage-shim: successfully instrumented %d functions in %s", len(syms), lib)
+		debugLog("funkoverage-shim: successfully instrumented %d of %d functions in %s", attached, len(syms), lib)
 	}
 }
 

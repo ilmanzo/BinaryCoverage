@@ -172,7 +172,7 @@ func TestLocateExternalDebugForMerge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buildID, err := getBuildID(f)
+	buildID, err := funkutil.BuildID(f)
 	f.Close()
 	if err != nil {
 		t.Fatalf("get build id: %v", err)
@@ -332,7 +332,7 @@ func TestResolveDebugFile_SkipIfEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buildID, err := getBuildID(f)
+	buildID, err := funkutil.BuildID(f)
 	f.Close()
 	if err != nil {
 		t.Fatalf("get build id: %v", err)
@@ -355,12 +355,8 @@ func TestResolveDebugFile_SkipIfEmbedded(t *testing.T) {
 	}
 }
 
-// --- mergeLibraryDebugInfo / restoreLibraryBackups tests ---
+// --- stripped-library fixture, shared by the enumerate tests ---
 
-// TestMergeLibraryDebugInfo verifies that a library gets its external debug
-// info merged in place (so uprobe attach can resolve names that only exist
-// in the debug file's symtab), that a backup of the pre-merge original is
-// recorded, and that restoreLibraryBackups puts the original back exactly.
 // buildStrippedLibFixture compiles a small shared library with a LOCAL
 // (static) function and a PUBLIC function, strips it the way real distro
 // debuginfo packaging does (--strip-all, keeping only .dynsym), and points
@@ -443,9 +439,12 @@ func TestEnumerateOne_PrefersExternalDebugSymtab(t *testing.T) {
 		t.Fatalf("fixture broken: runtime symtab is empty, the old order would not have short-circuited")
 	}
 
-	funcs, err := enumerateOne(lib, nil)
+	funcs, debugPath, err := enumerateOne(lib, nil)
 	if err != nil {
 		t.Fatalf("enumerateOne: %v", err)
+	}
+	if debugPath == "" {
+		t.Error("enumerateOne did not report the debug file it used")
 	}
 	for _, want := range []string{"lib_public_func", "lib_local_func"} {
 		if !slices.Contains(funcs, want) {
@@ -454,176 +453,130 @@ func TestEnumerateOne_PrefersExternalDebugSymtab(t *testing.T) {
 	}
 }
 
-func TestMergeLibraryDebugInfo(t *testing.T) {
-	if _, err := exec.LookPath("gcc"); err != nil {
-		t.Skip("gcc not found")
-	}
-	if _, err := exec.LookPath("strip"); err != nil {
-		t.Skip("strip not found")
-	}
-	if _, err := exec.LookPath("eu-unstrip"); err != nil {
-		t.Skip("eu-unstrip not found")
+// TestEnumerateImage_PartitionsByResolvability is the D1 gate: the shim must
+// be handed lib_public_func as a name (the mapped file resolves it) and
+// lib_local_func as a file offset (only the debug file knows it), because the
+// alternative — eu-unstrip'ing the debug symbols into the system library in
+// place — is what this design removed.
+func TestEnumerateImage_PartitionsByResolvability(t *testing.T) {
+	for _, tool := range []string{"gcc", "strip", "objcopy"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found", tool)
+		}
 	}
 	tmp := t.TempDir()
-	safeBinDir := filepath.Join(tmp, "safebin")
-	t.Setenv("SAFE_BIN_DIR", safeBinDir)
+	orig := globalDebugRoot
+	globalDebugRoot = filepath.Join(tmp, "debugroot")
+	defer func() { globalDebugRoot = orig }()
+
+	lib, before := buildStrippedLibFixture(t, filepath.Join(tmp, "usr", "lib64"), "libdemo.so")
+
+	got, err := enumerateImage(lib, nil)
+	if err != nil {
+		t.Fatalf("enumerateImage: %v", err)
+	}
+	if !slices.Contains(got.Names, "lib_public_func") {
+		t.Errorf("Names = %v, want it to contain lib_public_func", got.Names)
+	}
+	if slices.Contains(got.Names, "lib_local_func") {
+		t.Error("lib_local_func is in Names, but the mapped file cannot resolve it — UprobeMulti would fail the whole batch")
+	}
+	var offsetNames []string
+	for _, fa := range got.Offsets {
+		offsetNames = append(offsetNames, fa.Name)
+		if fa.Offset == 0 {
+			t.Errorf("%s got a zero offset", fa.Name)
+		}
+	}
+	if !slices.Contains(offsetNames, "lib_local_func") {
+		t.Errorf("Offsets = %v, want it to contain lib_local_func", offsetNames)
+	}
+	if got.BuildID == "" {
+		t.Error("BuildID is empty, so the shim has no way to detect a stale offset")
+	}
+
+	// The point of the whole phase: the library on disk is untouched.
+	if after, err := os.ReadFile(lib); err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(before, after) {
+		t.Error("enumerateImage modified the library in place")
+	}
+}
+
+// A library with no build-id note cannot be checked for staleness at attach
+// time, so its debug-only functions must be given up rather than attached at
+// offsets that a package upgrade would silently invalidate — the failure mode
+// there is SIGILL in the traced process, not missing coverage.
+func TestEnumerateImage_NoBuildIDDropsOffsets(t *testing.T) {
+	for _, tool := range []string{"gcc", "strip", "objcopy"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found", tool)
+		}
+	}
+	tmp := t.TempDir()
 	orig := globalDebugRoot
 	globalDebugRoot = filepath.Join(tmp, "debugroot")
 	defer func() { globalDebugRoot = orig }()
 
 	libDir := filepath.Join(tmp, "usr", "lib64")
-	lib, strippedBytes := buildStrippedLibFixture(t, libDir, "libdemo.so")
-
-	funcs := map[string][]string{
-		lib:          {"lib_local_func"},
-		"/some/main": {"main_func"},
+	lib, _ := buildStrippedLibFixture(t, libDir, "libdemo.so")
+	if out, err := exec.Command("objcopy", "--remove-section=.note.gnu.build-id", lib).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --remove-section: %v\n%s", err, out)
 	}
-	backups := mergeLibraryDebugInfo(funcs, "/some/main")
 
-	backupPath, ok := backups[lib]
-	if !ok {
-		t.Fatalf("mergeLibraryDebugInfo did not back up %s; backups = %v", lib, backups)
-	}
-	backedUp, err := os.ReadFile(backupPath)
+	got, err := enumerateImage(lib, nil)
 	if err != nil {
-		t.Fatalf("read backup: %v", err)
+		t.Fatalf("enumerateImage: %v", err)
 	}
-	if string(backedUp) != string(strippedBytes) {
-		t.Error("backup does not match the pre-merge (stripped) library bytes")
+	if len(got.Offsets) != 0 || got.BuildID != "" {
+		t.Errorf("got BuildID=%q Offsets=%v, want neither without a build-id note", got.BuildID, got.Offsets)
 	}
-
-	merged, err := os.ReadFile(lib)
-	if err != nil {
-		t.Fatal(err)
+	if !slices.Contains(got.Names, "lib_public_func") {
+		t.Errorf("Names = %v, want the by-name attach to survive", got.Names)
 	}
-	if len(merged) <= len(strippedBytes) {
-		t.Errorf("merged library (%d bytes) should be larger than stripped (%d bytes)", len(merged), len(strippedBytes))
-	}
-	if funcs := symtabFunctions(lib, nil); !slices.Contains(funcs, "lib_local_func") {
-		t.Errorf("merged library should now expose lib_local_func directly, got %v", funcs)
-	}
-
-	// Restore, via the same sidecar install() would write.
-	safePath := filepath.Join(safeBinDir, "some-target")
-	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := funkutil.WriteLibBackups(safePath, backups); err != nil {
-		t.Fatal(err)
-	}
-	restoreLibraryBackups(safePath)
-
-	restored, err := os.ReadFile(lib)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(restored) != string(strippedBytes) {
-		t.Error("restoreLibraryBackups did not restore the pre-merge (stripped) library bytes")
-	}
-	if _, err := os.Stat(backupPath); !os.IsNotExist(err) {
-		t.Errorf("backup file %s should be gone after restore, stat err = %v", backupPath, err)
+	if slices.Contains(got.Names, "lib_local_func") {
+		t.Error("lib_local_func leaked into Names, where UprobeMulti would fail the whole batch on it")
 	}
 }
 
-// TestMergeLibraryDebugInfo_SkipsMainImage verifies the main target binary
-// (already merged separately by install()) is never re-processed here.
-func TestMergeLibraryDebugInfo_SkipsMainImage(t *testing.T) {
+// TestRestoreLibraryBackups_Legacy covers the one path that still reads the
+// .libbackup.json sidecar: uninstalling a shim that a pre-0.8.4 funkoverage
+// installed, back when it unstripped system libraries in place. Nothing writes
+// that sidecar any more, so this test is the only thing keeping the restore
+// honest until it is deleted.
+func TestRestoreLibraryBackups_Legacy(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("SAFE_BIN_DIR", filepath.Join(tmp, "safebin"))
-
-	main := filepath.Join(tmp, "main")
-	if err := os.WriteFile(main, []byte("not a real elf, must not be touched"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	funcs := map[string][]string{main: {"main_func"}}
-	backups := mergeLibraryDebugInfo(funcs, main)
-	if len(backups) != 0 {
-		t.Errorf("mergeLibraryDebugInfo should skip mainImage, got backups = %v", backups)
-	}
-}
-
-// TestMergeLibraryDebugInfo_PreservesSymlink guards against the bug found
-// live during the audit-fixes.md Phase 0 baseline sweep: ldd reports a
-// library's SONAME path as-is (e.g. /lib64/libgmp.so.10), which is normally
-// a symlink to the real versioned file (libgmp.so.10.5.0). Before this fix,
-// mergeLibraryDebugInfo's move() onto that path replaced the symlink itself
-// with a regular-file copy — confirmed for real via `zypper install --force
-// libgmp10` on the VM, which restored the pristine symlink.
-func TestMergeLibraryDebugInfo_PreservesSymlink(t *testing.T) {
-	if _, err := exec.LookPath("gcc"); err != nil {
-		t.Skip("gcc not found")
-	}
-	if _, err := exec.LookPath("strip"); err != nil {
-		t.Skip("strip not found")
-	}
-	if _, err := exec.LookPath("eu-unstrip"); err != nil {
-		t.Skip("eu-unstrip not found")
-	}
-	tmp := t.TempDir()
-	safeBinDir := filepath.Join(tmp, "safebin")
-	t.Setenv("SAFE_BIN_DIR", safeBinDir)
-	orig := globalDebugRoot
-	globalDebugRoot = filepath.Join(tmp, "debugroot")
-	defer func() { globalDebugRoot = orig }()
-
-	libDir := filepath.Join(tmp, "usr", "lib64")
-	realLib, strippedBytes := buildStrippedLibFixture(t, libDir, "libdemo.so.1.0.0")
-
-	// Mirror the real SONAME convention (libgmp.so.10 -> libgmp.so.10.5.0):
-	// the symlink is what ldd reports and what mergeLibraryDebugInfo
-	// receives as the map key.
-	soname := filepath.Join(libDir, "libdemo.so.1")
-	if err := os.Symlink(filepath.Base(realLib), soname); err != nil {
+	safePath := filepath.Join(tmp, "safe", "libdemo.so")
+	if err := os.MkdirAll(filepath.Dir(safePath), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	backups := mergeLibraryDebugInfo(map[string][]string{soname: {"lib_local_func"}}, "/some/main")
-
-	if _, ok := backups[soname]; ok {
-		t.Errorf("backups should be keyed by the resolved real path, not the symlink %s", soname)
-	}
-	backupPath, ok := backups[realLib]
-	if !ok {
-		t.Fatalf("mergeLibraryDebugInfo did not back up the resolved path %s; backups = %v", realLib, backups)
-	}
-
-	assertSymlinkIntact := func(when string) {
-		t.Helper()
-		fi, err := os.Lstat(soname)
-		if err != nil {
+	lib := filepath.Join(tmp, "usr", "lib64", "libdemo.so")
+	backup := filepath.Join(tmp, "backup", "libdemo.so.orig")
+	for _, dir := range []string{filepath.Dir(lib), filepath.Dir(backup)} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatal(err)
 		}
-		if fi.Mode()&os.ModeSymlink == 0 {
-			t.Errorf("SONAME symlink was replaced by a regular file %s merge", when)
-		}
-		if target, err := os.Readlink(soname); err != nil || target != filepath.Base(realLib) {
-			t.Errorf("symlink target %s merge = %q, %v; want %q", when, target, err, filepath.Base(realLib))
-		}
 	}
-	assertSymlinkIntact("after")
-	if funcs := symtabFunctions(soname, nil); !slices.Contains(funcs, "lib_local_func") {
-		t.Errorf("merged library (opened via the symlink) should expose lib_local_func, got %v", funcs)
+	if err := os.WriteFile(lib, []byte("merged"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(backup, []byte("pristine"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := funkutil.WriteLibBackups(safePath, map[string]string{lib: backup}); err != nil {
+		t.Fatal(err)
 	}
 
-	safePath := filepath.Join(safeBinDir, "some-target")
-	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := funkutil.WriteLibBackups(safePath, backups); err != nil {
-		t.Fatal(err)
-	}
 	restoreLibraryBackups(safePath)
 
-	assertSymlinkIntact("after restore, following")
-	restored, err := os.ReadFile(realLib)
-	if err != nil {
+	if got, err := os.ReadFile(lib); err != nil {
 		t.Fatal(err)
+	} else if string(got) != "pristine" {
+		t.Errorf("library content = %q, want the pre-merge original", got)
 	}
-	if string(restored) != string(strippedBytes) {
-		t.Error("restoreLibraryBackups did not restore the pre-merge (stripped) library bytes")
-	}
-	if _, err := os.Stat(backupPath); !os.IsNotExist(err) {
-		t.Errorf("backup file %s should be gone after restore, stat err = %v", backupPath, err)
+	if _, err := os.Stat(funkutil.LibBackupPath(safePath)); !os.IsNotExist(err) {
+		t.Errorf("backup sidecar survived the restore: %v", err)
 	}
 }
 
@@ -794,7 +747,7 @@ func TestHasDebugInfo_Linked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buildID, err := getBuildID(f)
+	buildID, err := funkutil.BuildID(f)
 	f.Close()
 	if err != nil {
 		t.Fatalf("get build id: %v", err)
@@ -957,8 +910,8 @@ int main() { return add(1,2) + sub(3,1); }
 		t.Fatal("expected at least one image in result")
 	}
 	var found []string
-	for _, names := range funcs {
-		found = append(found, names...)
+	for _, imgFuncs := range funcs {
+		found = slices.AppendSeq(found, imgFuncs.All())
 	}
 	hasAdd := false
 	hasSub := false
@@ -1784,7 +1737,7 @@ int main() { return str_length() + str_upper() + math_add(); }
 	}
 	var names []string
 	for _, fns := range funcs {
-		names = append(names, fns...)
+		names = slices.AppendSeq(names, fns.All())
 	}
 	for _, n := range names {
 		if !strings.HasPrefix(n, "str_") {
@@ -1900,8 +1853,11 @@ func TestCommands(t *testing.T) {
 
 func TestWriteFunctionsLog(t *testing.T) {
 	tmp := t.TempDir()
-	funcs := map[string][]string{
-		"/bin/test": {"main", "foo_bar"},
+	funcs := map[string]funkutil.ImageFuncs{
+		"/bin/test": {
+			Names:   []string{"main"},
+			Offsets: []funkutil.FuncAddr{{Name: "foo_bar", Offset: 0x1234}},
+		},
 	}
 	path, err := writeFunctionsLog(tmp, "testbin", funcs)
 	if err != nil {
@@ -1918,6 +1874,8 @@ func TestWriteFunctionsLog(t *testing.T) {
 	}
 
 	contentStr := string(content)
+	// Both halves of the split must reach the log: an address-attached
+	// function still counts toward the coverage denominator.
 	if !strings.Contains(contentStr, "FUNC /bin/test main") || !strings.Contains(contentStr, "FUNC /bin/test foo_bar") {
 		t.Errorf("functions log has unexpected content: %s", contentStr)
 	}
@@ -2071,31 +2029,6 @@ func TestReadGnuDebugAltLink(t *testing.T) {
 	}
 }
 
-// --- getBuildID error-path test ---
-
-func TestGetBuildID_NoSection(t *testing.T) {
-	if _, err := exec.LookPath("gcc"); err != nil {
-		t.Skip("gcc not found")
-	}
-	tmp := t.TempDir()
-	src := filepath.Join(tmp, "main.c")
-	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	bin := filepath.Join(tmp, "nobuildid")
-	if out, err := exec.Command("gcc", "-Wl,--build-id=none", "-o", bin, src).CombinedOutput(); err != nil {
-		t.Fatalf("compile: %v\n%s", err, out)
-	}
-	f, err := elf.Open(bin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	if _, err := getBuildID(f); err == nil {
-		t.Error("getBuildID on a binary built with --build-id=none should error")
-	}
-}
-
 // --- writeBuffered tests ---
 
 func TestWriteBuffered(t *testing.T) {
@@ -2153,7 +2086,7 @@ func TestEnumerateOne_ExternalDebugFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buildID, err := getBuildID(f)
+	buildID, err := funkutil.BuildID(f)
 	f.Close()
 	if err != nil {
 		t.Fatalf("get build id: %v", err)
@@ -2175,11 +2108,14 @@ func TestEnumerateOne_ExternalDebugFallback(t *testing.T) {
 		t.Fatalf("test setup: enum_helper should be gone from the stripped binary, got %v", got)
 	}
 
-	funcs, err := enumerateOne(bin, nil)
+	funcs, debugPath, err := enumerateOne(bin, nil)
 	if err != nil {
 		t.Fatalf("enumerateOne: %v", err)
 	}
 	if !slices.Contains(funcs, "enum_helper") {
 		t.Errorf("enumerateOne via external debug = %v, want it to contain enum_helper", funcs)
+	}
+	if debugPath != debugFile {
+		t.Errorf("enumerateOne debug path = %q, want %q", debugPath, debugFile)
 	}
 }

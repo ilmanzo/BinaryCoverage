@@ -50,16 +50,16 @@ const (
 	MainBinaryOnly LibScope = true  // --no-libs: skip library dependencies entirely
 )
 
-// EnumerateFunctions returns map[imagePath][]functionName for the binary and
-// all its shared libraries that have debug info.
-func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
-	result := make(map[string][]string)
+// EnumerateFunctions returns the traceable functions of the binary and of all
+// its shared libraries that have debug info, keyed by canonical image path.
+func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, error) {
+	result := make(map[string]funkutil.ImageFuncs)
 
-	funcs, err := enumerateOne(binPath, filter)
+	funcs, err := enumerateImage(binPath, filter)
 	if err != nil {
 		return nil, fmt.Errorf("enumerate %s: %w", binPath, err)
 	}
-	if len(funcs) > 0 {
+	if funcs.Len() > 0 {
 		result[canonicalPath(binPath)] = funcs
 	}
 
@@ -75,16 +75,96 @@ func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.Func
 		if !imageIsRelevant(filepath.Base(lib)) {
 			continue
 		}
-		libFuncs, err := enumerateOne(lib, filter)
+		libFuncs, err := enumerateImage(lib, filter)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "enumerate: skipping %s: %v\n", lib, err)
 			continue
 		}
-		if len(libFuncs) > 0 {
+		if libFuncs.Len() > 0 {
 			result[canonicalPath(lib)] = libFuncs
 		}
 	}
 	return result, nil
+}
+
+// enumerateImage enumerates path's functions and splits them by how the shim
+// will have to reach them: names the mapped file itself can resolve, and names
+// that live only in its external debug file and therefore need a pre-computed
+// file offset.
+//
+// The split exists so funkoverage never has to modify a system library. The
+// previous design merged the debug symbols into the library in place with
+// eu-unstrip, which made `rpm -V` dirty, raced between concurrent installs,
+// and left the host permanently altered if the process died before uninstall.
+//
+// Falling back to a name-only result is always safe: it is exactly the
+// coverage a plain, unmerged library gives, so a failure here costs the
+// internal functions, never correctness.
+func enumerateImage(path string, filter *funkutil.FuncFilter) (funkutil.ImageFuncs, error) {
+	names, debugPath, err := enumerateOne(path, filter)
+	if err != nil || len(names) == 0 {
+		return funkutil.ImageFuncs{}, err
+	}
+
+	f, err := elf.Open(path)
+	if err != nil {
+		return funkutil.ImageFuncs{Names: names}, nil
+	}
+	defer f.Close()
+
+	resolvable := funkutil.ResolvableFuncNames(f)
+	byName := make([]string, 0, len(names))
+	var debugOnly []string
+	for _, name := range names {
+		if _, ok := resolvable[name]; ok {
+			byName = append(byName, name)
+		} else {
+			debugOnly = append(debugOnly, name)
+		}
+	}
+	if len(debugOnly) == 0 || debugPath == "" {
+		return funkutil.ImageFuncs{Names: names}, nil
+	}
+
+	// No build-id means no way to detect that the library was upgraded between
+	// install and run, and a stale offset lands mid-instruction. Not worth the
+	// internal functions.
+	buildID, err := funkutil.BuildID(f)
+	if err != nil {
+		debugLog("no build-id for %s (%v); tracing its %d debug-only functions is unsafe", path, err, len(debugOnly))
+		return funkutil.ImageFuncs{Names: byName}, nil
+	}
+
+	offsets := debugFuncAddrs(f, debugPath, debugOnly)
+	if len(offsets) == 0 {
+		return funkutil.ImageFuncs{Names: byName}, nil
+	}
+	return funkutil.ImageFuncs{BuildID: buildID, Names: byName, Offsets: offsets}, nil
+}
+
+// debugFuncAddrs resolves each of want to its offset within the runtime file,
+// reading symbol values from debugPath. Names the debug file does not place
+// inside an executable segment are dropped.
+func debugFuncAddrs(runtime *elf.File, debugPath string, want []string) []funkutil.FuncAddr {
+	df, err := elf.Open(debugPath)
+	if err != nil {
+		debugLog("open debug file %s: %v", debugPath, err)
+		return nil
+	}
+	defer df.Close()
+
+	all := funkutil.SymbolFileOffsets(runtime, df)
+	if len(all) == 0 {
+		debugLog("%s: no usable symbol offsets (build-id mismatch, or no symbols); tracing by name only", debugPath)
+		return nil
+	}
+	addrs := make([]funkutil.FuncAddr, 0, len(want))
+	for _, name := range want {
+		if off, ok := all[name]; ok {
+			addrs = append(addrs, funkutil.FuncAddr{Name: name, Offset: off})
+		}
+	}
+	return addrs
 }
 
 // canonicalPath resolves symlinks so the same physical file always maps to
@@ -116,17 +196,20 @@ func canonicalPath(path string) string {
 // entry point and stopped, hiding the other 18 (measured on Tumbleweed:
 // _bz2.cpython-313 has 1 defined function in the runtime file and 19 in its
 // debug file; libssl.so.3 has 603 against 2512).
-func enumerateOne(path string, filter *funkutil.FuncFilter) ([]string, error) {
+// It also returns the external debug file it consulted (or ""), so callers
+// don't have to resolve it a second time.
+func enumerateOne(path string, filter *funkutil.FuncFilter) ([]string, string, error) {
 	debugPath := externalDebugPath(path)
 	if debugPath != "" {
 		if funcs := symtabFunctions(debugPath, filter); len(funcs) > 0 {
-			return funcs, nil
+			return funcs, debugPath, nil
 		}
 	}
 	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
-		return funcs, nil
+		return funcs, debugPath, nil
 	}
-	return dwarfFunctions(cmp.Or(debugPath, path), filter)
+	funcs, err := dwarfFunctions(cmp.Or(debugPath, path), filter)
+	return funcs, debugPath, err
 }
 
 func symtabFunctions(path string, filter *funkutil.FuncFilter) []string {
@@ -244,7 +327,7 @@ func enumerateSymtab(f *elf.File, filter *funkutil.FuncFilter) []string {
 }
 
 // writeFunctionsLog writes a _functions.log file to logDir and returns its path.
-func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string) (string, error) {
+func writeFunctionsLog(logDir, binaryBasename string, funcs map[string]funkutil.ImageFuncs) (string, error) {
 	if err := funkutil.EnsureLogDir(logDir); err != nil {
 		return "", err
 	}
@@ -261,8 +344,8 @@ func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string)
 	}
 	defer f.Close()
 	w := bufio.NewWriter(f)
-	for image, names := range funcs {
-		for _, n := range names {
+	for image, imgFuncs := range funcs {
+		for n := range imgFuncs.All() {
 			// Demangle for the report side; .funcs.json keeps the mangled
 			// form for uprobe attach.
 			fmt.Fprintf(w, "FUNC %s %s\n", image, demangleName(n))
@@ -282,7 +365,7 @@ func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string)
 // (cmd/trace.go, temporary) — both enumerate, then log, the same way; they
 // differ in what happens to the result afterward (install additionally
 // rolls back its move on error).
-func enumerateFuncs(path, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
+func enumerateFuncs(path, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, error) {
 	funcs, err := EnumerateFunctions(path, libScope, filter)
 	if err != nil {
 		return nil, fmt.Errorf("function enumeration: %w", err)
