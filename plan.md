@@ -19,14 +19,6 @@ This document outlines upcoming features, architectural improvements, and TODOs 
 
 ---
 
-## 2. Direct ELF Dependency Resolution (Eliminating `ldd` Fork-Exec)
-
-* **Goal**: Completely eliminate running `/usr/bin/ldd` as an external subprocess.
-* **Approach**: Parse the target ELF binary headers directly in Go (using the standard `debug/elf` package) to locate dynamic table tags (`DT_NEEDED` entries) and manually resolve dynamic dependency paths.
-* **Benefit**: Removes fork-exec overhead, cuts down external system tool dependencies, and improves security compatibility on containerized/hardened environments.
-
----
-
 ## 3. openQA Debuginfo Coverage for Transitively Loaded Extensions
 
 The `enumerateOne` short-circuit this section originally tracked is fixed —
