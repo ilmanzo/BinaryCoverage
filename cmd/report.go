@@ -137,6 +137,42 @@ func splitCalledUncalled(data *CoverageData) (called, uncalled []string) {
 	return called, uncalled
 }
 
+// imageReport is one image's sorted called/uncalled split. len(Called)+
+// len(Uncalled) == len(data.TotalFunctions), since the split partitions
+// exactly that set.
+type imageReport struct {
+	Image            string
+	Called, Uncalled []string
+}
+
+// reportSet is everything the output formats need, derived from the coverage
+// map once per run. Images[i] describes Totals.Rows[i] — both are ordered by
+// image name.
+type reportSet struct {
+	Images []imageReport
+	Totals CoverageTotals
+}
+
+// buildReportSet computes the split and the totals once. Each format used to
+// redo them: splitCalledUncalled once per image per format (two allocations
+// and two sorts each), summarizeCoverage once for txt and again for the
+// aggregate HTML page.
+func buildReportSet(coverage map[string]*CoverageData) reportSet {
+	totals := summarizeCoverage(coverage)
+	images := make([]imageReport, len(totals.Rows))
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.GOMAXPROCS(0))
+	for i, row := range totals.Rows {
+		g.Go(func() error {
+			called, uncalled := splitCalledUncalled(coverage[row.ImageName])
+			images[i] = imageReport{Image: row.ImageName, Called: called, Uncalled: uncalled}
+			return nil
+		})
+	}
+	_ = g.Wait()
+	return reportSet{Images: images, Totals: totals}
+}
+
 // analyzeLogs processes _functions.log and _called.log files concurrently.
 // Files with unrecognized suffixes are skipped with a warning. Each file is
 // scanned into its own local map (scanLog mutates a map in place, and Go
@@ -232,11 +268,10 @@ func scanLog(logFile string, lt logType, coverage map[string]*CoverageData) erro
 
 // --- Console Report ---
 // printTxtReport prints a text-based report to the console summarizing coverage for each image.
-func printTxtReport(coverage map[string]*CoverageData) {
-	summary := summarizeCoverage(coverage)
-	for _, row := range summary.Rows {
-		data := coverage[row.ImageName]
-		called, uncalled := splitCalledUncalled(data)
+func printTxtReport(set reportSet) {
+	summary := set.Totals
+	for i, row := range summary.Rows {
+		called, uncalled := set.Images[i].Called, set.Images[i].Uncalled
 		fmt.Printf("\n==================================================\n")
 		fmt.Printf("Image: %s\n", row.ImageName)
 		fmt.Printf("==================================================\n")
@@ -294,11 +329,11 @@ type Passed struct {
 }
 
 // generateXUnitReport generates an XUnit XML report for a single image's coverage data.
-func generateXUnitReport(image string, data *CoverageData, outputDir string) error {
-	calledList, uncalledList := splitCalledUncalled(data)
-	totalCount := len(data.TotalFunctions)
+func generateXUnitReport(rep imageReport, outputDir string) error {
+	calledList, uncalledList := rep.Called, rep.Uncalled
+	totalCount := len(calledList) + len(uncalledList)
 	skippedCount := len(uncalledList)
-	safeName := safeImageName(image)
+	safeName := safeImageName(rep.Image)
 	outfile := filepath.Join(outputDir, fmt.Sprintf("coverage_%s.xml", safeName))
 
 	calledCount := len(calledList)
@@ -370,9 +405,9 @@ type AggregateData struct {
 }
 
 // generateHTMLReport generates an HTML report for a single image's coverage data.
-func generateHTMLReport(image string, data *CoverageData, outputDir string) error {
-	called, uncalled := splitCalledUncalled(data)
-	totalCount := len(data.TotalFunctions)
+func generateHTMLReport(rep imageReport, outputDir string) error {
+	called, uncalled := rep.Called, rep.Uncalled
+	totalCount := len(called) + len(uncalled)
 	coveragePct := pctOf(len(called), totalCount)
 	functions := make([]FunctionEntry, 0, totalCount)
 	for _, fn := range called {
@@ -382,7 +417,7 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 		functions = append(functions, FunctionEntry{Name: fn, Status: "uncalled"})
 	}
 	reportData := HTMLReportData{
-		ImageName:          filepath.Base(image),
+		ImageName:          filepath.Base(rep.Image),
 		TotalCount:         totalCount,
 		CalledCount:        len(called),
 		UncalledCount:      len(uncalled),
@@ -390,7 +425,7 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 		Functions:          functions,
 		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
-	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeImageName(image)))
+	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeImageName(rep.Image)))
 	return writeBuffered(outfile, func(w io.Writer) error {
 		return parsedDetailedTemplate.Execute(w, reportData)
 	})
@@ -398,8 +433,10 @@ func generateHTMLReport(image string, data *CoverageData, outputDir string) erro
 
 // generateAggregateHTMLReport generates an HTML report summarizing coverage across all images.
 // It creates a table with the image name, total functions, called functions, and coverage percentage.
-func generateAggregateHTMLReport(coverage map[string]*CoverageData, outputDir string) error {
-	summary := summarizeCoverage(coverage)
+func generateAggregateHTMLReport(summary CoverageTotals, outputDir string) error {
+	// Rows are cloned: summary is now shared with the txt and xml formats,
+	// which want the full paths this loop shortens.
+	summary.Rows = slices.Clone(summary.Rows)
 	for i := range summary.Rows {
 		summary.Rows[i].ImageName = filepath.Base(summary.Rows[i].ImageName)
 	}

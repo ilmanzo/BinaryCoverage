@@ -271,47 +271,49 @@ func cmdReport(args []string) error {
 	if err != nil {
 		return err
 	}
+	// Built once and shared by every requested format.
+	set := buildReportSet(coverage)
 	var errs []error
 	for format := range strings.SplitSeq(*formats, ",") {
-		if err := emitReport(strings.TrimSpace(format), coverage, outputDir); err != nil {
+		if err := emitReport(strings.TrimSpace(format), set, outputDir); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)
 }
 
-func emitReport(format string, coverage map[string]*CoverageData, outputDir string) error {
+func emitReport(format string, set reportSet, outputDir string) error {
 	switch format {
 	case "txt":
-		printTxtReport(coverage)
+		printTxtReport(set)
 	case "html":
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)
 		}
-		perImage(coverage, outputDir, "HTML report error:", generateHTMLReport)
-		if err := generateAggregateHTMLReport(coverage, outputDir); err != nil {
+		perImage(set.Images, outputDir, "HTML report error:", generateHTMLReport)
+		if err := generateAggregateHTMLReport(set.Totals, outputDir); err != nil {
 			return fmt.Errorf("aggregate html report: %w", err)
 		}
 	case "xml":
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)
 		}
-		perImage(coverage, outputDir, "XUnit report error:", generateXUnitReport)
+		perImage(set.Images, outputDir, "XUnit report error:", generateXUnitReport)
 	default:
 		return fmt.Errorf("unknown format %q (want html, xml or txt)", format)
 	}
 	return nil
 }
 
-// perImage runs fn concurrently for every image in coverage. A per-image
-// error is logged under errLabel, not returned — one bad image shouldn't
-// stop the rest of the report.
-func perImage(coverage map[string]*CoverageData, outputDir, errLabel string, fn func(image string, data *CoverageData, outputDir string) error) {
+// perImage runs fn concurrently for every image. A per-image error is logged
+// under errLabel, not returned — one bad image shouldn't stop the rest of the
+// report.
+func perImage(images []imageReport, outputDir, errLabel string, fn func(rep imageReport, outputDir string) error) {
 	g := new(errgroup.Group)
 	g.SetLimit(runtime.GOMAXPROCS(0))
-	for image, data := range coverage {
+	for _, rep := range images {
 		g.Go(func() error {
-			if err := fn(image, data, outputDir); err != nil {
+			if err := fn(rep, outputDir); err != nil {
 				fmt.Fprintln(os.Stderr, errLabel, err)
 			}
 			return nil

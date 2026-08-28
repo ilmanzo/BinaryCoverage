@@ -1400,13 +1400,26 @@ func TestInstallMany(t *testing.T) {
 
 // --- HTML report test ---
 
+// oneImageReport builds the reportSet entry for a single image the way
+// cmdReport does, so the per-image generator tests feed them the same shape
+// production does.
+func oneImageReport(t *testing.T, image string, data *CoverageData) imageReport {
+	t.Helper()
+	set := buildReportSet(map[string]*CoverageData{image: data})
+	if len(set.Images) != 1 {
+		t.Fatalf("buildReportSet: expected 1 image, got %d", len(set.Images))
+	}
+	return set.Images[0]
+}
+
 func TestGenerateHTMLReportBaseName(t *testing.T) {
 	tmp := t.TempDir()
 	data := &CoverageData{
 		TotalFunctions:  map[string]struct{}{"foo": {}, "bar": {}},
 		CalledFunctions: map[string]struct{}{"foo": {}},
 	}
-	if err := generateHTMLReport("/some/long/path/mybinary", data, tmp); err != nil {
+	rep := oneImageReport(t, "/some/long/path/mybinary", data)
+	if err := generateHTMLReport(rep, tmp); err != nil {
 		t.Fatalf("generateHTMLReport: %v", err)
 	}
 	content, err := os.ReadFile(filepath.Join(tmp, "mybinary.html"))
@@ -1565,7 +1578,7 @@ func TestGenerateXUnitReport(t *testing.T) {
 		TotalFunctions:  map[string]struct{}{"foo": {}, "bar": {}, "baz": {}},
 		CalledFunctions: map[string]struct{}{"foo": {}},
 	}
-	if err := generateXUnitReport("/bin/test", data, tmp); err != nil {
+	if err := generateXUnitReport(oneImageReport(t, "/bin/test", data), tmp); err != nil {
 		t.Fatalf("generateXUnitReport: %v", err)
 	}
 	xmlFile := filepath.Join(tmp, "coverage_test.xml")
@@ -1599,6 +1612,44 @@ func TestGenerateXUnitReport(t *testing.T) {
 	}
 }
 
+// --- buildReportSet tests ---
+
+// The formats index Images and Totals.Rows in lockstep (printTxtReport pairs
+// them positionally), so their order must match. A "ghost" name present only
+// in CalledFunctions also must not appear in the split, which partitions
+// TotalFunctions.
+func TestBuildReportSet(t *testing.T) {
+	coverage := map[string]*CoverageData{
+		"/bin/zeta": {
+			TotalFunctions:  map[string]struct{}{"c": {}, "a": {}, "b": {}},
+			CalledFunctions: map[string]struct{}{"a": {}, "ghost": {}},
+		},
+		"/bin/alpha": {
+			TotalFunctions:  map[string]struct{}{"x": {}},
+			CalledFunctions: map[string]struct{}{"x": {}},
+		},
+	}
+	set := buildReportSet(coverage)
+	if len(set.Images) != len(set.Totals.Rows) {
+		t.Fatalf("Images/Rows length mismatch: %d vs %d", len(set.Images), len(set.Totals.Rows))
+	}
+	for i, img := range set.Images {
+		if img.Image != set.Totals.Rows[i].ImageName {
+			t.Fatalf("row %d: Images=%q Rows=%q", i, img.Image, set.Totals.Rows[i].ImageName)
+		}
+	}
+	if set.Images[0].Image != "/bin/alpha" {
+		t.Errorf("expected images sorted by name, got %q first", set.Images[0].Image)
+	}
+	zeta := set.Images[1]
+	if !slices.Equal(zeta.Called, []string{"a"}) {
+		t.Errorf("zeta called = %v, want [a] (ghost is not in TotalFunctions)", zeta.Called)
+	}
+	if !slices.Equal(zeta.Uncalled, []string{"b", "c"}) {
+		t.Errorf("zeta uncalled = %v, want [b c] sorted", zeta.Uncalled)
+	}
+}
+
 // --- generateAggregateHTMLReport tests ---
 
 func TestGenerateAggregateHTMLReport(t *testing.T) {
@@ -1613,7 +1664,7 @@ func TestGenerateAggregateHTMLReport(t *testing.T) {
 			CalledFunctions: map[string]struct{}{"x": {}},
 		},
 	}
-	if err := generateAggregateHTMLReport(coverage, tmp); err != nil {
+	if err := generateAggregateHTMLReport(summarizeCoverage(coverage), tmp); err != nil {
 		t.Fatalf("generateAggregateHTMLReport: %v", err)
 	}
 	content, err := os.ReadFile(filepath.Join(tmp, "aggregate.html"))
@@ -1623,6 +1674,25 @@ func TestGenerateAggregateHTMLReport(t *testing.T) {
 	html := string(content)
 	if !strings.Contains(html, "foo") || !strings.Contains(html, "bar") {
 		t.Error("aggregate HTML should contain both image names")
+	}
+}
+
+// The aggregate page shortens image names to their base; the totals it gets
+// are now shared with the txt and xml formats, which print full paths. Assert
+// it does not shorten them in place.
+func TestGenerateAggregateHTMLReport_DoesNotMutateSharedRows(t *testing.T) {
+	tmp := t.TempDir()
+	set := buildReportSet(map[string]*CoverageData{
+		"/bin/foo": {
+			TotalFunctions:  map[string]struct{}{"a": {}},
+			CalledFunctions: map[string]struct{}{"a": {}},
+		},
+	})
+	if err := generateAggregateHTMLReport(set.Totals, tmp); err != nil {
+		t.Fatalf("generateAggregateHTMLReport: %v", err)
+	}
+	if got := set.Totals.Rows[0].ImageName; got != "/bin/foo" {
+		t.Errorf("shared row was rewritten to %q", got)
 	}
 }
 
@@ -1638,7 +1708,7 @@ func TestPrintTxtReport(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
-	printTxtReport(coverage)
+	printTxtReport(buildReportSet(coverage))
 	w.Close()
 	os.Stdout = old
 
@@ -1760,14 +1830,16 @@ func TestEmitReport(t *testing.T) {
 		},
 	}
 
-	if err := emitReport("html", coverage, tmp); err != nil {
+	set := buildReportSet(coverage)
+
+	if err := emitReport("html", set, tmp); err != nil {
 		t.Errorf("emitReport('html'): %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(tmp, "test.html")); err != nil {
 		t.Error("emitReport('html') should create test.html")
 	}
 
-	if err := emitReport("xml", coverage, tmp); err != nil {
+	if err := emitReport("xml", set, tmp); err != nil {
 		t.Errorf("emitReport('xml'): %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(tmp, "coverage_test.xml")); err != nil {
@@ -1777,7 +1849,7 @@ func TestEmitReport(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
-	err := emitReport("txt", coverage, tmp)
+	err := emitReport("txt", set, tmp)
 	w.Close()
 	os.Stdout = old
 	if err != nil {
@@ -1789,7 +1861,7 @@ func TestEmitReport(t *testing.T) {
 		t.Error("emitReport('txt') should print coverage")
 	}
 
-	if err := emitReport("bogus", coverage, tmp); err == nil {
+	if err := emitReport("bogus", set, tmp); err == nil {
 		t.Error("emitReport('bogus') should return an error")
 	} else if !strings.Contains(err.Error(), "bogus") {
 		t.Errorf("emitReport('bogus') error should name the format, got: %v", err)
