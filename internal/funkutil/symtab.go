@@ -64,3 +64,31 @@ func SymtabFunctions(f *elf.File, keep func(demangled string) bool) []string {
 	}
 	return funcs
 }
+
+// ResolvableFuncNames returns every symbol name in f that a uprobe can be
+// attached to by name: STT_FUNC with a non-zero value, from both .symtab and
+// .dynsym.
+//
+// It deliberately mirrors the predicate cilium/ebpf's Executable applies when
+// it builds its address cache, because that cache is consulted for every name
+// passed to UprobeMulti and the call fails wholesale on the first miss — one
+// stale name costs an entire image's coverage.
+//
+// Unlike SymtabFunctions it does not dedup by address and does not require a
+// non-zero size: the question here is only whether a name resolves, not
+// whether it is worth tracing.
+func ResolvableFuncNames(f *elf.File) map[string]struct{} {
+	names := make(map[string]struct{})
+	for _, table := range []func() ([]elf.Symbol, error){f.Symbols, f.DynamicSymbols} {
+		syms, err := table()
+		if err != nil {
+			continue
+		}
+		for _, sym := range syms {
+			if elf.ST_TYPE(sym.Info) == elf.STT_FUNC && sym.Value != 0 && sym.Name != "" {
+				names[sym.Name] = struct{}{}
+			}
+		}
+	}
+	return names
+}

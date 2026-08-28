@@ -167,6 +167,47 @@ func flattenFuncs(funcs map[string][]string) ([]FuncRef, map[string][]string, ma
 	return refs, imgSyms, imgCookies
 }
 
+// attachableSymbols drops the names img cannot resolve, keeping every
+// surviving name paired with the cookie it was assigned in flattenFuncs.
+//
+// UprobeMulti resolves the whole batch up front and fails on the first miss,
+// so a single unresolvable name silently costs the entire image's coverage.
+// That is not hypothetical: enumeration prefers an external debug file's
+// .symtab, and the install-time merge that folds those symbols into the
+// runtime library is best-effort — on Leap 16 elfutils rejects the section
+// layout and the merge is skipped with a warning, leaving names that exist
+// only in the debug file. Attaching the resolvable subset degrades to the
+// unmerged coverage instead of losing the library entirely.
+//
+// A file that cannot be read, or that yields no function symbols at all, is
+// passed through untouched so UprobeMulti reports the real reason.
+func attachableSymbols(img string, syms []string, cookies []uint64) ([]string, []uint64) {
+	f, err := elf.Open(img)
+	if err != nil {
+		return syms, cookies
+	}
+	defer f.Close()
+
+	resolvable := funkutil.ResolvableFuncNames(f)
+	if len(resolvable) == 0 {
+		return syms, cookies
+	}
+
+	keptSyms := make([]string, 0, len(syms))
+	keptCookies := make([]uint64, 0, len(cookies))
+	for i, sym := range syms {
+		if _, ok := resolvable[sym]; ok {
+			keptSyms = append(keptSyms, sym)
+			keptCookies = append(keptCookies, cookies[i])
+		}
+	}
+	if dropped := len(syms) - len(keptSyms); dropped > 0 {
+		debugLog("funkoverage-shim: %s: %d of %d symbols not in the mapped file, attaching the rest",
+			img, dropped, len(syms))
+	}
+	return keptSyms, keptCookies
+}
+
 // Start seeds the watched-pid set with rootPID, attaches all uprobes plus
 // the fork tracepoint, and spins up the ringbuf reader goroutine. It MUST
 // be called before unblocking the traced child — otherwise early function
@@ -188,7 +229,12 @@ func (t *Tracer) Start(rootPID uint32) error {
 			debugLog("funkoverage-shim: skipping %s: %v", img, err)
 			continue
 		}
-		l, err := ex.UprobeMulti(t.imgSymbols[img], t.objs.TraceUprobe, &link.UprobeMultiOptions{
+		syms, cookies := attachableSymbols(img, t.imgSymbols[img], cookies)
+		if len(syms) == 0 {
+			debugLog("funkoverage-shim: no attachable symbols in %s", img)
+			continue
+		}
+		l, err := ex.UprobeMulti(syms, t.objs.TraceUprobe, &link.UprobeMultiOptions{
 			Cookies: cookies,
 		})
 		if err != nil {

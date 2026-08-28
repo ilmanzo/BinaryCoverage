@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"slices"
@@ -216,5 +218,63 @@ func TestWarnCapacityExhausted_Once(t *testing.T) {
 	}
 	if !tr.capacityWarned {
 		t.Error("capacityWarned should be set after the first warning")
+	}
+}
+
+// TestAttachableSymbols_KeepsCookiesPaired checks the filter against the test
+// binary itself: an unresolvable name is dropped and every survivor keeps the
+// cookie flattenFuncs handed it. Getting that pairing wrong misattributes
+// every subsequent function in the image.
+func TestAttachableSymbols_KeepsCookiesPaired(t *testing.T) {
+	lib := buildStrippedLib(t)
+
+	// local_func survives stripping only in the debug file, which is exactly
+	// the name enumeration hands the tracer and the mapped file cannot
+	// resolve.
+	syms := []string{"public_func", "local_func"}
+	cookies := []uint64{10, 11}
+
+	gotSyms, gotCookies := attachableSymbols(lib, syms, cookies)
+	if !reflect.DeepEqual(gotSyms, []string{"public_func"}) {
+		t.Errorf("syms: got %v, want [public_func]", gotSyms)
+	}
+	if !reflect.DeepEqual(gotCookies, []uint64{10}) {
+		t.Errorf("cookies: got %v, want [10]", gotCookies)
+	}
+}
+
+// buildStrippedLib compiles a shared library with one exported and one static
+// function and strips it, leaving .dynsym only — the shape of a packaged
+// system library whose .symtab lives in a separate debuginfo file.
+func buildStrippedLib(t *testing.T) string {
+	t.Helper()
+	for _, tool := range []string{"gcc", "strip"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found", tool)
+		}
+	}
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "lib.c")
+	code := "static int local_func(void) { return 1; }\nint public_func(void) { return local_func(); }\n"
+	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
+		t.Fatal(err)
+	}
+	lib := filepath.Join(tmp, "libtest.so")
+	if out, err := exec.Command("gcc", "-shared", "-fPIC", "-o", lib, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("strip", lib).CombinedOutput(); err != nil {
+		t.Fatalf("strip: %v\n%s", err, out)
+	}
+	return lib
+}
+
+// A file the ELF reader cannot make sense of is passed through untouched, so
+// UprobeMulti reports the real reason instead of "no attachable symbols".
+func TestAttachableSymbols_PassesThroughUnreadable(t *testing.T) {
+	syms, cookies := []string{"a"}, []uint64{7}
+	gotSyms, gotCookies := attachableSymbols(t.TempDir()+"/absent", syms, cookies)
+	if !reflect.DeepEqual(gotSyms, syms) || !reflect.DeepEqual(gotCookies, cookies) {
+		t.Errorf("got %v/%v, want %v/%v", gotSyms, gotCookies, syms, cookies)
 	}
 }

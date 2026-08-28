@@ -75,3 +75,43 @@ func TestSymtabFunctions_KeepPredicate(t *testing.T) {
 		t.Errorf("keep predicate not applied: got %v, want [public_func]", funcs)
 	}
 }
+
+// TestResolvableFuncNames mirrors the stripped-library case the shim's
+// symbol filter exists for: a static function lives only in .symtab, so
+// stripping the library makes the name unresolvable even though enumeration
+// (which reads the debug file) still knows about it.
+func TestResolvableFuncNames(t *testing.T) {
+	lib := buildTestLib(t)
+
+	names := resolvableNames(t, lib)
+	for _, want := range []string{"public_func", "local_func"} {
+		if _, ok := names[want]; !ok {
+			t.Errorf("unstripped: %s not resolvable, got %v", want, names)
+		}
+	}
+
+	if _, err := exec.LookPath("strip"); err != nil {
+		t.Skip("strip not found")
+	}
+	if out, err := exec.Command("strip", lib).CombinedOutput(); err != nil {
+		t.Fatalf("strip: %v\n%s", err, out)
+	}
+
+	names = resolvableNames(t, lib)
+	if _, ok := names["public_func"]; !ok {
+		t.Errorf("stripped: public_func (.dynsym) not resolvable, got %v", names)
+	}
+	if _, ok := names["local_func"]; ok {
+		t.Error("stripped: local_func resolvable, but .symtab is gone")
+	}
+}
+
+func resolvableNames(t *testing.T, path string) map[string]struct{} {
+	t.Helper()
+	f, err := elf.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	return ResolvableFuncNames(f)
+}
