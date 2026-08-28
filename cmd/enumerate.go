@@ -7,10 +7,7 @@ import (
 	"debug/elf"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"time"
 
 	"funkoverage/internal/funkutil"
@@ -70,9 +67,9 @@ func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.Func
 		return result, nil
 	}
 
-	libs, err := ParseLddLibraries(binPath)
+	libs, err := resolveLibraries(binPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "enumerate: ldd failed for %s: %v\n", binPath, err)
+		fmt.Fprintf(os.Stderr, "enumerate: dependency resolution failed for %s: %v\n", binPath, err)
 	}
 	for _, lib := range libs {
 		if !imageIsRelevant(filepath.Base(lib)) {
@@ -244,39 +241,6 @@ func enumerateSymtab(f *elf.File, filter *funkutil.FuncFilter) []string {
 	return funkutil.SymtabFunctions(f, func(demangled string) bool {
 		return funkutil.FuncIsRelevant(demangled) && filter.Match(demangled)
 	})
-}
-
-// lddLineRe matches both forms of ldd output:
-//
-//	libfoo.so.1 => /lib64/libfoo.so.1 (0x...)
-//	/lib64/ld-linux-x86-64.so.2 (0x...)
-//
-// Capture group 1 is the absolute library path.
-var lddLineRe = regexp.MustCompile(`(?:=>\s*)?(/\S+)\s+\(0x[0-9a-fA-F]+\)`)
-
-// ParseLddLibraries runs ldd on binPath and returns absolute paths of
-// shared libraries (skips vdso, "not found", and glibc/runtime system libs).
-func ParseLddLibraries(binPath string) ([]string, error) {
-	out, err := exec.Command("ldd", binPath).Output()
-	if err != nil {
-		return nil, err
-	}
-	var libs []string
-	for line := range strings.Lines(string(out)) {
-		if strings.Contains(line, "linux-vdso") || strings.Contains(line, "not found") {
-			continue
-		}
-		m := lddLineRe.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-		path := m[1]
-		if funkutil.IsSystemLib(path) {
-			continue
-		}
-		libs = append(libs, path)
-	}
-	return libs, nil
 }
 
 // writeFunctionsLog writes a _functions.log file to logDir and returns its path.
