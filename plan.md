@@ -38,3 +38,19 @@ turned up, which lives in a different repo.
 * **Unrelated, and not a bug**: the "1 function" reports for postfix/rpm/sestatus are correct. Those are real thin CLI wrappers (confirmed via `gdb -batch -ex 'info functions'`); their logic lives in shared libs, reported separately as `binary_coverage_lib*`.
 
 ---
+
+## 4. Parallel library enumeration — evaluated and rejected
+
+The dependency loop in `EnumerateFunctions` parses one library at a time. Running it under an `errgroup` was bottleneck **C.3** of the issue #123 performance plan (its only item never implemented). It was implemented on `fix/review-2026-08`, measured, and reverted. **Do not re-propose without new numbers.**
+
+| target | traceable libs | sequential | parallel |
+|---|---|---|---|
+| `clang-tidy-22` (`libLLVM` + `libclang-cpp`, 64 608 functions) | 7 | 393 ms | 249 ms |
+| `ssh` | 4 | 12.8 ms | 11.2 ms |
+| `git` (all dependencies are system libs) | 0 | 2.6 ms | 2.6 ms |
+
+The best case on that host saves 144 ms, once, and the ordinary case saves nothing measurable. Enumeration runs during `install` and `trace` startup only — never while a traced process is running — so it is not on any hot path. Not worth making the loop's ordering and its per-library stderr warnings something the code has to defend.
+
+Note that `BenchmarkEnumerateFunctions` cannot referee this question: `tests/sample/sample` links only libstdc++/libm/libgcc_s/libc, all of which `IsSystemLib` drops, so its library loop runs over an empty list and the two versions benchmark identically. Any future attempt has to measure a real multi-library C++ target.
+
+---

@@ -1055,19 +1055,17 @@ func TestEnumerateFunctions_DifferentVersions_DistinctKeys(t *testing.T) {
 	}
 }
 
-// TestEnumerateFunctions_WithLibraries_Concurrent covers the library loop,
-// which enumerates its dependencies in parallel: every library must land in
-// *both* returned maps under the same key, and repeated runs must produce the
-// identical result regardless of the order the goroutines happen to finish in.
-// Run under -race this is also the only test that would catch a concurrent
-// write to either map.
-func TestEnumerateFunctions_WithLibraries_Concurrent(t *testing.T) {
+// TestEnumerateFunctions_WithLibraries covers the dependency loop, which no
+// other test reaches: every library must land in *both* returned maps under
+// the same key, with its own functions. The benchmark does not cover it —
+// tests/sample/sample's only dependencies are core system libraries, which
+// IsSystemLib drops before the loop ever runs.
+func TestEnumerateFunctions_WithLibraries(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("gcc not found")
 	}
 	tmp := t.TempDir()
 
-	// Several libraries, so the loop actually has something to overlap.
 	const nlibs = 4
 	var libPaths []string
 	for i := range nlibs {
@@ -1121,20 +1119,6 @@ func TestEnumerateFunctions_WithLibraries_Concurrent(t *testing.T) {
 		if !slices.Contains(slices.Collect(got.All()), want) {
 			t.Errorf("library %s: expected %q among its functions", lib, want)
 		}
-	}
-
-	// Same input, same output — the merge must not depend on scheduling.
-	second, secondDisplay, err := EnumerateFunctions(bin, WithLibraries, nil)
-	if err != nil {
-		t.Fatalf("EnumerateFunctions (second run): %v", err)
-	}
-	if !maps.EqualFunc(funcs, second, func(a, b funkutil.ImageFuncs) bool {
-		return slices.Equal(a.Names, b.Names) && slices.Equal(a.Offsets, b.Offsets) && a.BuildID == b.BuildID
-	}) {
-		t.Error("two identical runs produced different image maps")
-	}
-	if !maps.EqualFunc(display, secondDisplay, slices.Equal) {
-		t.Error("two identical runs produced different display-name maps")
 	}
 }
 

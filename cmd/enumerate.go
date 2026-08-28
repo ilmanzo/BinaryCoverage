@@ -8,13 +8,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"funkoverage/internal/funkutil"
 
 	"github.com/ianlancetaylor/demangle"
-	"golang.org/x/sync/errgroup"
 )
 
 // acceptFunc reports whether to keep `raw` (mangled name) given a filter and
@@ -100,43 +98,19 @@ func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.Func
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enumerate: dependency resolution failed for %s: %v\n", binPath, err)
 	}
-
-	// Libraries are parsed concurrently: enumerating one is ELF and DWARF
-	// parsing plus demangling, all CPU-bound and entirely independent, and a
-	// single large dependency (libLLVM, libcrypto) used to hold up every
-	// other one behind it. Each goroutine writes its own slot and the map is
-	// filled after Wait, so nothing writes the map concurrently. Errors stay
-	// per-library warnings, as they were.
-	type libResult struct {
-		path    string
-		funcs   funkutil.ImageFuncs
-		display []string
-	}
-	results := make([]libResult, len(libs))
-	g := new(errgroup.Group)
-	g.SetLimit(runtime.GOMAXPROCS(0))
-	for i, lib := range libs {
+	for _, lib := range libs {
 		if !imageIsRelevant(filepath.Base(lib)) {
 			continue
 		}
-		g.Go(func() error {
-			libFuncs, libShown, err := enumerateImage(lib, filter)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "enumerate: skipping %s: %v\n", lib, err)
-				return nil
-			}
-			results[i] = libResult{canonicalPath(lib), libFuncs, libShown}
-			return nil
-		})
-	}
-	_ = g.Wait()
-
-	for _, r := range results {
-		if r.funcs.Len() == 0 {
+		libFuncs, libShown, err := enumerateImage(lib, filter)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "enumerate: skipping %s: %v\n", lib, err)
 			continue
 		}
-		result[r.path] = r.funcs
-		display[r.path] = r.display
+		if libFuncs.Len() > 0 {
+			result[canonicalPath(lib)] = libFuncs
+			display[canonicalPath(lib)] = libShown
+		}
 	}
 	return result, display, nil
 }
