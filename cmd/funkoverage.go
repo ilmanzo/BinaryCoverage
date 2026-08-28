@@ -285,7 +285,7 @@ func cmdReport(args []string) error {
 func emitReport(format string, set reportSet, outputDir string) error {
 	switch format {
 	case "txt":
-		printTxtReport(set)
+		printTxtReport(os.Stdout, set)
 	case "html":
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)

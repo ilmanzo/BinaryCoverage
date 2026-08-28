@@ -267,40 +267,46 @@ func scanLog(logFile string, lt logType, coverage map[string]*CoverageData) erro
 }
 
 // --- Console Report ---
-// printTxtReport prints a text-based report to the console summarizing coverage for each image.
-func printTxtReport(set reportSet) {
+
+// printTxtReport writes a text report to out, summarizing coverage for each
+// image. out is buffered here: it is normally os.Stdout, which Go does not
+// buffer, so this was one write(2) per function name.
+func printTxtReport(out io.Writer, set reportSet) {
+	w := bufio.NewWriter(out)
+	defer w.Flush()
+
 	summary := set.Totals
 	for i, row := range summary.Rows {
 		called, uncalled := set.Images[i].Called, set.Images[i].Uncalled
-		fmt.Printf("\n==================================================\n")
-		fmt.Printf("Image: %s\n", row.ImageName)
-		fmt.Printf("==================================================\n")
-		fmt.Printf("  Functions Found:   %d\n", row.TotalCount)
-		fmt.Printf("  Functions Called:  %d\n", row.CalledCount)
-		fmt.Printf("  Coverage:          %.2f%%\n", row.CoveragePct)
-		fmt.Printf("--------------------------------------------------\n")
+		fmt.Fprintf(w, "\n==================================================\n")
+		fmt.Fprintf(w, "Image: %s\n", row.ImageName)
+		fmt.Fprintf(w, "==================================================\n")
+		fmt.Fprintf(w, "  Functions Found:   %d\n", row.TotalCount)
+		fmt.Fprintf(w, "  Functions Called:  %d\n", row.CalledCount)
+		fmt.Fprintf(w, "  Coverage:          %.2f%%\n", row.CoveragePct)
+		fmt.Fprintf(w, "--------------------------------------------------\n")
 		if len(called) > 0 {
-			fmt.Println("  Called Functions:")
+			fmt.Fprintln(w, "  Called Functions:")
 			for _, fn := range called {
-				fmt.Printf("    - %s\n", fn)
+				fmt.Fprintf(w, "    - %s\n", fn)
 			}
 		} else {
-			fmt.Println("  No functions were called for this image.")
+			fmt.Fprintln(w, "  No functions were called for this image.")
 		}
 		if len(uncalled) > 0 {
-			fmt.Println("\n  Uncalled Functions:")
+			fmt.Fprintln(w, "\n  Uncalled Functions:")
 			for _, fn := range uncalled {
-				fmt.Printf("    - %s\n", fn)
+				fmt.Fprintf(w, "    - %s\n", fn)
 			}
 		}
 	}
 	// Print totals
-	fmt.Println("\n==================== Totals ======================")
-	fmt.Printf("  Total Functions:   %d\n", summary.TotalFunctions)
-	fmt.Printf("  Total Called:      %d\n", summary.TotalCalled)
-	fmt.Printf("  Average Coverage:  %.2f%%\n", summary.AverageCoverage)
-	fmt.Println("==================================================")
-	fmt.Println("\n--- End of Console Report ---")
+	fmt.Fprintln(w, "\n==================== Totals ======================")
+	fmt.Fprintf(w, "  Total Functions:   %d\n", summary.TotalFunctions)
+	fmt.Fprintf(w, "  Total Called:      %d\n", summary.TotalCalled)
+	fmt.Fprintf(w, "  Average Coverage:  %.2f%%\n", summary.AverageCoverage)
+	fmt.Fprintln(w, "==================================================")
+	fmt.Fprintln(w, "\n--- End of Console Report ---")
 }
 
 // --- XUnit XML Report ---

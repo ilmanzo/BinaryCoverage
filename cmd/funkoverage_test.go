@@ -1705,16 +1705,9 @@ func TestPrintTxtReport(t *testing.T) {
 			CalledFunctions: map[string]struct{}{"a": {}},
 		},
 	}
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	printTxtReport(buildReportSet(coverage))
-	w.Close()
-	os.Stdout = old
-
-	buf := make([]byte, 4096)
-	n, _ := r.Read(buf)
-	output := string(buf[:n])
+	var buf bytes.Buffer
+	printTxtReport(&buf, buildReportSet(coverage))
+	output := buf.String()
 	if !strings.Contains(output, "Coverage:") {
 		t.Error("txt report should contain 'Coverage:'")
 	}
