@@ -60,11 +60,12 @@ func TestResolveLibraries_MatchesLdd(t *testing.T) {
 
 	var compared, walked int
 	for _, bin := range bins {
-		want, err := ParseLddLibraries(bin)
+		resolvedBin := canonicalPath(bin)
+		want, err := ParseLddLibraries(resolvedBin)
 		if err != nil {
 			continue // statically linked, or ldd refused it
 		}
-		got, err := dtNeededClosure(bin)
+		got, err := dtNeededClosure(resolvedBin)
 		if err != nil {
 			continue // resolveLibraries would fall back to ldd, trivially equal
 		}
