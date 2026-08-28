@@ -164,6 +164,17 @@ func installMulticallSymlink(safeBinDir string, isSymlink bool, originalName, bi
 	return symlinkPath
 }
 
+// clearSidecars removes the sidecar files keyed on safePath. Each writer
+// deletes its file when handed an empty value (see writeJSON), so this is
+// just three writes. The library-backup sidecar is deliberately not included:
+// restoreLibraryBackups owns it, and must put the libraries back before the
+// record of where their backups live is thrown away.
+func clearSidecars(safePath string) {
+	_ = funkutil.WriteFuncList(safePath, nil)
+	_ = funkutil.WriteFilterSidecar(safePath, funkutil.FilterSidecar{})
+	_ = funkutil.WriteShimBinary(safePath, "")
+}
+
 // rollbackInstall undoes a partial install: it restores any system libraries
 // that were unstripped in place, clears the sidecars keyed on safePath, drops
 // the multicall alias, and finally moves the original binary back where it
@@ -176,8 +187,7 @@ func installMulticallSymlink(safeBinDir string, isSymlink bool, originalName, bi
 // print as just one more line in a list of failed targets.
 func rollbackInstall(safePath, realTarget, multicallLink string) {
 	restoreLibraryBackups(safePath)
-	_ = funkutil.WriteFuncList(safePath, nil)
-	_ = funkutil.WriteFilterSidecar(safePath, funkutil.FilterSidecar{})
+	clearSidecars(safePath)
 	if multicallLink != "" {
 		_ = os.Remove(multicallLink)
 	}
@@ -290,7 +300,7 @@ func uninstall(targetBinary string) error {
 	if err := move(sourcePath, realTarget); err != nil {
 		return fmt.Errorf("restore binary: %w", err)
 	}
-	_ = funkutil.WriteFuncList(safePath, nil)
+	clearSidecars(safePath)
 	restoreLibraryBackups(safePath)
 
 	originalName := filepath.Base(targetBinary)

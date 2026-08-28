@@ -1255,6 +1255,7 @@ func TestInstallUninstall(t *testing.T) {
 	if !isELF(bin) {
 		t.Error("expected original ELF restored after uninstall")
 	}
+	assertSafeBinDirEmpty(t, safeBinDir)
 }
 
 // assertSafeBinDirEmpty fails if anything is left in SAFE_BIN_DIR. Sidecars
