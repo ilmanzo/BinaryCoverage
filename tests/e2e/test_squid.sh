@@ -134,7 +134,7 @@ DEMANGLED=$(cat /var/coverage/data/*squid*_called.log 2>/dev/null | grep '::' | 
 pass "C++ demangling working"
 
 info "Top namespaces hit:"
-cat /var/coverage/data/*squid*_called.log | awk '{print $3}' | sort -u | sed 's/::.*//' | sort | uniq -c | sort -rn | head -10
+cat /var/coverage/data/*squid*_called.log | awk '{print $3}' | sort -u | sed 's/::.*//' | sort | uniq -c | sort -rn | head -10 || true
 
 remove_report_dir "$REPORT_DIR"
 
