@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"debug/elf"
 	"encoding/xml"
 	"errors"
@@ -1254,6 +1255,79 @@ func TestInstallUninstall(t *testing.T) {
 	if !isELF(bin) {
 		t.Error("expected original ELF restored after uninstall")
 	}
+}
+
+// assertSafeBinDirEmpty fails if anything is left in SAFE_BIN_DIR. Sidecars
+// live there too (<safePath>.funcs.json and friends), so this covers both the
+// relocated binary and every sidecar keyed on it.
+func assertSafeBinDirEmpty(t *testing.T, safeBinDir string) {
+	t.Helper()
+	entries, err := os.ReadDir(safeBinDir)
+	if err != nil {
+		return // never created, which is just as empty
+	}
+	var left []string
+	for _, e := range entries {
+		left = append(left, e.Name())
+	}
+	if len(left) > 0 {
+		t.Errorf("SAFE_BIN_DIR not clean, leftovers: %v", left)
+	}
+}
+
+// TestInstall_RollsBackWhenShimCopyFails covers the window opened by
+// relocateOriginal: the original binary has been moved out of its own path
+// and the shim is not there yet. A failure in that window used to leave the
+// path empty — the binary gone from the system — because installMany only
+// logs the error and moves on.
+//
+// Pointing FUNKOVERAGE_SHIM at a directory reaches exactly that window:
+// findShimBinary only stats its candidates, so the directory is accepted,
+// and the failure surfaces inside copyFile's io.Copy as EISDIR. That works
+// the same whether or not the test runs as root, unlike an unreadable file.
+func TestInstall_RollsBackWhenShimCopyFails(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("gcc not found")
+	}
+	tmp := t.TempDir()
+	safeBinDir := filepath.Join(tmp, "safe")
+	logDir := filepath.Join(tmp, "logs")
+
+	notAShim := filepath.Join(tmp, "not-a-shim")
+	if err := os.MkdirAll(notAShim, 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FUNKOVERAGE_SHIM", notAShim)
+	t.Setenv("SAFE_BIN_DIR", safeBinDir)
+	t.Setenv("LOG_DIR", logDir)
+
+	bin := compileDebugBinary(t, tmp, "rollbackbin")
+	wantMode := os.ModeSetuid | 0555
+	if err := os.Chmod(bin, wantMode); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := install(bin, MainBinaryOnly, nil); err == nil {
+		t.Fatal("install: expected an error when the shim cannot be copied")
+	}
+
+	after, err := os.ReadFile(bin)
+	if err != nil {
+		t.Fatalf("original binary not restored to %s: %v", bin, err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Error("restored binary differs from the original")
+	}
+	if fi, err := os.Stat(bin); err != nil {
+		t.Fatal(err)
+	} else if fi.Mode()&preservedModeBits != wantMode&preservedModeBits {
+		t.Errorf("restored mode = %v, want %v", fi.Mode()&preservedModeBits, wantMode&preservedModeBits)
+	}
+	assertSafeBinDirEmpty(t, safeBinDir)
 }
 
 // TestInstallUninstall_PreservesSetuidMode verifies "nothing changes on the

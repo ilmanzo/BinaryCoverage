@@ -42,10 +42,25 @@ func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter
 		return err
 	}
 
-	installMulticallSymlink(safeBinDir, target.isSymlink, filepath.Base(targetBinary), target.binaryName)
+	// The original binary is now gone from its own path, and stays gone until
+	// finishInstall puts the shim there. Every failure in between must undo
+	// the move, or install leaves the system without the binary altogether —
+	// installMany only logs the error and moves on to the next target, so
+	// nothing else will notice. ENOSPC, a read-only /usr, or a truncated shim
+	// all reach that window through finishInstall's copy.
+	var multicallLink string
+	installed := false
+	defer func() {
+		if installed {
+			return
+		}
+		rollbackInstall(safePath, target.realTarget, multicallLink)
+	}()
+
+	multicallLink = installMulticallSymlink(safeBinDir, target.isSymlink, filepath.Base(targetBinary), target.binaryName)
 
 	// Enumerate functions after merging debug info so all symbols are available
-	funcs, err := enumerateAndPersist(safePath, target.realTarget, target.binaryName, logDir, libScope, filter)
+	funcs, err := enumerateAndPersist(safePath, target.binaryName, logDir, libScope, filter)
 	if err != nil {
 		return err
 	}
@@ -57,6 +72,7 @@ func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter
 	if err := finishInstall(shimBinary, target.realTarget, origInfo); err != nil {
 		return err
 	}
+	installed = true
 
 	if err := funkutil.WriteShimBinary(safePath, shimBinary); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: write shim binary sidecar: %v\n", err)
@@ -134,29 +150,53 @@ func relocateOriginal(realTarget, safeBinDir, binaryName string) (string, error)
 // (multicall binaries, e.g. busybox-style tools invoked under several
 // names) so the alternate name keeps working after install. Soft-fails
 // with a warning — a missing multicall alias breaks the alternate name,
-// not the whole install.
-func installMulticallSymlink(safeBinDir string, isSymlink bool, originalName, binaryName string) {
+// not the whole install. Returns the link it created, or "" if it created
+// none, so a rollback can take it back out again.
+func installMulticallSymlink(safeBinDir string, isSymlink bool, originalName, binaryName string) string {
 	if !isSymlink || originalName == binaryName {
-		return
+		return ""
 	}
 	symlinkPath := filepath.Join(safeBinDir, originalName)
 	if err := os.Symlink(binaryName, symlinkPath); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: multicall symlink %s -> %s: %v\n", symlinkPath, binaryName, err)
+		return ""
+	}
+	return symlinkPath
+}
+
+// rollbackInstall undoes a partial install: it restores any system libraries
+// that were unstripped in place, clears the sidecars keyed on safePath, drops
+// the multicall alias, and finally moves the original binary back where it
+// came from. os.Rename overwrites, so a half-written shim at realTarget is
+// replaced rather than left behind.
+//
+// A failure here is the one case install cannot paper over — the binary is
+// off its path and could not be put back — so it is reported loudly instead
+// of being folded into the returned error, which installMany would otherwise
+// print as just one more line in a list of failed targets.
+func rollbackInstall(safePath, realTarget, multicallLink string) {
+	restoreLibraryBackups(safePath)
+	_ = funkutil.WriteFuncList(safePath, nil)
+	_ = funkutil.WriteFilterSidecar(safePath, funkutil.FilterSidecar{})
+	if multicallLink != "" {
+		_ = os.Remove(multicallLink)
+	}
+	if err := move(safePath, realTarget); err != nil {
+		fmt.Fprintf(os.Stderr,
+			"CRITICAL: install failed and %s could not be restored: %v\n"+
+				"The original binary is still at %s — move it back manually.\n",
+			realTarget, err, safePath)
 	}
 }
 
 // enumerateAndPersist enumerates+logs safePath's functions (via the shared
 // enumerateFuncs, cmd/enumerate.go), then writes merged library debug info
-// (WithLibraries only) and the filter sidecar. Rolls back the move to
-// realTarget (undoing relocateOriginal) on enumeration failure — the
-// failure mode serious enough that leaving the binary relocated would be
-// worse than restoring it. (A later WriteFuncList failure back in install
-// does NOT roll back this move — a pre-existing asymmetry, preserved here
-// rather than fixed.)
-func enumerateAndPersist(safePath, realTarget, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
+// (WithLibraries only) and the filter sidecar. Undoing a failure part-way
+// through is install's job, via the rollback it arms as soon as the original
+// binary has been relocated.
+func enumerateAndPersist(safePath, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
 	funcs, err := enumerateFuncs(safePath, binaryName, logDir, libScope, filter)
 	if err != nil {
-		_ = move(safePath, realTarget)
 		return nil, err
 	}
 	if len(funcs) == 0 {
