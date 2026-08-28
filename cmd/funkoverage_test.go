@@ -1816,6 +1816,36 @@ func TestCmdReport_UnknownFormat(t *testing.T) {
 	}
 }
 
+// TestSubcommandFlagErrors pins that a bad flag is reported to the caller
+// instead of being swallowed by flag's own os.Exit(2). Every subcommand builds
+// its FlagSet with ContinueOnError for this reason; with ExitOnError these
+// calls would terminate the test binary rather than return.
+func TestSubcommandFlagErrors(t *testing.T) {
+	for name, run := range map[string]func([]string) error{
+		"install":   cmdInstall,
+		"uninstall": cmdUninstall,
+		"trace":     cmdTrace,
+		"enumerate": cmdEnumerate,
+		"report":    cmdReport,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := run([]string{"--nonsense", "/bin/true"})
+			if err == nil {
+				t.Fatalf("cmd%s with an unknown flag should return an error", name)
+			}
+			if !strings.Contains(err.Error(), "nonsense") {
+				t.Errorf("error should name the offending flag, got: %v", err)
+			}
+
+			// -h must stay distinguishable: main prints helpText and exits 0
+			// for it, rather than "<cmd> error: flag: help requested".
+			if err := run([]string{"-h"}); !errors.Is(err, flag.ErrHelp) {
+				t.Errorf("-h returned %v, want flag.ErrHelp", err)
+			}
+		})
+	}
+}
+
 // TestCommands asserts the exact key set: the 8 subcommand names plus every
 // documented alias. "-u" for uninstall is deliberately absent — it's
 // unreachable, shadowed by the "unwrap" deprecation guard in main, which

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -86,9 +87,25 @@ func main() {
 		os.Exit(1)
 	}
 	if err := c.run(os.Args[2:]); err != nil {
+		// -h on a subcommand: helpText already documents every subcommand's
+		// flags, so show that rather than one FlagSet's bare defaults.
+		if errors.Is(err, flag.ErrHelp) {
+			fmt.Print(helpText)
+			return
+		}
 		fmt.Fprintf(os.Stderr, "%s error: %v\n", c.name, err)
 		os.Exit(1)
 	}
+}
+
+// newFlagSet returns a FlagSet that hands parse errors back to its caller
+// instead of writing its own message and calling os.Exit(2) behind main's
+// back — which made every `if err := fs.Parse(...)` in this file unreachable.
+// Output is discarded so the error surfaces exactly once, through main.
+func newFlagSet(name string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	return fs
 }
 
 func exitf(format string, args ...any) {
@@ -134,7 +151,7 @@ func cmdVersion(args []string) error { fmt.Println("funkoverage version", versio
 func cmdSetup(args []string) error   { return setupEnv() }
 
 func cmdInstall(args []string) error {
-	fs := flag.NewFlagSet("install", flag.ExitOnError)
+	fs := newFlagSet("install")
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
 	buildFilter := addFilterFlags(fs)
 	positional, err := parseInterspersed(fs, args)
@@ -152,8 +169,10 @@ func cmdInstall(args []string) error {
 }
 
 func cmdUninstall(args []string) error {
-	fs := flag.NewFlagSet("uninstall", flag.ExitOnError)
-	fs.Parse(args)
+	fs := newFlagSet("uninstall")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path(s)")
 	}
@@ -161,13 +180,15 @@ func cmdUninstall(args []string) error {
 }
 
 func cmdTrace(args []string) error {
-	fs := flag.NewFlagSet("trace", flag.ExitOnError)
+	fs := newFlagSet("trace")
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
 	buildFilter := addFilterFlags(fs)
 	// Deliberately NOT parseInterspersed: everything after the binary path
 	// belongs to the traced program, not to funkoverage. `trace foo --help`
 	// must pass --help to foo, so parsing must stop at the first positional.
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path")
 	}
@@ -186,7 +207,7 @@ func cmdTrace(args []string) error {
 }
 
 func cmdEnumerate(args []string) error {
-	fs := flag.NewFlagSet("enumerate", flag.ExitOnError)
+	fs := newFlagSet("enumerate")
 	noLibs := fs.Bool("no-libs", false, "Skip library enumeration")
 	buildFilter := addFilterFlags(fs)
 	positional, err := parseInterspersed(fs, args)
@@ -225,7 +246,7 @@ func cmdEnumerate(args []string) error {
 }
 
 func cmdReport(args []string) error {
-	fs := flag.NewFlagSet("report", flag.ExitOnError)
+	fs := newFlagSet("report")
 	formats := fs.String("formats", "html,txt,xml", "Comma-separated list: html,xml,txt")
 	positional, err := parseInterspersed(fs, args)
 	if err != nil {

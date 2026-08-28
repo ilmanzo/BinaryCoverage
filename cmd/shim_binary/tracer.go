@@ -27,6 +27,21 @@ import (
 // dynFuncHeadroom is extra capacity reserved in the "seen" dedup map at load
 // time for functions discovered later via dlopen JIT instrumentation, on top
 // of the statically enumerated function count.
+//
+// It is deliberately flat and deliberately large. Scaling it off the static
+// count (tried: max(len(refs)/2, 4096)) looks tidier and costs ~800 KB of
+// kernel memory less per shim invocation, but the dlopen path instruments
+// *every* newly mapped non-noisy library, not just the plugin — nginx's 3940
+// static functions bought 1970 dynamic slots, which its own mapped libraries
+// exhausted before the echo module was reached, and
+// test_nginx_dlopen.sh failed on a missing ngx_http_echo_handler. The reserve
+// has to be sized for the libraries the target might map, which is unrelated
+// to how many functions the target itself has.
+//
+// ponytail: 800 KB per invocation, wasted on any target that never dlopens.
+// The real fix is a BPF_MAP_TYPE_HASH "seen" map, which allocates on demand —
+// it costs a hash lookup in the uprobe hot path and a tracer.bpf.c change, so
+// it waits for evidence that the memory actually matters.
 const dynFuncHeadroom = 100000
 
 // FuncRef identifies a single traced function by image path and (mangled) name.
@@ -39,9 +54,9 @@ type FuncRef struct {
 // uprobe+tracepoint links, ringbuf reader goroutine, and the _called.log file.
 // All resources are released by Stop, which is safe to call once.
 type Tracer struct {
-	funcs        []FuncRef              // global cookie/index → ref (parallel to attach order)
-	plans        map[string]*attachPlan // image path → what to attach and under which cookies
-	instrumented map[string]struct{}    // image paths already covered, so dlopen rescans skip them
+	funcs   []FuncRef              // global cookie/index → ref (parallel to attach order)
+	plans   map[string]*attachPlan // image path → what to attach and under which cookies
+	scanned map[string]struct{}    // image paths already considered, so dlopen rescans skip them
 
 	objs           tracerObjects
 	linksMu        sync.Mutex // guards links: Stop (caller goroutine) vs handleDynamicLoad (readLoop goroutine)
@@ -50,8 +65,7 @@ type Tracer struct {
 	logFile        *os.File
 	funcsLogPath   string
 	funcsLogFile   *os.File // lazily opened by ensureFuncsLog on first dlopen event
-	rootPID        uint32
-	seenCapacity   uint32 // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
+	seenCapacity   uint32   // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
 	capacityWarned bool
 	filter         *funkutil.FuncFilter // dlopen JIT filter, mirrors the install-time --include/--exclude filter
 
@@ -118,7 +132,7 @@ func NewTracer(funcs map[string]funkutil.ImageFuncs, logPath, includePattern, ex
 	return &Tracer{
 		funcs:        refs,
 		plans:        plans,
-		instrumented: make(map[string]struct{}, len(plans)),
+		scanned:      make(map[string]struct{}, len(plans)),
 		objs:         objs,
 		logFile:      logFile,
 		funcsLogPath: funcsLogPath,
@@ -324,13 +338,12 @@ func (t *Tracer) Start(rootPID uint32) error {
 	if err := t.objs.Watched.Update(&rootPID, &one, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("tracer: seed watched pid %d: %w", rootPID, err)
 	}
-	t.rootPID = rootPID
 
 	for img, plan := range t.plans {
-		// Marked instrumented regardless of what follows: a dlopen rescan
+		// Marked scanned regardless of what follows: a dlopen rescan
 		// re-enumerating an image install already accounted for would allocate
 		// a second set of cookies for the same functions and double-count them.
-		t.instrumented[img] = struct{}{}
+		t.scanned[img] = struct{}{}
 
 		ex, err := link.OpenExecutable(img)
 		if err != nil {
@@ -428,7 +441,7 @@ func (t *Tracer) addLink(l link.Link) {
 	t.linksMu.Unlock()
 }
 
-func (t *Tracer) Stop() error {
+func (t *Tracer) Stop() {
 	t.stopOnce.Do(func() {
 		t.linksMu.Lock()
 		links := t.links
@@ -454,7 +467,6 @@ func (t *Tracer) Stop() error {
 		}
 		t.objs.Close()
 	})
-	return nil
 }
 
 // hasSymbol reports whether the ELF file at path exports the given symbol
@@ -575,7 +587,14 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 // watched process's memory map, not just the root process. The ringbuf event
 // that triggers this carries no pid — dlopen() may have been called from a
 // forked child (watched via sched_process_fork), whose newly-mapped library
-// would be invisible if we only inspected rootPID's /proc/maps.
+// would be invisible if we only inspected the root pid's /proc/maps.
+//
+// ponytail: this runs on the readLoop goroutine, so nothing drains the ringbuf
+// while it works. The t.scanned memo keeps the per-event cost at one
+// /proc/<pid>/maps read per watched pid once the libraries settle, and the
+// kernel dedups events (one per unique function) into a 256 KB ringbuf, so
+// overflow needs a pathological plugin load. If one ever shows up, move this
+// to its own goroutine behind a coalescing channel.
 func (t *Tracer) handleDynamicLoad() {
 	pids, err := t.watchedPIDs()
 	if err != nil {
@@ -601,12 +620,16 @@ func (t *Tracer) handleDynamicLoad() {
 	}
 
 	for _, lib := range libs {
-		// Skip already instrumented images
-		if _, exists := t.instrumented[lib]; exists {
+		if _, seen := t.scanned[lib]; seen {
 			continue
 		}
+		// Marked before any of the checks below, not after a successful
+		// attach: a library rejected as noisy, filtered out, or lacking a
+		// symbol table stays rejected, and re-deciding that on every
+		// subsequent dlopen means re-parsing its symbol tables every time.
+		t.scanned[lib] = struct{}{}
 
-		// Also skip system/noisy dlopen libraries to keep trace size reasonable
+		// Skip system/noisy dlopen libraries to keep trace size reasonable
 		if funkutil.IsNoisyDlopenLib(lib) {
 			continue
 		}
@@ -675,8 +698,6 @@ func (t *Tracer) handleDynamicLoad() {
 		}
 
 		attached := t.attachProbes(ex, lib, names, nil, cookies)
-		t.instrumented[lib] = struct{}{}
-
 		debugLog("funkoverage-shim: successfully instrumented %d of %d functions in %s", attached, len(syms), lib)
 	}
 }
