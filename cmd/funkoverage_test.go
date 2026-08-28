@@ -416,6 +416,44 @@ func buildStrippedLibFixture(t *testing.T, libDir, name string) (lib string, str
 	return lib, strippedBytes
 }
 
+// TestEnumerateOne_PrefersExternalDebugSymtab pins the ordering fix: a
+// stripped library whose .dynsym still exports one public symbol must not
+// short-circuit on that single hit and skip its external debug file, which
+// holds every LOCAL/static function. buildStrippedLibFixture builds exactly
+// that shape — lib_public_func in .dynsym, lib_local_func only in the .debug
+// file — mirroring a CPython extension module or GMP's internal mpn_*.
+func TestEnumerateOne_PrefersExternalDebugSymtab(t *testing.T) {
+	for _, tool := range []string{"gcc", "strip", "objcopy"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found", tool)
+		}
+	}
+	tmp := t.TempDir()
+	orig := globalDebugRoot
+	globalDebugRoot = filepath.Join(tmp, "debugroot")
+	defer func() { globalDebugRoot = orig }()
+
+	lib, _ := buildStrippedLibFixture(t, filepath.Join(tmp, "usr", "lib64"), "libdemo.so")
+
+	// Precondition: the runtime file alone resolves only the public symbol,
+	// so the old "first non-empty wins" order really would have stopped here.
+	if got := symtabFunctions(lib, nil); slices.Contains(got, "lib_local_func") {
+		t.Fatalf("fixture broken: runtime symtab already has lib_local_func: %v", got)
+	} else if len(got) == 0 {
+		t.Fatalf("fixture broken: runtime symtab is empty, the old order would not have short-circuited")
+	}
+
+	funcs, err := enumerateOne(lib, nil)
+	if err != nil {
+		t.Fatalf("enumerateOne: %v", err)
+	}
+	for _, want := range []string{"lib_public_func", "lib_local_func"} {
+		if !slices.Contains(funcs, want) {
+			t.Errorf("enumerateOne(%s) missing %q, got %v", lib, want, funcs)
+		}
+	}
+}
+
 func TestMergeLibraryDebugInfo(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("gcc not found")

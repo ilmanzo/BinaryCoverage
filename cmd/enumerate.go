@@ -108,26 +108,26 @@ func canonicalPath(path string) string {
 // where most DW_TAG_subprogram entries reference abstract DIEs in a separate
 // .gnu_debugaltlink file that Go's debug/dwarf package cannot follow.
 //
-// Order: binary's .symtab → external .debug file's .symtab → DWARF.
+// Order: external .debug file's .symtab → binary's own .symtab → DWARF.
 //
-// TODO(#investigate-single-function-binaries): the first non-empty result
-// wins even when it's tiny. A stripped .so whose .dynsym exports just one
-// public symbol (e.g. a CPython extension's PyInit_* entry point) short-
-// circuits here and never checks its external debug file's .symtab, even
-// though that file — confirmed via readelf on python313-base's _bz2.so —
-// carries the real, far larger function list. Fix: when an external debug
-// file exists, prefer its .symtab over the main file's own (it's always a
-// superset for a stripped/debuglinked pair); fall back to the main file's
-// symtab only when no debug file is found. See plan.md.
+// The debug file comes first because for a stripped/debuglinked pair it is a
+// superset: distro packaging moves the full .symtab there and leaves the
+// runtime file with only .dynsym, so every LOCAL/static function exists in
+// exactly one of the two. Checking the runtime file first and taking the
+// first non-empty answer used to lose all of them whenever .dynsym exported
+// anything at all — a CPython extension module resolved to just its PyInit_*
+// entry point and stopped, hiding the other 18 (measured on Tumbleweed:
+// _bz2.cpython-313 has 1 defined function in the runtime file and 19 in its
+// debug file; libssl.so.3 has 603 against 2512).
 func enumerateOne(path string, filter *funkutil.FuncFilter) ([]string, error) {
-	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
-		return funcs, nil
-	}
 	debugPath := externalDebugPath(path)
 	if debugPath != "" {
 		if funcs := symtabFunctions(debugPath, filter); len(funcs) > 0 {
 			return funcs, nil
 		}
+	}
+	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
+		return funcs, nil
 	}
 	return dwarfFunctions(cmp.Or(debugPath, path), filter)
 }

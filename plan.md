@@ -27,13 +27,14 @@ This document outlines upcoming features, architectural improvements, and TODOs 
 
 ---
 
-## 3. Fix `enumerateOne` Short-Circuit on Sparse Own-Symtab
+## 3. openQA Debuginfo Coverage for Transitively Loaded Extensions
 
-* **Found**: investigating openQA job 6163815 (`binary_coverage_ultimate`) reports of "1 function" for postfix/rpm/sestatus. Those three are correct (real thin CLI wrappers — confirmed independently via `gdb -batch -ex 'info functions'`; real logic lives in their shared libs, reported separately as `binary_coverage_lib*`).
-* **But**: the same "1 function" pattern for CPython extension modules (`_bz2.cpython-313...so`, `_asyncio...so`, etc. — pulled in because `gdb` is a coverage target and links `libpython3.13`) is a genuine bug, not the same thing. `_bz2.so`'s own `.dynsym` exports exactly one symbol (`PyInit__bz2` — CPython convention, real implementation is `static`), but its external debug file's `.symtab` (once `python313-base-debuginfo` is installed) has 18 real functions (`_bz2_BZ2Compressor_compress`, `compress`, ...) that are never consulted.
-* **Root cause**: `enumerateOne` (`cmd/enumerate.go:101`) returns on the first non-empty result — `symtabFunctions(path)` finds 1 and returns immediately, never reaching the external-debug-file check.
-* **Fix**: when an external debug file exists, check/prefer its `.symtab` over the main file's own `.symtab` (a debug file's symtab is always ≥ the stripped file's, since it's the unstripped counterpart) — only fall back to the main file's own symtab when no debug file is found at all.
-* **Test to add**: a fixture pairing a stripped `.so` (sparse dynsym, single exported symbol) with its external debug file (rich symtab), asserting `enumerateOne` returns the rich list, not just the sparse one.
-* **openQA-side note (`tests/coverage/coverage_setup.pm` in os-autoinst-distri-opensuse)**: reproducing the `_bz2.so` gap required *two* debuginfo packages, not one — `python313-debuginfo` alone doesn't cover it. `gdb` (the coverage target) links `libpython3.13`, which dlopens `python313-base`'s `lib-dynload/*.so` — a *different*, split-off subpackage (plus its CPU-variant `python313-base-x86-64-v3`), each needing its own `-debuginfo`. `coverage_setup.pm`'s current `push @packages, $pkg, $pkg . '-debuginfo'` only ever requests debuginfo for the target package itself, not for packages pulled in transitively by ldd/dlopen. Left a TODO at that line; worth keeping in mind if/when Python-loaded native extensions become an intentional coverage target rather than a side effect of instrumenting `gdb`.
+The `enumerateOne` short-circuit this section originally tracked is fixed —
+enumeration now prefers an external debug file's `.symtab` over the runtime
+file's own. What remains is the openQA-side packaging gap that investigating it
+turned up, which lives in a different repo.
+
+* **`tests/coverage/coverage_setup.pm` in os-autoinst-distri-opensuse**: reproducing the `_bz2.so` gap required *two* debuginfo packages, not one — `python313-debuginfo` alone doesn't cover it. `gdb` (the coverage target) links `libpython3.13`, which dlopens `python313-base`'s `lib-dynload/*.so` — a *different*, split-off subpackage (plus its CPU-variant `python313-base-x86-64-v3`), each needing its own `-debuginfo`. `coverage_setup.pm`'s current `push @packages, $pkg, $pkg . '-debuginfo'` only ever requests debuginfo for the target package itself, not for packages pulled in transitively by ldd/dlopen. A TODO is left at that line; worth acting on if/when Python-loaded native extensions become an intentional coverage target rather than a side effect of instrumenting `gdb`.
+* **Unrelated, and not a bug**: the "1 function" reports for postfix/rpm/sestatus are correct. Those are real thin CLI wrappers (confirmed via `gdb -batch -ex 'info functions'`); their logic lives in shared libs, reported separately as `binary_coverage_lib*`.
 
 ---
