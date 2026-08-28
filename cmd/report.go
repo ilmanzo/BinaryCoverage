@@ -59,14 +59,22 @@ var (
 // writeBuffered creates path and passes a buffered writer to write, flushing
 // before close. Avoids the small-chunk syscalls that html/template.Execute
 // and xml.Encoder otherwise issue directly against the raw *os.File.
-func writeBuffered(path string, write func(w io.Writer) error) error {
+//
+// The close error is reported when nothing else failed: on a full filesystem
+// the failing write is often the one close performs, so dropping it turns a
+// truncated report into a successful run.
+func writeBuffered(path string, write func(w io.Writer) error) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+	}()
 	bw := bufio.NewWriter(f)
-	if err := write(bw); err != nil {
+	if err = write(bw); err != nil {
 		return err
 	}
 	return bw.Flush()

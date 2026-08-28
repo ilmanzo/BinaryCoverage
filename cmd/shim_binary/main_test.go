@@ -29,16 +29,24 @@ func TestEnvSafeName(t *testing.T) {
 	}
 }
 
-func TestCalledLogPath(t *testing.T) {
-	dir := "/tmp/logs"
-	bin := "/usr/bin/mybin"
-	path := calledLogPath(dir, bin)
+func TestNewLogPaths(t *testing.T) {
+	logs := newLogPaths("/tmp/logs", "/usr/bin/mybin")
 
-	if !strings.HasPrefix(path, "/tmp/logs/mybin_") {
-		t.Errorf("calledLogPath %q should start with expected prefix", path)
+	for _, tc := range []struct{ got, suffix string }{
+		{logs.Called, "_called.log"},
+		{logs.Functions, "_functions.log"},
+	} {
+		if !strings.HasPrefix(tc.got, "/tmp/logs/mybin_") {
+			t.Errorf("%q should start with expected prefix", tc.got)
+		}
+		if !strings.HasSuffix(tc.got, tc.suffix) {
+			t.Errorf("%q should end with %s", tc.got, tc.suffix)
+		}
 	}
-	if !strings.HasSuffix(path, "_called.log") {
-		t.Errorf("calledLogPath %q should end with _called.log", path)
+	// The report side pairs a run's two logs by their shared stem, so they
+	// must not be built from two separate timestamps.
+	if strings.TrimSuffix(logs.Called, "_called.log") != strings.TrimSuffix(logs.Functions, "_functions.log") {
+		t.Errorf("logs of one run must share a stem: %q vs %q", logs.Called, logs.Functions)
 	}
 }
 

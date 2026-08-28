@@ -40,7 +40,7 @@ func commands() map[string]command {
 		{"version", "print version", cmdVersion},
 		{"help", "print help", cmdHelp},
 	}
-	m := make(map[string]command, len(cmds)+14)
+	m := make(map[string]command)
 	for _, c := range cmds {
 		m[c.name] = c
 	}

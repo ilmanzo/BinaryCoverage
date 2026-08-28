@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"cmp"
 	"debug/dwarf"
 	"debug/elf"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -401,18 +401,18 @@ func writeFunctionsLog(logDir, binaryBasename string, display map[string][]strin
 		ts.UnixNano(),
 	)
 	path := filepath.Join(logDir, name)
-	f, err := os.Create(path)
+	err := writeBuffered(path, func(w io.Writer) error {
+		for image, names := range display {
+			for _, n := range names {
+				fmt.Fprintf(w, "FUNC %s %s\n", image, n)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-	w := bufio.NewWriter(f)
-	for image, names := range display {
-		for _, n := range names {
-			fmt.Fprintf(w, "FUNC %s %s\n", image, n)
-		}
-	}
-	return path, w.Flush()
+	return path, nil
 }
 
 // enumerateFuncs runs EnumerateFunctions against path and writes the

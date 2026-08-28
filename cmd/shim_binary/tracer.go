@@ -89,7 +89,7 @@ type Tracer struct {
 // are re-applied to functions discovered later via dlopen JIT
 // instrumentation, matching the filtering already applied at enumeration
 // time to statically discovered functions.
-func NewTracer(funcs map[string]funkutil.ImageFuncs, logPath, includePattern, excludePattern string) (*Tracer, error) {
+func NewTracer(funcs map[string]funkutil.ImageFuncs, logs logPaths, includePattern, excludePattern string) (*Tracer, error) {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
 	}
@@ -118,24 +118,22 @@ func NewTracer(funcs map[string]funkutil.ImageFuncs, logPath, includePattern, ex
 		return nil, fmt.Errorf("tracer: load BPF objects: %w", err)
 	}
 
-	logFile, err := os.Create(logPath)
+	logFile, err := os.Create(logs.Called)
 	if err != nil {
 		objs.Close()
-		return nil, fmt.Errorf("tracer: create log %s: %w", logPath, err)
+		return nil, fmt.Errorf("tracer: create log %s: %w", logs.Called, err)
 	}
 
 	// funcsLogFile is opened lazily on first dlopen-discovered function
 	// (see ensureFuncsLog) — dlopen firing is rare, and creating this file
 	// eagerly on every run leaves a near-always-empty file behind forever.
-	funcsLogPath := strings.Replace(logPath, "_called.log", "_functions.log", 1)
-
 	return &Tracer{
 		funcs:        refs,
 		plans:        plans,
 		scanned:      make(map[string]struct{}, len(plans)),
 		objs:         objs,
 		logFile:      logFile,
-		funcsLogPath: funcsLogPath,
+		funcsLogPath: logs.Functions,
 		seenCapacity: seenCapacity,
 		filter:       filter,
 	}, nil
