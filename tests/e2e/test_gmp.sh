@@ -1,15 +1,18 @@
 #!/bin/bash
-# E2E test: library-local function tracing via in-place debug merge.
+# E2E test: library-local function tracing without touching the library.
 #
-# uprobes are attached by resolving symbol names against the exact file the
-# kernel maps at runtime. A shared library's local/static functions (e.g.
-# GMP's internal mpn_* helpers) live only in an external debuginfo file's
-# .symtab, not in the stripped runtime .so's .dynsym — so without merging
-# that debug info into the real library file in place, uprobe_multi fails
-# to resolve even one requested symbol and the WHOLE library's uprobes get
-# silently dropped:
-#   funkoverage-shim: skipping uprobes on /lib64/libgmp.so.10: symbol
-#   mpn_fft_initl: not found
+# uprobes are normally attached by resolving symbol names against the exact
+# file the kernel maps at runtime. A shared library's local/static functions
+# (e.g. GMP's internal mpn_* helpers) live only in an external debuginfo
+# file's .symtab, not in the stripped runtime .so's .dynsym, so name-based
+# attach cannot see them at all.
+#
+# funkoverage used to fix that by merging the debug info into the real system
+# library in place with eu-unstrip. It no longer does: it computes each
+# debug-only function's file offset at install time and attaches by address,
+# guarded by the library's build-id. The library on disk is never written to.
+# That is what this test exists to prove — the sha256 assertions below are the
+# point of it, not a detail.
 #
 # This uses a tiny self-built program (own DWARF, no distro debuginfo
 # dependency) that calls into GMP's FFT/Toom-Cook/sqrt/Miller-Rabin
@@ -24,6 +27,13 @@ source "$SCRIPT_DIR/lib_test_helpers.sh"
 
 BINARY=""
 WORKDIR=""
+
+# Internal libgmp functions reachable only by address-based attach. Measured at
+# 15 on Tumbleweed 20260825 (libgmp 10.5.0); the floor sits below that so a
+# distro with a differently-built GMP does not fail, while a silent regression
+# to name-only attach — which yields 0, since none of these are in .dynsym —
+# still does.
+MIN_LIB_CALLS=5
 
 cleanup() {
     [[ -n "$BINARY" ]] && funkoverage uninstall "$BINARY" 2>/dev/null || true
@@ -96,20 +106,36 @@ LIBGMP=$(ldd "$BINARY" | grep libgmp | awk '{print $3}')
 require_debug_symbols "$LIBGMP"
 pass "libgmp debug symbols available ($LIBGMP)"
 
+LIBGMP_REAL=$(readlink -f "$LIBGMP")
+SHA_BEFORE=$(sha256sum "$LIBGMP_REAL" | awk '{print $1}')
+GMP_PKG=$(rpm -qf --qf '%{NAME}' "$LIBGMP_REAL" 2>/dev/null || true)
+# The baseline is what rpm already says, not a clean bill of health: an earlier
+# funkoverage that merged debug info in place and restored it leaves an
+# mtime-only difference behind forever. What must not change is this state.
+rpm_state() {
+    [[ -n "$GMP_PKG" ]] || return 0
+    rpm -V "$GMP_PKG" 2>/dev/null | grep -F "$LIBGMP_REAL" || true
+}
+RPM_BEFORE=$(rpm_state)
+
 # --- Setup ---
 header "Setup"
 clean_coverage_data
 install_shim "$BINARY"
 pass "Shim installed (library tracing enabled)"
 
-# --- Verify libgmp was merged in place, with a backup recorded ---
-header "Verify library debug merge"
-readelf -S "$LIBGMP" 2>&1 | grep -q "\.symtab" \
-    || fail "libgmp should now have an embedded .symtab after merge"
+# --- Verify the library was left alone ---
+header "Verify library integrity"
+SHA_AFTER_INSTALL=$(sha256sum "$LIBGMP_REAL" | awk '{print $1}')
+[[ "$SHA_AFTER_INSTALL" == "$SHA_BEFORE" ]] \
+    || fail "install modified $LIBGMP_REAL ($SHA_BEFORE -> $SHA_AFTER_INSTALL)"
 BACKUP_SIDECAR="/var/coverage/bin/$(basename "$BINARY").libbackup.json"
-[[ -f "$BACKUP_SIDECAR" ]] || fail "expected library backup sidecar at $BACKUP_SIDECAR"
-grep -q "$LIBGMP" "$BACKUP_SIDECAR" || fail "backup sidecar does not reference $LIBGMP"
-pass "libgmp merged in place; backup recorded in $BACKUP_SIDECAR"
+[[ -f "$BACKUP_SIDECAR" ]] && fail "install wrote a library backup sidecar; nothing should merge libraries any more"
+RPM_AFTER=$(rpm_state)
+[[ "$RPM_AFTER" == "$RPM_BEFORE" ]] \
+    || fail "install changed what rpm -V $GMP_PKG reports for $LIBGMP_REAL: '$RPM_BEFORE' -> '$RPM_AFTER'"
+[[ -n "$GMP_PKG" ]] && pass "rpm -V $GMP_PKG unchanged for $LIBGMP_REAL"
+pass "libgmp untouched by install (sha256 $SHA_BEFORE)"
 
 # --- Exercise ---
 header "Exercising gmp_demo"
@@ -120,8 +146,12 @@ pass "FFT multiply, sqrt, Miller-Rabin, binomial, rational compare"
 header "Coverage report"
 REPORT_DIR=$(generate_report)
 assert_min_called "*gmp_demo*" 10
+# These are reachable only through the address-based attach path: they are
+# absent from the runtime .so's .dynsym, so a regression to name-only attach
+# shows up here as zero.
 LIB_CALLS=$(grep -ch "libgmp" /var/coverage/data/*gmp_demo*_called.log 2>/dev/null || echo 0)
-[[ "$LIB_CALLS" -gt 0 ]] || fail "expected at least one traced libgmp function call, got 0"
+[[ "$LIB_CALLS" -ge "$MIN_LIB_CALLS" ]] \
+    || fail "expected at least $MIN_LIB_CALLS traced libgmp function calls, got $LIB_CALLS"
 pass "$LIB_CALLS libgmp internal functions traced"
 remove_report_dir "$REPORT_DIR"
 
@@ -130,10 +160,10 @@ header "Uninstall"
 uninstall_and_verify "$BINARY"
 BINARY="" # prevent double-uninstall in trap
 
-readelf -S "$LIBGMP" 2>&1 | grep -q "\.symtab" \
-    && fail "libgmp should be back to its stripped state after uninstall"
-[[ -f "$BACKUP_SIDECAR" ]] && fail "backup sidecar should be removed after uninstall"
-pass "libgmp restored to its pre-merge stripped state"
+SHA_AFTER_UNINSTALL=$(sha256sum "$LIBGMP_REAL" | awk '{print $1}')
+[[ "$SHA_AFTER_UNINSTALL" == "$SHA_BEFORE" ]] \
+    || fail "uninstall left $LIBGMP_REAL modified ($SHA_BEFORE -> $SHA_AFTER_UNINSTALL)"
+pass "libgmp byte-identical across the whole install/uninstall cycle"
 
 echo ""
-echo -e "${GREEN}ALL TESTS PASSED${NC} (gmp, library debug merge)"
+echo -e "${GREEN}ALL TESTS PASSED${NC} (gmp, address-based library tracing)"

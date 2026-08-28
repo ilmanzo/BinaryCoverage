@@ -27,6 +27,21 @@ import (
 // dynFuncHeadroom is extra capacity reserved in the "seen" dedup map at load
 // time for functions discovered later via dlopen JIT instrumentation, on top
 // of the statically enumerated function count.
+//
+// It is deliberately flat and deliberately large. Scaling it off the static
+// count (tried: max(len(refs)/2, 4096)) looks tidier and costs ~800 KB of
+// kernel memory less per shim invocation, but the dlopen path instruments
+// *every* newly mapped non-noisy library, not just the plugin — nginx's 3940
+// static functions bought 1970 dynamic slots, which its own mapped libraries
+// exhausted before the echo module was reached, and
+// test_nginx_dlopen.sh failed on a missing ngx_http_echo_handler. The reserve
+// has to be sized for the libraries the target might map, which is unrelated
+// to how many functions the target itself has.
+//
+// ponytail: 800 KB per invocation, wasted on any target that never dlopens.
+// The real fix is a BPF_MAP_TYPE_HASH "seen" map, which allocates on demand —
+// it costs a hash lookup in the uprobe hot path and a tracer.bpf.c change, so
+// it waits for evidence that the memory actually matters.
 const dynFuncHeadroom = 100000
 
 // FuncRef identifies a single traced function by image path and (mangled) name.
@@ -39,9 +54,9 @@ type FuncRef struct {
 // uprobe+tracepoint links, ringbuf reader goroutine, and the _called.log file.
 // All resources are released by Stop, which is safe to call once.
 type Tracer struct {
-	funcs      []FuncRef           // global cookie/index → ref (parallel to attach order)
-	imgSymbols map[string][]string // image path → symbols (for UprobeMulti)
-	imgCookies map[string][]uint64 // image path → per-symbol cookies (global indices)
+	funcs   []FuncRef              // global cookie/index → ref (parallel to attach order)
+	plans   map[string]*attachPlan // image path → what to attach and under which cookies
+	scanned map[string]struct{}    // image paths already considered, so dlopen rescans skip them
 
 	objs           tracerObjects
 	linksMu        sync.Mutex // guards links: Stop (caller goroutine) vs handleDynamicLoad (readLoop goroutine)
@@ -50,8 +65,7 @@ type Tracer struct {
 	logFile        *os.File
 	funcsLogPath   string
 	funcsLogFile   *os.File // lazily opened by ensureFuncsLog on first dlopen event
-	rootPID        uint32
-	seenCapacity   uint32 // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
+	seenCapacity   uint32   // "seen" map MaxEntries; dynamic cookies beyond this are dropped by the kernel
 	capacityWarned bool
 	filter         *funkutil.FuncFilter // dlopen JIT filter, mirrors the install-time --include/--exclude filter
 
@@ -75,7 +89,7 @@ type Tracer struct {
 // are re-applied to functions discovered later via dlopen JIT
 // instrumentation, matching the filtering already applied at enumeration
 // time to statically discovered functions.
-func NewTracer(funcs map[string][]string, logPath, includePattern, excludePattern string) (*Tracer, error) {
+func NewTracer(funcs map[string]funkutil.ImageFuncs, logs logPaths, includePattern, excludePattern string) (*Tracer, error) {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
 	}
@@ -88,7 +102,7 @@ func NewTracer(funcs map[string][]string, logPath, includePattern, excludePatter
 		debugLog("funkoverage-shim: bad --exclude pattern %q", excludePattern)
 	}
 
-	refs, imgSyms, imgCookies := flattenFuncs(funcs)
+	refs, plans := flattenFuncs(funcs)
 
 	spec, err := loadTracer()
 	if err != nil {
@@ -104,24 +118,22 @@ func NewTracer(funcs map[string][]string, logPath, includePattern, excludePatter
 		return nil, fmt.Errorf("tracer: load BPF objects: %w", err)
 	}
 
-	logFile, err := os.Create(logPath)
+	logFile, err := os.Create(logs.Called)
 	if err != nil {
 		objs.Close()
-		return nil, fmt.Errorf("tracer: create log %s: %w", logPath, err)
+		return nil, fmt.Errorf("tracer: create log %s: %w", logs.Called, err)
 	}
 
 	// funcsLogFile is opened lazily on first dlopen-discovered function
 	// (see ensureFuncsLog) — dlopen firing is rare, and creating this file
 	// eagerly on every run leaves a near-always-empty file behind forever.
-	funcsLogPath := strings.Replace(logPath, "_called.log", "_functions.log", 1)
-
 	return &Tracer{
 		funcs:        refs,
-		imgSymbols:   imgSyms,
-		imgCookies:   imgCookies,
+		plans:        plans,
+		scanned:      make(map[string]struct{}, len(plans)),
 		objs:         objs,
 		logFile:      logFile,
-		funcsLogPath: funcsLogPath,
+		funcsLogPath: logs.Functions,
 		seenCapacity: seenCapacity,
 		filter:       filter,
 	}, nil
@@ -142,29 +154,174 @@ func (t *Tracer) ensureFuncsLog() (*os.File, error) {
 	return f, nil
 }
 
+// attachPlan is one image's uprobe batches. UprobeMulti takes either names or
+// addresses, never both, so an image whose external debug file contributed
+// functions needs two links; nameCookies and addrCookies keep each batch
+// aligned with the global cookie space.
+type attachPlan struct {
+	buildID     string
+	names       []string
+	nameCookies []uint64
+	addrs       []uint64
+	addrCookies []uint64
+}
+
 // flattenFuncs builds the global cookie space. Images are sorted so that
 // repeated invocations against the same input produce identical cookies —
 // useful for debugging and for cross-run analysis.
-func flattenFuncs(funcs map[string][]string) ([]FuncRef, map[string][]string, map[string][]uint64) {
+func flattenFuncs(funcs map[string]funkutil.ImageFuncs) ([]FuncRef, map[string]*attachPlan) {
 	images := slices.Sorted(maps.Keys(funcs))
 
 	var refs []FuncRef
-	imgSyms := make(map[string][]string, len(images))
-	imgCookies := make(map[string][]uint64, len(images))
+	plans := make(map[string]*attachPlan, len(images))
 
 	for _, img := range images {
-		names := funcs[img]
-		cookies := make([]uint64, 0, len(names))
-		syms := make([]string, 0, len(names))
-		for _, name := range names {
-			cookies = append(cookies, uint64(len(refs)))
-			syms = append(syms, name)
+		imgFuncs := funcs[img]
+		plan := &attachPlan{
+			buildID:     imgFuncs.BuildID,
+			names:       make([]string, 0, len(imgFuncs.Names)),
+			nameCookies: make([]uint64, 0, len(imgFuncs.Names)),
+		}
+		for _, name := range imgFuncs.Names {
+			plan.names = append(plan.names, name)
+			plan.nameCookies = append(plan.nameCookies, uint64(len(refs)))
 			refs = append(refs, FuncRef{Image: img, Name: name})
 		}
-		imgSyms[img] = syms
-		imgCookies[img] = cookies
+		for _, fa := range imgFuncs.Offsets {
+			plan.addrs = append(plan.addrs, fa.Offset)
+			plan.addrCookies = append(plan.addrCookies, uint64(len(refs)))
+			refs = append(refs, FuncRef{Image: img, Name: fa.Name})
+		}
+		plans[img] = plan
 	}
-	return refs, imgSyms, imgCookies
+	return refs, plans
+}
+
+// verify adapts the plan to the file actually on disk at attach time.
+//
+// It drops names the mapped file cannot resolve. UprobeMulti resolves the
+// whole batch up front and fails on the first miss, so one stale name would
+// otherwise cost the entire image's coverage — and names do go stale: they are
+// chosen at install time against a file that can be replaced by a package
+// upgrade before the binary is ever run.
+//
+// It drops the address batch outright unless the build-id still matches.
+// Offsets are only meaningful for the exact build they were computed from, and
+// a wrong one puts a uprobe mid-instruction, killing the target with SIGILL —
+// strictly worse than missing coverage, so the check is mandatory, not
+// best-effort. A file that cannot be read leaves the plan untouched, so
+// UprobeMulti reports the real reason.
+func (p *attachPlan) verify(img string) *attachPlan {
+	f, err := elf.Open(img)
+	if err != nil {
+		return p
+	}
+	defer f.Close()
+
+	out := &attachPlan{buildID: p.buildID}
+
+	if len(p.addrs) > 0 {
+		switch id, err := funkutil.BuildID(f); {
+		case err != nil || id != p.buildID:
+			debugLog("funkoverage-shim: %s: build-id changed since install (%s -> %s); dropping %d address probes",
+				img, p.buildID, id, len(p.addrs))
+		default:
+			out.addrs, out.addrCookies = p.addrs, p.addrCookies
+		}
+	}
+
+	resolvable := funkutil.ResolvableFuncNames(f)
+	if len(resolvable) == 0 {
+		out.names, out.nameCookies = p.names, p.nameCookies
+		return out
+	}
+	out.names = make([]string, 0, len(p.names))
+	out.nameCookies = make([]uint64, 0, len(p.nameCookies))
+	for i, name := range p.names {
+		if _, ok := resolvable[name]; ok {
+			out.names = append(out.names, name)
+			out.nameCookies = append(out.nameCookies, p.nameCookies[i])
+		}
+	}
+	if dropped := len(p.names) - len(out.names); dropped > 0 {
+		debugLog("funkoverage-shim: %s: %d of %d symbols not in the mapped file, attaching the rest",
+			img, dropped, len(p.names))
+	}
+	return out
+}
+
+// attachProbes attaches one uprobe batch — by name if names is set, by file
+// offset if addrs is — and returns how many probes went live.
+//
+// UprobeMulti is all-or-nothing: the kernel rejects the whole request over a
+// single bad entry, so a batch that fails is halved and retried until the
+// failures are isolated to individual probes, which are logged and dropped.
+// The alternative is losing an entire library over a couple of functions, and
+// those functions exist: libcrypto's hand-written AES-NI assembly
+// (_aesni_ctr32_ghash_6x, _aesni_ctr32_6x) starts with an instruction the x86
+// uprobe decoder refuses (EOPNOTSUPP), and those two alone cost the other 7165
+// offsets in that image — measured, not hypothetical.
+//
+// ponytail: bisection is ~2k·log2(n) attach syscalls for k bad probes, so an
+// image that is mostly unprobeable degrades to ~2n. Pre-filtering would need an
+// x86 instruction decoder in the shim; revisit only if such an image shows up.
+func (t *Tracer) attachProbes(ex *link.Executable, img string, names []string, addrs, cookies []uint64) int {
+	n := len(cookies)
+	if n == 0 {
+		return 0
+	}
+
+	return attachBisect(n, func(lo, hi int) error {
+		opts := &link.UprobeMultiOptions{Cookies: cookies[lo:hi]}
+		if names == nil {
+			opts.Addresses = addrs[lo:hi]
+		}
+		l, err := ex.UprobeMulti(subslice(names, lo, hi), t.objs.TraceUprobe, opts)
+		if err != nil {
+			return err
+		}
+		t.addLink(l)
+		return nil
+	}, func(i int, err error) {
+		debugLog("funkoverage-shim: %s: dropping probe %s: %v", img, probeLabel(names, addrs, i), err)
+	})
+}
+
+// attachBisect attaches [0,n) via attach, halving and retrying any range that
+// fails until every failure is pinned to a single index, which is reported to
+// drop. Returns how many probes attached.
+func attachBisect(n int, attach func(lo, hi int) error, drop func(i int, err error)) int {
+	var walk func(lo, hi int) int
+	walk = func(lo, hi int) int {
+		err := attach(lo, hi)
+		if err == nil {
+			return hi - lo
+		}
+		if hi-lo == 1 {
+			drop(lo, err)
+			return 0
+		}
+		mid := lo + (hi-lo)/2
+		return walk(lo, mid) + walk(mid, hi)
+	}
+	return walk(0, n)
+}
+
+// subslice slices s, preserving nil — attachProbes distinguishes name mode from
+// address mode by which of its two slices is nil, and an empty non-nil slice
+// would send it down the wrong path.
+func subslice[T any](s []T, lo, hi int) []T {
+	if s == nil {
+		return nil
+	}
+	return s[lo:hi]
+}
+
+func probeLabel(names []string, addrs []uint64, i int) string {
+	if names != nil {
+		return names[i]
+	}
+	return fmt.Sprintf("offset %#x", addrs[i])
 }
 
 // Start seeds the watched-pid set with rootPID, attaches all uprobes plus
@@ -179,23 +336,22 @@ func (t *Tracer) Start(rootPID uint32) error {
 	if err := t.objs.Watched.Update(&rootPID, &one, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("tracer: seed watched pid %d: %w", rootPID, err)
 	}
-	t.rootPID = rootPID
 
-	for img, cookies := range t.imgCookies {
+	for img, plan := range t.plans {
+		// Marked scanned regardless of what follows: a dlopen rescan
+		// re-enumerating an image install already accounted for would allocate
+		// a second set of cookies for the same functions and double-count them.
+		t.scanned[img] = struct{}{}
+
 		ex, err := link.OpenExecutable(img)
 		if err != nil {
 			// Some libraries lack the execute bit (packaging bug); skip rather than abort.
 			debugLog("funkoverage-shim: skipping %s: %v", img, err)
 			continue
 		}
-		l, err := ex.UprobeMulti(t.imgSymbols[img], t.objs.TraceUprobe, &link.UprobeMultiOptions{
-			Cookies: cookies,
-		})
-		if err != nil {
-			debugLog("funkoverage-shim: skipping uprobes on %s: %v", img, err)
-			continue
-		}
-		t.addLink(l)
+		plan = plan.verify(img)
+		t.attachProbes(ex, img, plan.names, nil, plan.nameCookies)
+		t.attachProbes(ex, img, nil, plan.addrs, plan.addrCookies)
 	}
 
 	fl, err := link.Tracepoint("sched", "sched_process_fork", t.objs.TraceFork, nil)
@@ -283,7 +439,7 @@ func (t *Tracer) addLink(l link.Link) {
 	t.linksMu.Unlock()
 }
 
-func (t *Tracer) Stop() error {
+func (t *Tracer) Stop() {
 	t.stopOnce.Do(func() {
 		t.linksMu.Lock()
 		links := t.links
@@ -309,7 +465,6 @@ func (t *Tracer) Stop() error {
 		}
 		t.objs.Close()
 	})
-	return nil
 }
 
 // hasSymbol reports whether the ELF file at path exports the given symbol
@@ -412,7 +567,7 @@ func getMappedSharedLibraries(pid uint32) ([]string, error) {
 // funkutil.SymtabFunctions, keeping only relevance filtering here; the
 // --include/--exclude filter is applied separately by the caller
 // (handleDynamicLoad), after capacity clipping.
-func getSharedLibrarySymbols(path string) ([]string, error) {
+func getSharedLibrarySymbols(path string) ([]funkutil.Func, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil, err
@@ -430,7 +585,14 @@ func getSharedLibrarySymbols(path string) ([]string, error) {
 // watched process's memory map, not just the root process. The ringbuf event
 // that triggers this carries no pid — dlopen() may have been called from a
 // forked child (watched via sched_process_fork), whose newly-mapped library
-// would be invisible if we only inspected rootPID's /proc/maps.
+// would be invisible if we only inspected the root pid's /proc/maps.
+//
+// ponytail: this runs on the readLoop goroutine, so nothing drains the ringbuf
+// while it works. The t.scanned memo keeps the per-event cost at one
+// /proc/<pid>/maps read per watched pid once the libraries settle, and the
+// kernel dedups events (one per unique function) into a 256 KB ringbuf, so
+// overflow needs a pathological plugin load. If one ever shows up, move this
+// to its own goroutine behind a coalescing channel.
 func (t *Tracer) handleDynamicLoad() {
 	pids, err := t.watchedPIDs()
 	if err != nil {
@@ -456,12 +618,16 @@ func (t *Tracer) handleDynamicLoad() {
 	}
 
 	for _, lib := range libs {
-		// Skip already instrumented images
-		if _, exists := t.imgCookies[lib]; exists {
+		if _, seen := t.scanned[lib]; seen {
 			continue
 		}
+		// Marked before any of the checks below, not after a successful
+		// attach: a library rejected as noisy, filtered out, or lacking a
+		// symbol table stays rejected, and re-deciding that on every
+		// subsequent dlopen means re-parsing its symbol tables every time.
+		t.scanned[lib] = struct{}{}
 
-		// Also skip system/noisy dlopen libraries to keep trace size reasonable
+		// Skip system/noisy dlopen libraries to keep trace size reasonable
 		if funkutil.IsNoisyDlopenLib(lib) {
 			continue
 		}
@@ -480,9 +646,9 @@ func (t *Tracer) handleDynamicLoad() {
 
 		if t.filter.Include != nil || t.filter.Exclude != nil {
 			filtered := syms[:0]
-			for _, name := range syms {
-				if t.filter.Match(demangle.Filter(funkutil.StripVersion(name))) {
-					filtered = append(filtered, name)
+			for _, fn := range syms {
+				if t.filter.Match(fn.Demangled) {
+					filtered = append(filtered, fn)
 				}
 			}
 			syms = filtered
@@ -517,31 +683,19 @@ func (t *Tracer) handleDynamicLoad() {
 
 		var cookies []uint64
 		var names []string
-		for _, name := range syms {
+		for _, fn := range syms {
 			cookie := uint64(len(t.funcs))
 			cookies = append(cookies, cookie)
-			names = append(names, name)
+			names = append(names, fn.Raw)
 
-			t.funcs = append(t.funcs, FuncRef{Image: lib, Name: name})
+			t.funcs = append(t.funcs, FuncRef{Image: lib, Name: fn.Raw})
 
 			// Write to functions log so report captures it as a total function!
-			demangledName := demangle.Filter(funkutil.StripVersion(name))
-			fmt.Fprintf(funcsLog, "FUNC %s %s\n", lib, demangledName)
+			fmt.Fprintf(funcsLog, "FUNC %s %s\n", lib, fn.Demangled)
 		}
 
-		l, err := ex.UprobeMulti(names, t.objs.TraceUprobe, &link.UprobeMultiOptions{
-			Cookies: cookies,
-		})
-		if err != nil {
-			debugLog("funkoverage-shim: skipping uprobes on %s: %v", lib, err)
-			continue
-		}
-
-		t.addLink(l)
-		t.imgSymbols[lib] = names
-		t.imgCookies[lib] = cookies
-
-		debugLog("funkoverage-shim: successfully instrumented %d functions in %s", len(syms), lib)
+		attached := t.attachProbes(ex, lib, names, nil, cookies)
+		debugLog("funkoverage-shim: successfully instrumented %d of %d functions in %s", attached, len(syms), lib)
 	}
 }
 
@@ -549,7 +703,7 @@ func (t *Tracer) handleDynamicLoad() {
 // (seenCapacity - alreadyUsed), reporting whether any symbols were dropped
 // as a result (either all of them, if capacity is already exhausted, or
 // the tail beyond what fits).
-func clipToCapacity(syms []string, alreadyUsed int, seenCapacity uint32) (clipped []string, warn bool) {
+func clipToCapacity[T any](syms []T, alreadyUsed int, seenCapacity uint32) (clipped []T, warn bool) {
 	remaining := int(seenCapacity) - alreadyUsed
 	if remaining <= 0 {
 		return nil, true

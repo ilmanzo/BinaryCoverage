@@ -1,16 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"cmp"
 	"debug/dwarf"
 	"debug/elf"
 	"fmt"
+	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"time"
 
 	"funkoverage/internal/funkutil"
@@ -19,17 +16,37 @@ import (
 )
 
 // acceptFunc reports whether to keep `raw` (mangled name) given a filter and
-// dedup set. On accept it marks `raw` as seen.
-func acceptFunc(seen map[string]struct{}, raw string, filter *funkutil.FuncFilter) bool {
+// dedup set, returning it paired with the demangled form it had to compute
+// anyway. On accept it marks `raw` as seen.
+func acceptFunc(seen map[string]struct{}, raw string, filter *funkutil.FuncFilter) (funkutil.Func, bool) {
 	demangled := demangleName(raw)
 	if !funkutil.FuncIsRelevant(demangled) || !filter.Match(demangled) {
-		return false
+		return funkutil.Func{}, false
 	}
 	if _, dup := seen[raw]; dup {
-		return false
+		return funkutil.Func{}, false
 	}
 	seen[raw] = struct{}{}
-	return true
+	return funkutil.Func{Raw: raw, Demangled: demangled}, true
+}
+
+// rawNames and displayNames project a function list onto the form each
+// consumer wants: the sidecar and uprobe attach take the mangled names, the
+// functions log and `enumerate` output take the demangled ones.
+func rawNames(funcs []funkutil.Func) []string {
+	out := make([]string, len(funcs))
+	for i, fn := range funcs {
+		out[i] = fn.Raw
+	}
+	return out
+}
+
+func displayNames(funcs []funkutil.Func) []string {
+	out := make([]string, len(funcs))
+	for i, fn := range funcs {
+		out[i] = fn.Demangled
+	}
+	return out
 }
 
 func imageIsRelevant(name string) bool {
@@ -53,41 +70,136 @@ const (
 	MainBinaryOnly LibScope = true  // --no-libs: skip library dependencies entirely
 )
 
-// EnumerateFunctions returns map[imagePath][]functionName for the binary and
-// all its shared libraries that have debug info.
-func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
-	result := make(map[string][]string)
+// EnumerateFunctions returns the traceable functions of the binary and of all
+// its shared libraries that have debug info, keyed by canonical image path.
+//
+// The second map holds the same functions in demangled form, which is what the
+// functions log and the `enumerate` output print. It is returned rather than
+// recomputed by those callers because demangling is the expensive half of
+// enumeration, and it has already happened here.
+func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, map[string][]string, error) {
+	result := make(map[string]funkutil.ImageFuncs)
+	display := make(map[string][]string)
 
-	funcs, err := enumerateOne(binPath, filter)
+	funcs, shown, err := enumerateImage(binPath, filter)
 	if err != nil {
-		return nil, fmt.Errorf("enumerate %s: %w", binPath, err)
+		return nil, nil, fmt.Errorf("enumerate %s: %w", binPath, err)
 	}
-	if len(funcs) > 0 {
+	if funcs.Len() > 0 {
 		result[canonicalPath(binPath)] = funcs
+		display[canonicalPath(binPath)] = shown
 	}
 
 	if libScope == MainBinaryOnly {
-		return result, nil
+		return result, display, nil
 	}
 
-	libs, err := ParseLddLibraries(binPath)
+	libs, err := resolveLibraries(binPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "enumerate: ldd failed for %s: %v\n", binPath, err)
+		fmt.Fprintf(os.Stderr, "enumerate: dependency resolution failed for %s: %v\n", binPath, err)
 	}
 	for _, lib := range libs {
 		if !imageIsRelevant(filepath.Base(lib)) {
 			continue
 		}
-		libFuncs, err := enumerateOne(lib, filter)
+		libFuncs, libShown, err := enumerateImage(lib, filter)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "enumerate: skipping %s: %v\n", lib, err)
 			continue
 		}
-		if len(libFuncs) > 0 {
+		if libFuncs.Len() > 0 {
 			result[canonicalPath(lib)] = libFuncs
+			display[canonicalPath(lib)] = libShown
 		}
 	}
-	return result, nil
+	return result, display, nil
+}
+
+// enumerateImage enumerates path's functions and splits them by how the shim
+// will have to reach them: names the mapped file itself can resolve, and names
+// that live only in its external debug file and therefore need a pre-computed
+// file offset.
+//
+// The split exists so funkoverage never has to modify a system library. The
+// previous design merged the debug symbols into the library in place with
+// eu-unstrip, which made `rpm -V` dirty, raced between concurrent installs,
+// and left the host permanently altered if the process died before uninstall.
+//
+// Falling back to a name-only result is always safe: it is exactly the
+// coverage a plain, unmerged library gives, so a failure here costs the
+// internal functions, never correctness.
+// It returns the image's functions in demangled form alongside, in the same
+// order ImageFuncs.All() yields them.
+func enumerateImage(path string, filter *funkutil.FuncFilter) (funkutil.ImageFuncs, []string, error) {
+	funcs, debugPath, err := enumerateOne(path, filter)
+	if err != nil || len(funcs) == 0 {
+		return funkutil.ImageFuncs{}, nil, err
+	}
+
+	f, err := elf.Open(path)
+	if err != nil {
+		return funkutil.ImageFuncs{Names: rawNames(funcs)}, displayNames(funcs), nil
+	}
+	defer f.Close()
+
+	resolvable := funkutil.ResolvableFuncNames(f)
+	byName := make([]funkutil.Func, 0, len(funcs))
+	var debugOnly []funkutil.Func
+	for _, fn := range funcs {
+		if _, ok := resolvable[fn.Raw]; ok {
+			byName = append(byName, fn)
+		} else {
+			debugOnly = append(debugOnly, fn)
+		}
+	}
+	if len(debugOnly) == 0 || debugPath == "" {
+		return funkutil.ImageFuncs{Names: rawNames(funcs)}, displayNames(funcs), nil
+	}
+
+	// No build-id means no way to detect that the library was upgraded between
+	// install and run, and a stale offset lands mid-instruction. Not worth the
+	// internal functions.
+	buildID, err := funkutil.BuildID(f)
+	if err != nil {
+		debugLog("no build-id for %s (%v); tracing its %d debug-only functions is unsafe", path, err, len(debugOnly))
+		return funkutil.ImageFuncs{Names: rawNames(byName)}, displayNames(byName), nil
+	}
+
+	offsets, offsetNames := debugFuncAddrs(f, debugPath, debugOnly)
+	if len(offsets) == 0 {
+		return funkutil.ImageFuncs{Names: rawNames(byName)}, displayNames(byName), nil
+	}
+	return funkutil.ImageFuncs{BuildID: buildID, Names: rawNames(byName), Offsets: offsets},
+		append(displayNames(byName), offsetNames...), nil
+}
+
+// debugFuncAddrs resolves each of want to its offset within the runtime file,
+// reading symbol values from debugPath. Names the debug file does not place
+// inside an executable segment are dropped. The demangled names of the
+// functions it kept are returned alongside, so the caller doesn't have to work
+// out which of want survived.
+func debugFuncAddrs(runtime *elf.File, debugPath string, want []funkutil.Func) ([]funkutil.FuncAddr, []string) {
+	df, err := elf.Open(debugPath)
+	if err != nil {
+		debugLog("open debug file %s: %v", debugPath, err)
+		return nil, nil
+	}
+	defer df.Close()
+
+	all := funkutil.SymbolFileOffsets(runtime, df)
+	if len(all) == 0 {
+		debugLog("%s: no usable symbol offsets (build-id mismatch, or no symbols); tracing by name only", debugPath)
+		return nil, nil
+	}
+	addrs := make([]funkutil.FuncAddr, 0, len(want))
+	kept := make([]string, 0, len(want))
+	for _, fn := range want {
+		if off, ok := all[fn.Raw]; ok {
+			addrs = append(addrs, funkutil.FuncAddr{Name: fn.Raw, Offset: off})
+			kept = append(kept, fn.Demangled)
+		}
+	}
+	return addrs, kept
 }
 
 // canonicalPath resolves symlinks so the same physical file always maps to
@@ -108,31 +220,34 @@ func canonicalPath(path string) string {
 // where most DW_TAG_subprogram entries reference abstract DIEs in a separate
 // .gnu_debugaltlink file that Go's debug/dwarf package cannot follow.
 //
-// Order: binary's .symtab → external .debug file's .symtab → DWARF.
+// Order: external .debug file's .symtab → binary's own .symtab → DWARF.
 //
-// TODO(#investigate-single-function-binaries): the first non-empty result
-// wins even when it's tiny. A stripped .so whose .dynsym exports just one
-// public symbol (e.g. a CPython extension's PyInit_* entry point) short-
-// circuits here and never checks its external debug file's .symtab, even
-// though that file — confirmed via readelf on python313-base's _bz2.so —
-// carries the real, far larger function list. Fix: when an external debug
-// file exists, prefer its .symtab over the main file's own (it's always a
-// superset for a stripped/debuglinked pair); fall back to the main file's
-// symtab only when no debug file is found. See plan.md.
-func enumerateOne(path string, filter *funkutil.FuncFilter) ([]string, error) {
-	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
-		return funcs, nil
-	}
+// The debug file comes first because for a stripped/debuglinked pair it is a
+// superset: distro packaging moves the full .symtab there and leaves the
+// runtime file with only .dynsym, so every LOCAL/static function exists in
+// exactly one of the two. Checking the runtime file first and taking the
+// first non-empty answer used to lose all of them whenever .dynsym exported
+// anything at all — a CPython extension module resolved to just its PyInit_*
+// entry point and stopped, hiding the other 18 (measured on Tumbleweed:
+// _bz2.cpython-313 has 1 defined function in the runtime file and 19 in its
+// debug file; libssl.so.3 has 603 against 2512).
+// It also returns the external debug file it consulted (or ""), so callers
+// don't have to resolve it a second time.
+func enumerateOne(path string, filter *funkutil.FuncFilter) ([]funkutil.Func, string, error) {
 	debugPath := externalDebugPath(path)
 	if debugPath != "" {
 		if funcs := symtabFunctions(debugPath, filter); len(funcs) > 0 {
-			return funcs, nil
+			return funcs, debugPath, nil
 		}
 	}
-	return dwarfFunctions(cmp.Or(debugPath, path), filter)
+	if funcs := symtabFunctions(path, filter); len(funcs) > 0 {
+		return funcs, debugPath, nil
+	}
+	funcs, err := dwarfFunctions(cmp.Or(debugPath, path), filter)
+	return funcs, debugPath, err
 }
 
-func symtabFunctions(path string, filter *funkutil.FuncFilter) []string {
+func symtabFunctions(path string, filter *funkutil.FuncFilter) []funkutil.Func {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil
@@ -141,7 +256,7 @@ func symtabFunctions(path string, filter *funkutil.FuncFilter) []string {
 	return enumerateSymtab(f, filter)
 }
 
-func dwarfFunctions(path string, filter *funkutil.FuncFilter) ([]string, error) {
+func dwarfFunctions(path string, filter *funkutil.FuncFilter) ([]funkutil.Func, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open elf: %w", err)
@@ -184,10 +299,10 @@ func externalDebugPath(binPath string) string {
 	return path
 }
 
-func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]string, error) {
+func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]funkutil.Func, error) {
 	seen := make(map[string]struct{})
 	seenAddr := make(map[uint64]struct{})
-	var funcs []string
+	var funcs []funkutil.Func
 
 	reader := dwarfData.Reader()
 	for {
@@ -228,9 +343,9 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]strin
 
 		// Keep the raw (mangled) name. uprobe attach resolves it against
 		// the ELF symbol table directly; demangling happens at output time.
-		if acceptFunc(seen, raw, filter) {
+		if fn, ok := acceptFunc(seen, raw, filter); ok {
 			seenAddr[lowpc] = struct{}{}
-			funcs = append(funcs, raw)
+			funcs = append(funcs, fn)
 		}
 	}
 	return funcs, nil
@@ -240,47 +355,16 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]strin
 // .dynsym, STT_FUNC + size/address filtering, address+name dedup — shared
 // with the shim's runtime dlopen JIT discovery) to funkutil.SymtabFunctions,
 // supplying the relevance + --include/--exclude predicate.
-func enumerateSymtab(f *elf.File, filter *funkutil.FuncFilter) []string {
+func enumerateSymtab(f *elf.File, filter *funkutil.FuncFilter) []funkutil.Func {
 	return funkutil.SymtabFunctions(f, func(demangled string) bool {
 		return funkutil.FuncIsRelevant(demangled) && filter.Match(demangled)
 	})
 }
 
-// lddLineRe matches both forms of ldd output:
-//
-//	libfoo.so.1 => /lib64/libfoo.so.1 (0x...)
-//	/lib64/ld-linux-x86-64.so.2 (0x...)
-//
-// Capture group 1 is the absolute library path.
-var lddLineRe = regexp.MustCompile(`(?:=>\s*)?(/\S+)\s+\(0x[0-9a-fA-F]+\)`)
-
-// ParseLddLibraries runs ldd on binPath and returns absolute paths of
-// shared libraries (skips vdso, "not found", and glibc/runtime system libs).
-func ParseLddLibraries(binPath string) ([]string, error) {
-	out, err := exec.Command("ldd", binPath).Output()
-	if err != nil {
-		return nil, err
-	}
-	var libs []string
-	for line := range strings.Lines(string(out)) {
-		if strings.Contains(line, "linux-vdso") || strings.Contains(line, "not found") {
-			continue
-		}
-		m := lddLineRe.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-		path := m[1]
-		if funkutil.IsSystemLib(path) {
-			continue
-		}
-		libs = append(libs, path)
-	}
-	return libs, nil
-}
-
-// writeFunctionsLog writes a _functions.log file to logDir and returns its path.
-func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string) (string, error) {
+// writeFunctionsLog writes a _functions.log file to logDir and returns its
+// path. It takes the demangled names produced by enumeration — the report side
+// reads this log, while .funcs.json keeps the mangled form for uprobe attach.
+func writeFunctionsLog(logDir, binaryBasename string, display map[string][]string) (string, error) {
 	if err := funkutil.EnsureLogDir(logDir); err != nil {
 		return "", err
 	}
@@ -291,20 +375,18 @@ func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string)
 		ts.UnixNano(),
 	)
 	path := filepath.Join(logDir, name)
-	f, err := os.Create(path)
+	err := writeBuffered(path, func(w io.Writer) error {
+		for image, names := range display {
+			for _, n := range names {
+				fmt.Fprintf(w, "FUNC %s %s\n", image, n)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-	w := bufio.NewWriter(f)
-	for image, names := range funcs {
-		for _, n := range names {
-			// Demangle for the report side; .funcs.json keeps the mangled
-			// form for uprobe attach.
-			fmt.Fprintf(w, "FUNC %s %s\n", image, demangleName(n))
-		}
-	}
-	return path, w.Flush()
+	return path, nil
 }
 
 // enumerateFuncs runs EnumerateFunctions against path and writes the
@@ -318,15 +400,15 @@ func writeFunctionsLog(logDir, binaryBasename string, funcs map[string][]string)
 // (cmd/trace.go, temporary) — both enumerate, then log, the same way; they
 // differ in what happens to the result afterward (install additionally
 // rolls back its move on error).
-func enumerateFuncs(path, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string][]string, error) {
-	funcs, err := EnumerateFunctions(path, libScope, filter)
+func enumerateFuncs(path, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, error) {
+	funcs, display, err := EnumerateFunctions(path, libScope, filter)
 	if err != nil {
 		return nil, fmt.Errorf("function enumeration: %w", err)
 	}
 	if len(funcs) == 0 && libScope == MainBinaryOnly {
 		return nil, fmt.Errorf("no functions found in %s (debug symbols missing?)", path)
 	}
-	if _, err := writeFunctionsLog(logDir, binaryName, funcs); err != nil {
+	if _, err := writeFunctionsLog(logDir, binaryName, display); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: write functions log: %v\n", err)
 	}
 	return funcs, nil

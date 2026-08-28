@@ -90,8 +90,11 @@ func BenchmarkGenerateHTMLReport(b *testing.B) {
 	outDir := b.TempDir()
 	b.ResetTimer()
 	for b.Loop() {
-		for image, data := range coverage {
-			if err := generateHTMLReport(image, data, outDir); err != nil {
+		// buildReportSet is inside the loop on purpose: it does the
+		// called/uncalled split that generateHTMLReport used to do itself,
+		// so the benchmark keeps measuring the same total work.
+		for _, rep := range buildReportSet(coverage).Images {
+			if err := generateHTMLReport(rep, outDir); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -108,8 +111,8 @@ func BenchmarkGenerateXUnitReport(b *testing.B) {
 	outDir := b.TempDir()
 	b.ResetTimer()
 	for b.Loop() {
-		for image, data := range coverage {
-			if err := generateXUnitReport(image, data, outDir); err != nil {
+		for _, rep := range buildReportSet(coverage).Images {
+			if err := generateXUnitReport(rep, outDir); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -129,7 +132,7 @@ func BenchmarkEmitReportHTML(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		outDir := b.TempDir()
-		emitReport("html", coverage, outDir)
+		emitReport("html", buildReportSet(coverage), outDir)
 	}
 }
 
@@ -143,7 +146,27 @@ func BenchmarkEmitReportXML(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		outDir := b.TempDir()
-		emitReport("xml", coverage, outDir)
+		emitReport("xml", buildReportSet(coverage), outDir)
+	}
+}
+
+// BenchmarkEmitReportMultiFormat is the default `report` invocation: more than
+// one format off a single coverage map. That is the case the shared reportSet
+// exists for — the single-format benchmarks above cannot show it, because with
+// one format there is nothing to share.
+func BenchmarkEmitReportMultiFormat(b *testing.B) {
+	dir := b.TempDir()
+	files := genBenchLogs(b, dir, 200, 50, 2)
+	coverage, err := analyzeLogs(files)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for b.Loop() {
+		outDir := b.TempDir()
+		set := buildReportSet(coverage)
+		emitReport("html", set, outDir)
+		emitReport("xml", set, outDir)
 	}
 }
 
@@ -156,7 +179,7 @@ func BenchmarkEnumerateFunctions(b *testing.B) {
 	}
 	b.ResetTimer()
 	for b.Loop() {
-		if _, err := EnumerateFunctions(sample, WithLibraries, nil); err != nil {
+		if _, _, err := EnumerateFunctions(sample, WithLibraries, nil); err != nil {
 			b.Fatal(err)
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -39,7 +40,7 @@ func commands() map[string]command {
 		{"version", "print version", cmdVersion},
 		{"help", "print help", cmdHelp},
 	}
-	m := make(map[string]command, len(cmds)+14)
+	m := make(map[string]command)
 	for _, c := range cmds {
 		m[c.name] = c
 	}
@@ -86,9 +87,25 @@ func main() {
 		os.Exit(1)
 	}
 	if err := c.run(os.Args[2:]); err != nil {
+		// -h on a subcommand: helpText already documents every subcommand's
+		// flags, so show that rather than one FlagSet's bare defaults.
+		if errors.Is(err, flag.ErrHelp) {
+			fmt.Print(helpText)
+			return
+		}
 		fmt.Fprintf(os.Stderr, "%s error: %v\n", c.name, err)
 		os.Exit(1)
 	}
+}
+
+// newFlagSet returns a FlagSet that hands parse errors back to its caller
+// instead of writing its own message and calling os.Exit(2) behind main's
+// back — which made every `if err := fs.Parse(...)` in this file unreachable.
+// Output is discarded so the error surfaces exactly once, through main.
+func newFlagSet(name string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	return fs
 }
 
 func exitf(format string, args ...any) {
@@ -134,7 +151,7 @@ func cmdVersion(args []string) error { fmt.Println("funkoverage version", versio
 func cmdSetup(args []string) error   { return setupEnv() }
 
 func cmdInstall(args []string) error {
-	fs := flag.NewFlagSet("install", flag.ExitOnError)
+	fs := newFlagSet("install")
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
 	buildFilter := addFilterFlags(fs)
 	positional, err := parseInterspersed(fs, args)
@@ -152,8 +169,10 @@ func cmdInstall(args []string) error {
 }
 
 func cmdUninstall(args []string) error {
-	fs := flag.NewFlagSet("uninstall", flag.ExitOnError)
-	fs.Parse(args)
+	fs := newFlagSet("uninstall")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path(s)")
 	}
@@ -161,13 +180,15 @@ func cmdUninstall(args []string) error {
 }
 
 func cmdTrace(args []string) error {
-	fs := flag.NewFlagSet("trace", flag.ExitOnError)
+	fs := newFlagSet("trace")
 	noLibs := fs.Bool("no-libs", false, "Skip library tracing")
 	buildFilter := addFilterFlags(fs)
 	// Deliberately NOT parseInterspersed: everything after the binary path
 	// belongs to the traced program, not to funkoverage. `trace foo --help`
 	// must pass --help to foo, so parsing must stop at the first positional.
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	if fs.NArg() < 1 {
 		return fmt.Errorf("missing binary path")
 	}
@@ -186,7 +207,7 @@ func cmdTrace(args []string) error {
 }
 
 func cmdEnumerate(args []string) error {
-	fs := flag.NewFlagSet("enumerate", flag.ExitOnError)
+	fs := newFlagSet("enumerate")
 	noLibs := fs.Bool("no-libs", false, "Skip library enumeration")
 	buildFilter := addFilterFlags(fs)
 	positional, err := parseInterspersed(fs, args)
@@ -200,15 +221,15 @@ func cmdEnumerate(args []string) error {
 	if err != nil {
 		return err
 	}
-	funcs, err := EnumerateFunctions(positional[0], LibScope(*noLibs), filter)
+	_, display, err := EnumerateFunctions(positional[0], LibScope(*noLibs), filter)
 	if err != nil {
 		return err
 	}
 	type entry struct{ image, name string }
 	var entries []entry
-	for image, names := range funcs {
+	for image, names := range display {
 		for _, name := range names {
-			entries = append(entries, entry{image, demangleName(name)})
+			entries = append(entries, entry{image, name})
 		}
 	}
 	slices.SortFunc(entries, func(a, b entry) int {
@@ -220,12 +241,12 @@ func cmdEnumerate(args []string) error {
 	for _, e := range entries {
 		fmt.Printf("%s %s\n", e.image, e.name)
 	}
-	fmt.Fprintf(os.Stderr, "Total: %d functions across %d image(s)\n", len(entries), len(funcs))
+	fmt.Fprintf(os.Stderr, "Total: %d functions across %d image(s)\n", len(entries), len(display))
 	return nil
 }
 
 func cmdReport(args []string) error {
-	fs := flag.NewFlagSet("report", flag.ExitOnError)
+	fs := newFlagSet("report")
 	formats := fs.String("formats", "html,txt,xml", "Comma-separated list: html,xml,txt")
 	positional, err := parseInterspersed(fs, args)
 	if err != nil {
@@ -250,47 +271,49 @@ func cmdReport(args []string) error {
 	if err != nil {
 		return err
 	}
+	// Built once and shared by every requested format.
+	set := buildReportSet(coverage)
 	var errs []error
 	for format := range strings.SplitSeq(*formats, ",") {
-		if err := emitReport(strings.TrimSpace(format), coverage, outputDir); err != nil {
+		if err := emitReport(strings.TrimSpace(format), set, outputDir); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)
 }
 
-func emitReport(format string, coverage map[string]*CoverageData, outputDir string) error {
+func emitReport(format string, set reportSet, outputDir string) error {
 	switch format {
 	case "txt":
-		printTxtReport(coverage)
+		printTxtReport(os.Stdout, set)
 	case "html":
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)
 		}
-		perImage(coverage, outputDir, "HTML report error:", generateHTMLReport)
-		if err := generateAggregateHTMLReport(coverage, outputDir); err != nil {
+		perImage(set.Images, outputDir, "HTML report error:", generateHTMLReport)
+		if err := generateAggregateHTMLReport(set.Totals, outputDir); err != nil {
 			return fmt.Errorf("aggregate html report: %w", err)
 		}
 	case "xml":
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)
 		}
-		perImage(coverage, outputDir, "XUnit report error:", generateXUnitReport)
+		perImage(set.Images, outputDir, "XUnit report error:", generateXUnitReport)
 	default:
 		return fmt.Errorf("unknown format %q (want html, xml or txt)", format)
 	}
 	return nil
 }
 
-// perImage runs fn concurrently for every image in coverage. A per-image
-// error is logged under errLabel, not returned — one bad image shouldn't
-// stop the rest of the report.
-func perImage(coverage map[string]*CoverageData, outputDir, errLabel string, fn func(image string, data *CoverageData, outputDir string) error) {
+// perImage runs fn concurrently for every image. A per-image error is logged
+// under errLabel, not returned — one bad image shouldn't stop the rest of the
+// report.
+func perImage(images []imageReport, outputDir, errLabel string, fn func(rep imageReport, outputDir string) error) {
 	g := new(errgroup.Group)
 	g.SetLimit(runtime.GOMAXPROCS(0))
-	for image, data := range coverage {
+	for _, rep := range images {
 		g.Go(func() error {
-			if err := fn(image, data, outputDir); err != nil {
+			if err := fn(rep, outputDir); err != nil {
 				fmt.Fprintln(os.Stderr, errLabel, err)
 			}
 			return nil

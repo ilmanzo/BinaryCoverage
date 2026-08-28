@@ -218,8 +218,7 @@ func runHelper(readyW *os.File) error {
 		return fmt.Errorf("create log dir: %w", err)
 	}
 
-	logPath := calledLogPath(dir, realBin)
-	tracer, err := NewTracer(funcs, logPath, filter.Include, filter.Exclude)
+	tracer, err := NewTracer(funcs, newLogPaths(dir, realBin), filter.Include, filter.Exclude)
 	if err != nil {
 		return err
 	}
@@ -274,11 +273,17 @@ func waitForTargetExit(sigCh <-chan os.Signal, targetPid int, pollInterval time.
 	}
 }
 
-func calledLogPath(dir, realBin string) string {
+// logPaths is one run's pair of log files: CALLED events go to Called, and
+// functions discovered later via dlopen go to Functions.
+type logPaths struct{ Called, Functions string }
+
+// newLogPaths builds both names from a single timestamped stem, so the two
+// logs of a run sort together and pair up by prefix.
+func newLogPaths(dir, realBin string) logPaths {
 	ts := time.Now()
-	name := fmt.Sprintf("%s_%s_%d_called.log",
-		filepath.Base(realBin), ts.Format("20060102-150405"), ts.UnixNano())
-	return filepath.Join(dir, name)
+	stem := filepath.Join(dir, fmt.Sprintf("%s_%s_%d",
+		filepath.Base(realBin), ts.Format("20060102-150405"), ts.UnixNano()))
+	return logPaths{Called: stem + "_called.log", Functions: stem + "_functions.log"}
 }
 
 // setEnv replaces key's value in env if present, or appends it otherwise.

@@ -27,6 +27,8 @@ bash tests/e2e/test_gmp.sh
 
 echo "--- Running test_cpupower.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_cpupower.sh
+echo "--- Running test_glibc_hwcaps_resolution.sh [INSIDE CONTAINER] ---"
+bash tests/e2e/test_glibc_hwcaps_resolution.sh
 
 echo "--- Running test_openssl.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_openssl.sh
@@ -36,6 +38,15 @@ bash tests/e2e/test_squid.sh
 
 echo "--- Running test_nginx_dlopen.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_nginx_dlopen.sh
+
+echo "--- Running test_nss_dlopen.sh [INSIDE CONTAINER] ---"
+bash tests/e2e/test_nss_dlopen.sh
+
+echo "--- Running test_pam_dlopen.sh [INSIDE CONTAINER] ---"
+bash tests/e2e/test_pam_dlopen.sh
+
+echo "--- Running test_rust_ripgrep.sh [INSIDE CONTAINER] ---"
+bash tests/e2e/test_rust_ripgrep.sh
 
 echo "--- Running test_signal_and_notify_relay.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_signal_and_notify_relay.sh
