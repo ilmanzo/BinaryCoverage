@@ -124,12 +124,23 @@ func runWithTracing(realBin string) error {
 	// eventual exit, which reaps it.
 	helperCmd.Process.Release()
 
+	// Fail open, never closed. Both of these used to return an error, which
+	// main() turns into os.Exit(1) — and that happens *before* the exec
+	// below, so any environment that blocks eBPF setup replaced the user's
+	// program with a stub that just fails. Losing a run's coverage is an
+	// acceptable cost of instrumenting a system; breaking the instrumented
+	// program is not (issue #158).
+	//
+	// Both failure shapes have been seen in the wild and neither is
+	// distinguishable here, so both merely warn: a seccomp *allow*-list
+	// (udev) lets the helper run and report its own error, while a
+	// *deny*-list kills it with SIGSYS and leaves an empty reply.
 	reply, err := io.ReadAll(readyR)
 	if err != nil {
-		return fmt.Errorf("read helper status: %w", err)
-	}
-	if msg := string(reply); msg != "OK" {
-		return fmt.Errorf("helper: %s", strings.TrimPrefix(msg, "ERR:"))
+		fmt.Fprintf(os.Stderr, "funkoverage-shim: read helper status: %v; running untraced\n", err)
+	} else if msg := string(reply); msg != "OK" {
+		fmt.Fprintf(os.Stderr, "funkoverage-shim: tracing unavailable (%s); running untraced\n",
+			strings.TrimPrefix(msg, "ERR:"))
 	}
 
 	activeEnvVar := activeEnvPrefix + envSafeName(filepath.Base(realBin))
