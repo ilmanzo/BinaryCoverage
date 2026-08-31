@@ -61,6 +61,7 @@ These tests instrument real system utilities on the host to verify deep features
 | `test_squid.sh` | `/usr/sbin/squid` | C++ demangling, long-running daemon attachment, fork-tracking | `squid`, `squid-debuginfo`, `curl` |
 | `test_nginx_dlopen.sh` | `/usr/sbin/nginx` | `dlopen()` JIT uprobe attachment on dynamically loaded web modules | `nginx`, debug packages |
 | `test_pam_dlopen.sh` | `/usr/sbin/pam` | PAM modules loaded via `dlopen()` tracing | `pam`, `pam-debuginfo` |
+| `test_shim_fail_open.sh` | `/usr/bin/bzip2` | Shim still execs the real binary when the tracer can't attach (seccomp blocks `perf_event_open`); needs a running systemd, self-skips otherwise | `bzip2`, `bzip2-debuginfo` |
 
 - **How to run a specific test**:
   ```bash
