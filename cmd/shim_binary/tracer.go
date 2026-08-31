@@ -354,11 +354,20 @@ func (t *Tracer) Start(rootPID uint32) error {
 		t.attachProbes(ex, img, nil, plan.addrs, plan.addrCookies)
 	}
 
-	fl, err := link.Tracepoint("sched", "sched_process_fork", t.objs.TraceFork, nil)
-	if err != nil {
-		return fmt.Errorf("tracer: attach fork tracepoint: %w", err)
+	// Non-fatal. The fork tracepoint only widens the watched set to children,
+	// so losing it costs coverage of forked subprocesses — never of the
+	// process we were asked to trace. It is also the one attach that goes
+	// through perf_event_open(2) rather than bpf(2), which is exactly the
+	// syscall a seccomp-sandboxed unit is most likely to withhold:
+	// systemd-udevd's SystemCallFilter lists "bpf" but not "perf_event_open".
+	// Aborting here failed the whole helper, and runWithTracing turned that
+	// into an exit before the exec — so a shimmed udev callout never ran at
+	// all (issue #158: nfsrahead, and with it NFS readahead tuning).
+	if fl, err := link.Tracepoint("sched", "sched_process_fork", t.objs.TraceFork, nil); err != nil {
+		debugLog("funkoverage-shim: fork tracepoint unavailable (%v); not tracing child processes", err)
+	} else {
+		t.addLink(fl)
 	}
-	t.addLink(fl)
 
 	// Dynamically locate and attach uretprobe to dlopen
 	libcPath, err := findLibcPath(rootPID)
