@@ -54,6 +54,12 @@ bash tests/e2e/test_signal_and_notify_relay.sh
 echo "--- Running test_duplicate_library_symlink.sh [INSIDE CONTAINER] ---"
 bash tests/e2e/test_duplicate_library_symlink.sh
 
+# Self-skips in here: building its seccomp sandbox needs a running systemd.
+# Listed anyway so the container runner stays a complete inventory of the
+# suite, and so it starts covering this once a runner does have systemd.
+echo "--- Running test_shim_fail_open.sh [INSIDE CONTAINER] ---"
+bash tests/e2e/test_shim_fail_open.sh
+
 echo "===================================================="
 echo "=== ALL E2E CONTAINER TESTS SUCCEEDED ==="
 echo "===================================================="
