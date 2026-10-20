@@ -122,7 +122,7 @@ Both `cmd/` binaries are separate `package main` and both import `internal/funku
 
 ### DWARF enumeration (`cmd/enumerate.go`)
 
-Uses Go stdlib `debug/dwarf`. Visits `DW_TAG_subprogram` entries with `DW_AT_LowPc` (skip abstract origins). Prefers `DW_AT_linkage_name` (mangled), falls back to `DW_AT_name`. Applies `demangle.Filter()` + version suffix stripping. Falls back to `.symtab` when no `.debug_info`. Handles external `.build-id` debug files via `eu-unstrip`.
+Uses Go stdlib `debug/dwarf`. Visits `DW_TAG_subprogram` entries with `DW_AT_LowPc` (skip abstract origins). Prefers `DW_AT_linkage_name` (mangled), falls back to `DW_AT_name`. Applies `demangle.Filter()` + version suffix stripping. Prefers external `.debug` `.symtab`, then runtime `.symtab`/`.dynsym`, falling back to DWARF when no `.symtab` is available. Partitions functions into symbol names resolvable in the mapped binary and file offsets for debug-only functions.
 
 ### eBPF program (`cmd/shim_binary/bpf/tracer.bpf.c`)
 
@@ -136,6 +136,5 @@ Uses Go stdlib `debug/dwarf`. Visits `DW_TAG_subprogram` entries with `DW_AT_Low
 - **x86_64 or ARM64 Linux only**
 - **Kernel ≥6.6** (uprobe_multi)
 - **CONFIG_DEBUG_INFO_BTF=y** (BTF for CO-RE relocations)
-- `eu-unstrip` (elfutils) needed only for binaries with separate `.debug` files
 - `setcap` is invoked at install time on each shim copy; install must run as root
 - Go module root is repo root (`go.mod` at `/`); requires Go ≥1.27

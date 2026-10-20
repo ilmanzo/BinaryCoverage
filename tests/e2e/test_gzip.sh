@@ -31,6 +31,8 @@ pass "gzip with debug symbols"
 # --- Setup ---
 header "Setup"
 WORKDIR=$(mktemp -d /tmp/funkoverage_gzip_XXXX)
+ORIG_SHA=$(sha256sum "$BINARY" | awk '{print $1}')
+ORIG_STAT=$(stat --format="%s %Y" "$BINARY")
 clean_coverage_data
 install_shim --no-libs "$BINARY"
 pass "Shim installed"
@@ -126,6 +128,12 @@ remove_report_dir "$REPORT_DIR"
 # --- Uninstall ---
 header "Uninstall"
 uninstall_and_verify "$BINARY"
+AFTER_SHA=$(sha256sum "$BINARY" | awk '{print $1}')
+AFTER_STAT=$(stat --format="%s %Y" "$BINARY")
+[[ "$ORIG_SHA" == "$AFTER_SHA" ]] || fail "restored binary sha256 mismatch ($ORIG_SHA -> $AFTER_SHA)"
+[[ "$ORIG_STAT" == "$AFTER_STAT" ]] || fail "restored binary size/mtime mismatch ($ORIG_STAT -> $AFTER_STAT)"
+rpm -V gzip || fail "rpm -V gzip reported modifications after uninstall"
+pass "Restored binary is byte-identical and rpm -V clean"
 BINARY="" # prevent double-uninstall in trap
 
 echo ""

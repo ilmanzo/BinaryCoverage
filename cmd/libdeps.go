@@ -34,7 +34,11 @@ import (
 // not fully understand keeps today's behaviour instead of quietly losing
 // libraries.
 func resolveLibraries(binPath string) ([]string, error) {
-	libs, err := dtNeededClosure(binPath)
+	return resolveLibrariesAt(binPath, binPath)
+}
+
+func resolveLibrariesAt(binPath, origPath string) ([]string, error) {
+	libs, err := dtNeededClosureAt(binPath, origPath)
 	if err != nil {
 		debugLog("resolve deps for %s: %v; falling back to ldd", binPath, err)
 		return ParseLddLibraries(binPath)
@@ -103,6 +107,10 @@ type dynamicInfo struct {
 }
 
 func readDynamicInfo(path string) (dynamicInfo, error) {
+	return readDynamicInfoAt(path, path)
+}
+
+func readDynamicInfoAt(path, origPath string) (dynamicInfo, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return dynamicInfo{}, err
@@ -119,8 +127,9 @@ func readDynamicInfo(path string) (dynamicInfo, error) {
 	// $ORIGIN is the directory of the file ld.so actually opened, i.e. after
 	// symlink resolution. /usr/bin/androiddeployqt6 is a symlink into
 	// /usr/lib64/qt6/bin, so its RUNPATH of $ORIGIN/../../ means the qt6
-	// tree, not /usr.
-	origin := filepath.Dir(canonicalPath(path))
+	// tree, not /usr. When enumerating a binary already moved into SAFE_BIN_DIR,
+	// origPath is its original symlink-resolved location.
+	origin := filepath.Dir(canonicalPath(origPath))
 	return dynamicInfo{
 		needed:  needed,
 		rpath:   expandSearchPath(rpath, origin, f.Class),
@@ -186,7 +195,11 @@ func expandSearchPath(raw []string, origin string, class elf.Class) []string {
 // resolved so the caller can fall back to ldd, rather than returning a subset
 // that would look like a complete answer.
 func dtNeededClosure(binPath string) ([]string, error) {
-	root, err := readDynamicInfo(binPath)
+	return dtNeededClosureAt(binPath, binPath)
+}
+
+func dtNeededClosureAt(binPath, origPath string) ([]string, error) {
+	root, err := readDynamicInfoAt(binPath, origPath)
 	if err != nil {
 		return nil, err
 	}

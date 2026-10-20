@@ -27,10 +27,8 @@ Source1:        vendor.tar.gz
 BuildRequires:  go >= 1.27
 ExclusiveArch:  x86_64
 # Runtime: setcap is invoked by `funkoverage install` to grant CAP_BPF /
-# CAP_PERFMON / CAP_DAC_READ_SEARCH to each shim copy. elfutils is used by
-# the DWARF enumeration path for binaries with split debug info.
+# CAP_PERFMON / CAP_DAC_READ_SEARCH to each shim copy.
 Requires:       libcap-progs
-Requires:       elfutils
 
 # Kernel ≥6.6 is required at runtime for uprobe_multi. We do not enforce
 # it via Requires (kernel package versioning varies), but `funkoverage
