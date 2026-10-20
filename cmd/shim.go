@@ -59,8 +59,7 @@ func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter
 
 	multicallLink = installMulticallSymlink(safeBinDir, target.isSymlink, filepath.Base(targetBinary), target.binaryName)
 
-	// Enumerate functions after merging debug info so all symbols are available
-	funcs, err := enumerateAndPersist(safePath, target.binaryName, logDir, libScope, filter)
+	funcs, err := enumerateAndPersist(safePath, target.realTarget, target.binaryName, logDir, libScope, filter)
 	if err != nil {
 		return err
 	}
@@ -127,9 +126,8 @@ func validateInstallTarget(targetBinary, safeBinDir string, libScope LibScope) (
 	return installTarget{realTarget: realTarget, binaryName: binaryName, isSymlink: isSymlink}, nil
 }
 
-// relocateOriginal moves realTarget into safeBinDir (as binaryName) and
-// merges any external debug info into the relocated copy. Returns the new
-// safePath.
+// relocateOriginal moves realTarget into safeBinDir (as binaryName) untouched.
+// Returns the new safePath.
 func relocateOriginal(realTarget, safeBinDir, binaryName string) (string, error) {
 	safePath := filepath.Join(safeBinDir, binaryName)
 	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
@@ -137,10 +135,6 @@ func relocateOriginal(realTarget, safeBinDir, binaryName string) (string, error)
 	}
 	if err := move(realTarget, safePath); err != nil {
 		return "", err
-	}
-	if err := mergeDebugIfExternal(safePath, realTarget); err != nil {
-		_ = move(safePath, realTarget)
-		return "", fmt.Errorf("merge debug symbols: %w", err)
 	}
 	return safePath, nil
 }
@@ -203,8 +197,8 @@ func rollbackInstall(safePath, realTarget, multicallLink string) {
 // enumerateFuncs, cmd/enumerate.go) and writes the filter sidecar. Undoing a
 // failure part-way through is install's job, via the rollback it arms as soon
 // as the original binary has been relocated.
-func enumerateAndPersist(safePath, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, error) {
-	funcs, err := enumerateFuncs(safePath, binaryName, logDir, libScope, filter)
+func enumerateAndPersist(safePath, origPath, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, error) {
+	funcs, err := enumerateFuncs(safePath, origPath, binaryName, logDir, libScope, filter)
 	if err != nil {
 		return nil, err
 	}

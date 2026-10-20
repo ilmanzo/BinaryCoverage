@@ -43,7 +43,7 @@ Verify basic binary tracing quickly using a custom target application:
 
 ## 3. Distro System Binary E2E Tests
 
-These tests instrument real system utilities on the host to verify deep features like dynamic loading (`dlopen`), C++ demangling, `.gnu_debuglink` fallback, and in-place debug info merges.
+These tests instrument real system utilities on the host to verify deep features like dynamic loading (`dlopen`), C++ demangling, `.gnu_debuglink` fallback, and address-based external debug info attachment.
 
 - **Location**: `tests/e2e/`
 - **Privileges**: Must run as `root` (with `/sys/kernel/btf/vmlinux` available).
@@ -55,7 +55,7 @@ These tests instrument real system utilities on the host to verify deep features
 |---|---|---|---|
 | `test_bzip2.sh` | `/usr/bin/bzip2` | Basic lifecycle: install, trace, report, uninstall | `bzip2`, `bzip2-debuginfo` |
 | `test_gzip.sh` | `/usr/bin/gzip` | Script wrappers (`gunzip`, `zcat`), multi-file and recursive runs | `gzip`, `gzip-debuginfo` |
-| `test_gmp.sh` | Custom C app | In-place debugmerge to trace library-local static symbols (e.g., `mpn_*` internal helpers) | `gmp-devel`, `libgmp10-debuginfo` |
+| `test_gmp.sh` | Custom C app | Address-based external debug info attachment to trace library-local static symbols (e.g., `mpn_*` internal helpers) | `gmp-devel`, `libgmp10-debuginfo` |
 | `test_cpupower.sh` | `/usr/bin/cpupower` | `.gnu_debuglink` resolution when `.build-id` symlinks are broken/missing | `cpupower`, `cpupower-debuginfo` |
 | `test_openssl.sh` | `/usr/bin/openssl` | Multi-library tracing (`libssl.so`, `libcrypto.so`) | `openssl`, debug packages |
 | `test_squid.sh` | `/usr/sbin/squid` | C++ demangling, long-running daemon attachment, fork-tracking | `squid`, `squid-debuginfo`, `curl` |
@@ -79,7 +79,7 @@ To run all major system binary E2E tests in a clean, reproducible, and isolated 
 - **Prerequisites**: `podman` (preferred) or `docker` installed.
 - **What they do**:
   1. Build a custom container image (`leap16-e2e` or `tumbleweed-e2e`) from the shared `Containerfile` via build-args.
-  2. The image contains Go, GCC, make, elfutils, gawk, and all debuginfo packages for tested binaries.
+  2. The image contains Go, GCC, make, gawk, and all debuginfo packages for tested binaries.
   3. Image builds are cached, making repeat local execution extremely fast.
   4. Launches the container in the host's PID namespace and mounts `/sys/kernel/btf`, `/sys/kernel/tracing`, and `/sys/kernel/debug`.
   5. Automatically executes a shared runner (`run_all_container_tests.sh`) to build `funkoverage` and run tests for: `bzip2`, `gzip`, `gmp`, `cpupower`, `openssl`, `squid`, `nginx_dlopen`, and `duplicate_library_symlink`.

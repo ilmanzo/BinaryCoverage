@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -83,19 +82,6 @@ func buildIDDebugPath(buildID string) string {
 	return fmt.Sprintf("%s/.build-id/%s/%s.debug", globalDebugRoot, buildID[:2], buildID[2:])
 }
 
-// mergeDebugIfExternal merges external debug symbols into the binary using
-// eu-unstrip so DWARF traversal works even on stripped binaries.
-// origPath is the binary's original absolute location (before any move to
-// SAFE_BIN_DIR), needed to resolve .gnu_debuglink's directory-relative
-// convention. Searches: .build-id paths, .gnu_debuglink, and .gnu_debugaltlink.
-func mergeDebugIfExternal(binPath, origPath string) error {
-	debugPath, err := locateExternalDebugForMerge(binPath, origPath)
-	if err != nil || debugPath == "" {
-		return err
-	}
-	return unstrip(binPath, debugPath)
-}
-
 // restoreLibraryBackups puts back the system libraries that a pre-0.8.4
 // install unstripped in place, per safePath's backup sidecar.
 //
@@ -114,48 +100,18 @@ func restoreLibraryBackups(safePath string) {
 	_ = funkutil.WriteLibBackups(safePath, nil)
 }
 
-// locateExternalDebugForMerge returns the external debug file path to merge
-// into binPath, or "" if the binary already has embedded debug info or no
-// external file is found.
-func locateExternalDebugForMerge(binPath, origPath string) (string, error) {
-	return resolveDebugFile(binPath, origPath, SkipIfEmbedded)
-}
-
-// embeddedDebugPolicy controls whether resolveDebugFile treats a binary
-// that already carries embedded .debug_* sections as having nothing to
-// resolve, or still returns an external candidate regardless.
-type embeddedDebugPolicy bool
-
-const (
-	// AllowEmbedded: still return an external candidate even if the binary
-	// already has embedded debug info — enumeration wants a fallback
-	// candidate for dwarfFunctions regardless of what's embedded.
-	AllowEmbedded embeddedDebugPolicy = false
-	// SkipIfEmbedded: resolve to "" if the binary already has embedded
-	// debug info — merging would have nothing useful to add.
-	SkipIfEmbedded embeddedDebugPolicy = true
-)
-
 // resolveDebugFile returns the external debug file for binPath, or "".
 // origPath is binPath's original absolute location (equal to binPath unless
 // the binary has already been moved to SAFE_BIN_DIR) — .gnu_debuglink
 // resolves relative to it. Tries, in order: .build-id, .gnu_debuglink (the
 // standard GNU separate-debug convention), then .gnu_debugaltlink
 // (dwz-compressed).
-func resolveDebugFile(binPath, origPath string, policy embeddedDebugPolicy) (string, error) {
+func resolveDebugFile(binPath, origPath string) (string, error) {
 	f, err := elf.Open(binPath)
 	if err != nil {
 		return "", fmt.Errorf("open elf: %w", err)
 	}
 	defer f.Close()
-
-	if policy == SkipIfEmbedded {
-		for _, s := range f.Sections {
-			if (strings.HasPrefix(s.Name, ".debug_") || strings.HasPrefix(s.Name, ".zdebug_")) && s.Size > 0 {
-				return "", nil
-			}
-		}
-	}
 
 	if buildID, err := funkutil.BuildID(f); err == nil && len(buildID) > 2 {
 		debugPath := buildIDDebugPath(buildID)
@@ -251,35 +207,6 @@ func findDebugFile(altPath string) string {
 	return ""
 }
 
-// unstrip merges debugPath into binPath using eu-unstrip.
-// Uses --force to handle ELF type mismatches (PIE binary + relocatable debug).
-func unstrip(binPath, debugPath string) error {
-	info, err := os.Stat(binPath)
-	if err != nil {
-		return fmt.Errorf("stat %s: %w", binPath, err)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(binPath), ".unstrip-*")
-	if err != nil {
-		return fmt.Errorf("create temp: %w", err)
-	}
-	out := tmp.Name()
-	tmp.Close()
-	os.Remove(out)
-	cmd := exec.Command("eu-unstrip", "--force", binPath, debugPath, "-o", out)
-	if combined, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("eu-unstrip failed: %w: %s", err, combined)
-	}
-	// chown, THEN chmod: chown (like write) clears any setuid/setgid bit
-	// already present — a kernel security measure against ownership-change
-	// privilege tricks — so setting the final mode must come last.
-	chownLike(out, info)
-	if err := os.Chmod(out, info.Mode()&preservedModeBits); err != nil {
-		os.Remove(out)
-		return fmt.Errorf("chmod merged binary: %w", err)
-	}
-	return move(out, binPath)
-}
-
 func move(source, destination string) error {
 	err := os.Rename(source, destination)
 	if err != nil && strings.Contains(err.Error(), "invalid cross-device link") {
@@ -288,7 +215,7 @@ func move(source, destination string) error {
 	return err
 }
 
-// moveCrossDevice copies source to destination (mode and, best-effort,
+// moveCrossDevice copies source to destination (mode, mtime, and, best-effort,
 // ownership included — see copyFile) and removes source, for the rare case
 // where SAFE_BIN_DIR and the original binary's directory are on different
 // filesystems and os.Rename can't do it atomically.
@@ -300,5 +227,6 @@ func moveCrossDevice(source, destination string) error {
 	if err := copyFile(source, destination, fi); err != nil {
 		return fmt.Errorf("copy: %w", err)
 	}
+	_ = os.Chtimes(destination, fi.ModTime(), fi.ModTime())
 	return os.Remove(source)
 }

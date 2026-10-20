@@ -56,18 +56,18 @@ Both are `package main`; shared helpers live in `internal/funkutil/`.
 Steps:
 
 1. **Stat & validate** — must be ELF, must have debug info (embedded or external `.build-id`/`.dwz`)
-2. **Move** real binary to `$SAFE_BIN_DIR/foo` (default `/var/coverage/bin/`)
-3. **Merge debug** — if external `.debug` file exists, run `eu-unstrip` to merge into the safe copy
-4. **Enumerate functions**:
-   - Try `.symtab` first (uprobe attach uses symtab; also avoids dwz issues)
-   - Fall back to external `.debug` symtab
+2. **Move** real binary to `$SAFE_BIN_DIR/foo` (default `/var/coverage/bin/`) untouched
+3. **Enumerate functions**:
+   - Try external `.debug` symtab first (for stripped binaries/libraries)
+   - Fall back to the runtime binary's `.symtab`/`.dynsym`
    - Last resort: DWARF traversal
-5. **Write sidecars** beside the safe binary:
-   - `foo.funcs.json` — `{image_path: [mangled_name, ...]}` for the shim to attach
+   - Partition into symbols resolvable in the mapped file (`Names`) and debug-only symbols resolved to file offsets (`Offsets`, guarded by build-id)
+4. **Write sidecars** beside the safe binary:
+   - `foo.funcs.json` — `{image_path: {build_id, names, offsets}}` for the shim to attach
    - `foo.libs.json` — list of library paths for multi-image tracing
-6. **Write functions log** — `$LOG_DIR/foo_<ts>_functions.log` with demangled names (for the report)
-7. **Copy shim** to `/usr/bin/foo` with original permissions
-8. **`setcap cap_bpf,cap_perfmon,cap_dac_read_search+ep`** on the new shim copy
+5. **Write functions log** — `$LOG_DIR/foo_<ts>_functions.log` with demangled names (for the report)
+6. **Copy shim** to `/usr/bin/foo` with original permissions
+7. **`setcap cap_bpf,cap_perfmon,cap_dac_read_search+ep`** on the new shim copy
 
 ### Run (transparent — user invokes `foo`)
 
@@ -374,7 +374,7 @@ This event-driven JIT approach scales efficiently to thousands of concurrent tra
 │   ├── shim.go               # install/uninstall logic
 │   ├── trace.go              # one-shot trace without permanent install
 │   ├── report.go             # HTML/XML/text generation, log analysis
-│   ├── elfutil.go            # ELF helpers, debug merging via eu-unstrip
+│   ├── elfutil.go            # ELF helpers, external debug file resolution
 │   ├── templates.go          # embedded help text + HTML templates
 │   ├── templates/            # *.html for report rendering
 │   └── shim_binary/

@@ -33,7 +33,7 @@ ls -lh /sys/kernel/btf/vmlinux
 A fresh minimal Tumbleweed install has none of this — install it all up front:
 
 ```bash
-sudo zypper -n install go clang llvm bpftool libbpf-devel elfutils gcc binutils make
+sudo zypper -n install go clang llvm bpftool libbpf-devel gcc binutils make
 ```
 
 `bpftool` lands at `/usr/sbin/bpftool`, not on a normal user's `$PATH` — only
@@ -81,10 +81,9 @@ sudo -E bash tests/e2e/test_squid.sh
 **Gotcha — rolling-release repo skew:** occasionally the main OSS repo lags
 one release behind the DEBUG repo (or vice versa) for a given package, right
 after an upstream rebuild wave. `funkoverage install`/`enumerate` will fail
-with `dwarf: decoding dwarf section info at offset 0x0: too short` in this
-case — the debug file's build-id genuinely doesn't match the installed
-binary's, and `eu-unstrip` (even with `--force`) will correctly refuse to
-merge them. Check before assuming a code bug:
+to resolve external debug symbols in this case because the debug file's
+build-id genuinely doesn't match the installed binary's. Check before
+assuming a code bug:
 
 ```bash
 rpm -q bzip2 bzip2-debuginfo   # release numbers must match exactly
