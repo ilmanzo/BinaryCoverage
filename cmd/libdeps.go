@@ -33,10 +33,6 @@ import (
 // whereas ldd is exact by construction: every host that this resolver does
 // not fully understand keeps today's behaviour instead of quietly losing
 // libraries.
-func resolveLibraries(binPath string) ([]string, error) {
-	return resolveLibrariesAt(binPath, binPath)
-}
-
 func resolveLibrariesAt(binPath, origPath string) ([]string, error) {
 	libs, err := dtNeededClosureAt(binPath, origPath)
 	if err != nil {
