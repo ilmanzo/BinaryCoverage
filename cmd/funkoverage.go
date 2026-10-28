@@ -296,36 +296,39 @@ func emitReport(format string, set reportSet, outputDir string) error {
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)
 		}
-		perImage(set.Images, outputDir, "HTML report error:", generateHTMLReport)
-		if err := generateAggregateHTMLReport(set.Totals, outputDir); err != nil {
-			return fmt.Errorf("aggregate html report: %w", err)
+		aggErr := generateAggregateHTMLReport(set.Totals, outputDir)
+		if aggErr != nil {
+			aggErr = fmt.Errorf("aggregate html report: %w", aggErr)
 		}
+		return errors.Join(perImage(set.Images, outputDir, "html", generateHTMLReport), aggErr)
 	case "xml":
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("create %s: %w", outputDir, err)
 		}
-		perImage(set.Images, outputDir, "XUnit report error:", generateXUnitReport)
+		return perImage(set.Images, outputDir, "xunit", generateXUnitReport)
 	default:
 		return fmt.Errorf("unknown format %q (want html, xml or txt)", format)
 	}
 	return nil
 }
 
-// perImage runs fn concurrently for every image. A per-image error is logged
-// under errLabel, not returned — one bad image shouldn't stop the rest of the
-// report.
-func perImage(images []imageReport, outputDir, errLabel string, fn func(rep imageReport, outputDir string) error) {
+// perImage runs fn concurrently for every image. One bad image doesn't stop
+// the rest of the report: every image is attempted, and the failures come back
+// joined, each naming its image, so the command still exits non-zero.
+func perImage(images []imageReport, outputDir, kind string, fn func(rep imageReport, outputDir string) error) error {
+	errs := make([]error, len(images))
 	g := new(errgroup.Group)
 	g.SetLimit(runtime.GOMAXPROCS(0))
-	for _, rep := range images {
+	for i, rep := range images {
 		g.Go(func() error {
 			if err := fn(rep, outputDir); err != nil {
-				fmt.Fprintln(os.Stderr, errLabel, err)
+				errs[i] = fmt.Errorf("%s report for %s: %w", kind, rep.Image, err)
 			}
 			return nil
 		})
 	}
 	_ = g.Wait()
+	return errors.Join(errs...)
 }
 
 func collectLogFiles(inputArg string) []string {

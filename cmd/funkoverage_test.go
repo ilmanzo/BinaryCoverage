@@ -2437,3 +2437,28 @@ func TestUninstall_KeepsUnrelatedBackupSharingAliasName(t *testing.T) {
 		t.Error("foo was not restored to its original bytes")
 	}
 }
+
+// A per-image report failure was only logged, so `funkoverage report` exited 0
+// with reports missing. Every image is still attempted, but the failure must
+// reach the caller.
+func TestEmitReport_ReportsPerImageFailures(t *testing.T) {
+	set := buildReportSet(map[string]*CoverageData{
+		"/bin/test": {
+			TotalFunctions:  map[string]struct{}{"a": {}},
+			CalledFunctions: map[string]struct{}{"a": {}},
+		},
+	})
+	for format, squatter := range map[string]string{"html": "test.html", "xml": "coverage_test.xml"} {
+		t.Run(format, func(t *testing.T) {
+			tmp := t.TempDir()
+			// A directory on the output name fails os.Create even for root.
+			if err := os.Mkdir(filepath.Join(tmp, squatter), 0755); err != nil {
+				t.Fatal(err)
+			}
+			err := emitReport(format, set, tmp)
+			if err == nil || !strings.Contains(err.Error(), "/bin/test") {
+				t.Errorf("emitReport error = %v, want one naming the failed image", err)
+			}
+		})
+	}
+}
