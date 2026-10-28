@@ -229,7 +229,7 @@ func runHelper(readyW *os.File) error {
 		return fmt.Errorf("create log dir: %w", err)
 	}
 
-	tracer, err := NewTracer(funcs, newLogPaths(dir, realBin), filter.Include, filter.Exclude)
+	tracer, err := NewTracer(funcs, newLogPaths(dir, realBin), filter)
 	if err != nil {
 		return err
 	}

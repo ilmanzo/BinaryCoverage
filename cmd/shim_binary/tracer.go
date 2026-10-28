@@ -84,22 +84,21 @@ type Tracer struct {
 // entirely on dlopen'd plugins for coverage — flattenFuncs below ranges it
 // (a no-op on nil) and simply produces no initial cookies.
 //
-// `includePattern`/`excludePattern` are the source regex patterns from the
-// install-time --include/--exclude filter (empty string = no filter). They
-// are re-applied to functions discovered later via dlopen JIT
+// `patterns` is the install-time --include/--exclude filter (empty string = no
+// filter). It is re-applied to functions discovered later via dlopen JIT
 // instrumentation, matching the filtering already applied at enumeration
 // time to statically discovered functions.
-func NewTracer(funcs map[string]funkutil.ImageFuncs, logs logPaths, includePattern, excludePattern string) (*Tracer, error) {
+func NewTracer(funcs map[string]funkutil.ImageFuncs, logs logPaths, patterns funkutil.FilterSidecar) (*Tracer, error) {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
 	}
 
-	filter := funkutil.FilterFromSidecar(funkutil.FilterSidecar{Include: includePattern, Exclude: excludePattern})
-	if includePattern != "" && filter.Include == nil {
-		debugLog("funkoverage-shim: bad --include pattern %q", includePattern)
+	filter := funkutil.FilterFromSidecar(patterns)
+	if patterns.Include != "" && filter.Include == nil {
+		debugLog("funkoverage-shim: bad --include pattern %q", patterns.Include)
 	}
-	if excludePattern != "" && filter.Exclude == nil {
-		debugLog("funkoverage-shim: bad --exclude pattern %q", excludePattern)
+	if patterns.Exclude != "" && filter.Exclude == nil {
+		debugLog("funkoverage-shim: bad --exclude pattern %q", patterns.Exclude)
 	}
 
 	refs, plans := flattenFuncs(funcs)
@@ -369,23 +368,7 @@ func (t *Tracer) Start(rootPID uint32) error {
 		t.addLink(fl)
 	}
 
-	// Dynamically locate and attach uretprobe to dlopen
-	libcPath, err := findLibcPath(rootPID)
-	if err == nil {
-		ex, err := link.OpenExecutable(libcPath)
-		if err == nil {
-			l, err := ex.Uretprobe("dlopen", t.objs.TraceDlopenReturn, nil)
-			if err == nil {
-				t.addLink(l)
-			} else {
-				debugLog("funkoverage-shim: error attaching uretprobe to dlopen: %v", err)
-			}
-		} else {
-			debugLog("funkoverage-shim: error opening %s: %v", libcPath, err)
-		}
-	} else {
-		debugLog("funkoverage-shim: error finding libc path: %v", err)
-	}
+	t.attachDlopenProbe(rootPID)
 
 	rd, err := ringbuf.NewReader(t.objs.Events)
 	if err != nil {
@@ -397,6 +380,28 @@ func (t *Tracer) Start(rootPID uint32) error {
 	go t.readLoop()
 
 	return nil
+}
+
+// attachDlopenProbe hooks dlopen's return in the libc that exports it, so
+// handleDynamicLoad hears about libraries mapped at runtime. Non-fatal: without
+// it only the coverage of dlopen'd plugins is lost.
+func (t *Tracer) attachDlopenProbe(pid uint32) {
+	libcPath, err := findLibcPath(pid)
+	if err != nil {
+		debugLog("funkoverage-shim: error finding libc path: %v", err)
+		return
+	}
+	ex, err := link.OpenExecutable(libcPath)
+	if err != nil {
+		debugLog("funkoverage-shim: error opening %s: %v", libcPath, err)
+		return
+	}
+	l, err := ex.Uretprobe("dlopen", t.objs.TraceDlopenReturn, nil)
+	if err != nil {
+		debugLog("funkoverage-shim: error attaching uretprobe to dlopen: %v", err)
+		return
+	}
+	t.addLink(l)
 }
 
 // readLoop drains the ringbuf and writes one CALLED line per unique event.
@@ -431,13 +436,8 @@ func (t *Tracer) readLoop() {
 	}
 }
 
-// Stop tears down the tracer in this order:
-//
-//  1. Detach all links — stops new events from queuing.
-//  2. Close reader after a delay — allows in-flight ringbuf events to drain
-//     into the reader goroutine while probes are still attached (brief window).
-//  3. Wait for the reader goroutine to exit.
-//  4. Close log + release BPF objects.
+// drainDelay is how long Stop leaves the ringbuf reader open after detaching
+// the probes, so events already queued still reach readLoop.
 const drainDelay = 100 * time.Millisecond
 
 // addLink appends l to t.links under linksMu — safe to call from the
@@ -448,6 +448,13 @@ func (t *Tracer) addLink(l link.Link) {
 	t.linksMu.Unlock()
 }
 
+// Stop tears down the tracer in this order:
+//
+//  1. Detach all links — stops new events from queuing.
+//  2. Close reader after drainDelay — allows in-flight ringbuf events to drain
+//     into the reader goroutine while probes are still attached (brief window).
+//  3. Wait for the reader goroutine to exit.
+//  4. Close log + release BPF objects.
 func (t *Tracer) Stop() {
 	t.stopOnce.Do(func() {
 		t.linksMu.Lock()
