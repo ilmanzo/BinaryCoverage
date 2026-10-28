@@ -297,8 +297,11 @@ func uninstall(targetBinary string) error {
 
 	originalName := filepath.Base(targetBinary)
 	if originalName != binaryName {
+		// Only a symlink is a multicall alias. A regular file under this name
+		// is some other binary's backed-up original, and removing it would
+		// destroy the only copy.
 		mcLink := filepath.Join(safeBinDir, originalName)
-		if _, err := os.Lstat(mcLink); err == nil {
+		if fi, err := os.Lstat(mcLink); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 			_ = os.Remove(mcLink)
 		}
 	}

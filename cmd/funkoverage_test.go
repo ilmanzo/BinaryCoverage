@@ -2393,3 +2393,47 @@ func TestUnstrip_FailureLeavesNoTempFile(t *testing.T) {
 		t.Errorf("temp files left behind: %v", entries)
 	}
 }
+
+// uninstall removed SAFE_BIN_DIR/<invoked name> unconditionally. When that name
+// is another binary's backed-up original rather than this target's multicall
+// alias, the only copy of that original was deleted.
+func TestUninstall_KeepsUnrelatedBackupSharingAliasName(t *testing.T) {
+	requireTool(t, "gcc")
+	tmp := t.TempDir()
+	t.Setenv("SAFE_BIN_DIR", filepath.Join(tmp, "safe"))
+	t.Setenv("LOG_DIR", filepath.Join(tmp, "logs"))
+	t.Setenv("FUNKOVERAGE_SHIM", makeDummyShim(t, tmp))
+
+	dirA, dirB := filepath.Join(tmp, "a"), filepath.Join(tmp, "b")
+	for _, d := range []string{dirA, dirB} {
+		if err := os.Mkdir(d, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	foo := compileDebugBinary(t, dirA, "foo")
+	want, err := os.ReadFile(foo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compileDebugBinary(t, dirB, "bar")
+	alias := filepath.Join(dirB, "foo") // another name for bar
+	if err := os.Symlink("bar", alias); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, bin := range []string{foo, alias} {
+		if err := install(bin, MainBinaryOnly, nil); err != nil {
+			t.Fatalf("install %s: %v", bin, err)
+		}
+	}
+	if err := uninstall(alias); err != nil {
+		t.Fatalf("uninstall %s: %v", alias, err)
+	}
+
+	if err := uninstall(foo); err != nil {
+		t.Fatalf("uninstall %s after the alias was uninstalled: %v", foo, err)
+	}
+	if got, _ := os.ReadFile(foo); !bytes.Equal(got, want) {
+		t.Error("foo was not restored to its original bytes")
+	}
+}
