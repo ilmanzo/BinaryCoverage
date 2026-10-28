@@ -10,6 +10,23 @@ import (
 	"funkoverage/internal/funkutil"
 )
 
+// refuseInstalled errors unless safePath is free or holds only the scratch
+// symlink an earlier, interrupted trace left behind. Anything else is an
+// installed shim's original (or an unrelated backup of the same name), and
+// traceInline's cleanup would delete the sidecars that shim traces from.
+func refuseInstalled(safePath, realBin string) error {
+	fi, err := os.Lstat(safePath)
+	if err != nil {
+		return nil
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		if target, err := filepath.EvalSymlinks(safePath); err == nil && target == realBin {
+			return nil
+		}
+	}
+	return fmt.Errorf("%s is already taken (installed shim?); run the binary directly, or uninstall it first", safePath)
+}
+
 // traceInline runs a binary under tracing without permanent installation.
 // Writes _functions.log, creates a temporary real-binary symlink in
 // SAFE_BIN_DIR so the shim's path-convention lookup works, invokes the
@@ -26,6 +43,11 @@ func traceInline(binaryPath string, args []string, libScope LibScope, filter *fu
 		return 1, fmt.Errorf("'%s' is not an ELF executable", binaryPath)
 	}
 
+	safePath := filepath.Join(safeBinDir, filepath.Base(realBin))
+	if err := refuseInstalled(safePath, realBin); err != nil {
+		return 1, fmt.Errorf("'%s': %w", binaryPath, err)
+	}
+
 	shimBinary, err := findShimBinary()
 	if err != nil {
 		return 1, err
@@ -39,10 +61,9 @@ func traceInline(binaryPath string, args []string, libScope LibScope, filter *fu
 	if err := os.MkdirAll(safeBinDir, 0755); err != nil {
 		return 1, err
 	}
-	safePath := filepath.Join(safeBinDir, filepath.Base(realBin))
 
 	tempSafe := false
-	if _, err := os.Stat(safePath); err != nil {
+	if _, err := os.Lstat(safePath); err != nil {
 		if err := os.Symlink(realBin, safePath); err != nil {
 			return 1, fmt.Errorf("create temp safe entry: %w", err)
 		}

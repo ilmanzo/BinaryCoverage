@@ -2291,3 +2291,61 @@ func TestEnumerateOne_ExternalDebugFallback(t *testing.T) {
 		t.Errorf("enumerateOne debug path = %q, want %q", debugPath, debugFile)
 	}
 }
+
+// --- audit regression tests ---
+
+func requireTool(t *testing.T, name string) {
+	t.Helper()
+	if _, err := exec.LookPath(name); err != nil {
+		t.Skipf("%s not found", name)
+	}
+}
+
+// installedFixture lays out a binary that already has a shim installed: its
+// original sits in SAFE_BIN_DIR with its sidecars, as install leaves it.
+func installedFixture(t *testing.T) (bin, safePath string) {
+	t.Helper()
+	tmp := t.TempDir()
+	safeDir := filepath.Join(tmp, "safe")
+	if err := os.MkdirAll(safeDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SAFE_BIN_DIR", safeDir)
+	t.Setenv("LOG_DIR", filepath.Join(tmp, "logs"))
+	t.Setenv("FUNKOVERAGE_SHIM", makeDummyShim(t, tmp))
+
+	bin = compileDebugBinary(t, tmp, "prog")
+	safePath = filepath.Join(safeDir, "prog")
+	if err := os.WriteFile(safePath, []byte("original"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	funcs := map[string]funkutil.ImageFuncs{"/x": {Names: []string{"f"}}}
+	if err := funkutil.WriteFuncList(safePath, funcs); err != nil {
+		t.Fatal(err)
+	}
+	if err := funkutil.WriteFilterSidecar(safePath, funkutil.FilterSidecar{Include: "^f"}); err != nil {
+		t.Fatal(err)
+	}
+	return bin, safePath
+}
+
+// trace used to treat an installed original as its own scratch entry, then
+// delete the funcs/filter sidecars on exit — leaving the installed shim with
+// nothing to trace.
+func TestTraceInline_LeavesInstalledBinaryAlone(t *testing.T) {
+	requireTool(t, "gcc")
+	bin, safePath := installedFixture(t)
+
+	if _, err := traceInline(bin, nil, MainBinaryOnly, nil); err == nil {
+		t.Error("traceInline of an installed binary: want an error")
+	}
+	if len(funkutil.ReadFuncList(safePath)) != 1 {
+		t.Error("funcs sidecar of the installed shim was clobbered")
+	}
+	if funkutil.ReadFilterSidecar(safePath).Include != "^f" {
+		t.Error("filter sidecar of the installed shim was clobbered")
+	}
+	if data, _ := os.ReadFile(safePath); string(data) != "original" {
+		t.Errorf("installed original modified: %q", data)
+	}
+}
