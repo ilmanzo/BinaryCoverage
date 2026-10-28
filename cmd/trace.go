@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"funkoverage/internal/funkutil"
 )
@@ -105,9 +106,18 @@ func traceInline(binaryPath string, args []string, libScope LibScope, filter *fu
 
 	if err := cmd.Run(); err != nil {
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
-			return exitErr.ExitCode(), nil
+			return shellExitCode(exitErr), nil
 		}
 		return 1, err
 	}
 	return 0, nil
+}
+
+// shellExitCode is e's exit status, or 128+signo when a signal killed the
+// process — ExitError.ExitCode reports -1 for that, which os.Exit turns into 255.
+func shellExitCode(e *exec.ExitError) int {
+	if ws, ok := e.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+		return 128 + int(ws.Signal())
+	}
+	return e.ExitCode()
 }

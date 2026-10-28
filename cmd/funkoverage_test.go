@@ -2349,3 +2349,24 @@ func TestTraceInline_LeavesInstalledBinaryAlone(t *testing.T) {
 		t.Errorf("installed original modified: %q", data)
 	}
 }
+
+// A traced program killed by a signal has no exit status; the shell convention
+// is 128+signo, not os.Exit(-1) (255).
+func TestTraceInline_SignalExitCode(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("SAFE_BIN_DIR", filepath.Join(tmp, "safe"))
+	t.Setenv("LOG_DIR", filepath.Join(tmp, "logs"))
+	shim := filepath.Join(tmp, "shim.sh")
+	if err := os.WriteFile(shim, []byte("#!/bin/sh\nkill -TERM $$\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FUNKOVERAGE_SHIM", shim)
+
+	code, err := traceInline(makeDummyShim(t, tmp), nil, WithLibraries, nil)
+	if err != nil {
+		t.Fatalf("traceInline: %v", err)
+	}
+	if want := 128 + int(syscall.SIGTERM); code != want {
+		t.Errorf("exit code = %d, want %d", code, want)
+	}
+}
