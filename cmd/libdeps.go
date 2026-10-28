@@ -389,9 +389,9 @@ func ldCacheString(data []byte, off uint32) (string, bool) {
 		return "", false
 	}
 	rest := data[off:]
-	end := bytes.IndexByte(rest, 0)
-	if end < 0 {
+	before, _, ok := bytes.Cut(rest, []byte{0})
+	if !ok {
 		return "", false
 	}
-	return string(rest[:end]), true
+	return string(before), true
 }

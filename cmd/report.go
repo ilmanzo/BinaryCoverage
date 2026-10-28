@@ -366,22 +366,22 @@ func generateXUnitReport(rep imageReport, outputDir string) error {
 	if len(calledList) > 0 {
 		details.WriteString("CALLED FUNCTIONS:\n")
 		for _, fn := range calledList {
-			details.WriteString(fmt.Sprintf("  ✓ %s\n", fn))
+			fmt.Fprintf(&details, "  ✓ %s\n", fn)
 		}
 		details.WriteString("\n")
 	}
 	if len(uncalledList) > 0 {
 		details.WriteString("UNCALLED FUNCTIONS:\n")
 		for _, fn := range uncalledList {
-			details.WriteString(fmt.Sprintf("  ✗ %s\n", fn))
+			fmt.Fprintf(&details, "  ✗ %s\n", fn)
 		}
 	}
 
 	// Add totals section to details
-	details.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&details,
 		"\nTOTALS:\n  Total Functions: %d\n  Total Called: %d\n  Average Coverage: %.2f%%\n",
 		totalCount, calledCount, pct,
-	))
+	)
 
 	ts := TestSuites{
 		Generated: time.Now().Format("2006-01-02 15:04:05 MST"),

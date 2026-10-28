@@ -373,13 +373,13 @@ func checkKernelVersion(wantMajor, wantMinor int) error {
 	if err != nil {
 		return fmt.Errorf("read kernel release: %w", err)
 	}
-	maj, min, err := parseKernelVersion(strings.TrimSpace(string(data)))
+	major, minor, err := parseKernelVersion(strings.TrimSpace(string(data)))
 	if err != nil {
 		return err
 	}
-	if maj < wantMajor || (maj == wantMajor && min < wantMinor) {
+	if major < wantMajor || (major == wantMajor && minor < wantMinor) {
 		return fmt.Errorf("kernel %d.%d+ required (have %d.%d) for uprobe_multi support",
-			wantMajor, wantMinor, maj, min)
+			wantMajor, wantMinor, major, minor)
 	}
 	return nil
 }
@@ -392,12 +392,12 @@ func parseKernelVersion(release string) (major, minor int, err error) {
 	if len(parts) < 2 {
 		return 0, 0, fmt.Errorf("cannot parse kernel release %q", release)
 	}
-	maj, err1 := strconv.Atoi(parts[0])
-	min, err2 := strconv.Atoi(strings.SplitN(parts[1], "-", 2)[0])
+	major, err1 := strconv.Atoi(parts[0])
+	minor, err2 := strconv.Atoi(strings.SplitN(parts[1], "-", 2)[0])
 	if err1 != nil || err2 != nil {
 		return 0, 0, fmt.Errorf("cannot parse kernel release %q", release)
 	}
-	return maj, min, nil
+	return major, minor, nil
 }
 
 func findShimBinary() (string, error) {

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"debug/elf"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -282,7 +283,7 @@ func unstrip(binPath, debugPath string) error {
 
 func move(source, destination string) error {
 	err := os.Rename(source, destination)
-	if err != nil && strings.Contains(err.Error(), "invalid cross-device link") {
+	if errors.Is(err, syscall.EXDEV) {
 		return moveCrossDevice(source, destination)
 	}
 	return err

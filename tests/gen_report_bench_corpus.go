@@ -38,7 +38,7 @@ func main() {
 		calledPerFile = 1
 	}
 
-	for i := 0; i < numImages; i++ {
+	for i := range numImages {
 		base := fmt.Sprintf("image%05d", i)
 		image := fmt.Sprintf("/opt/bench/%s/lib%s.so", base, base)
 
