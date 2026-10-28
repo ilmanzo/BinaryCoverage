@@ -265,6 +265,7 @@ func unstrip(binPath, debugPath string) error {
 	out := tmp.Name()
 	tmp.Close()
 	os.Remove(out)
+	defer os.Remove(out) // eu-unstrip can fail after writing; a no-op once move has renamed it
 	cmd := exec.Command("eu-unstrip", "--force", binPath, debugPath, "-o", out)
 	if combined, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("eu-unstrip failed: %w: %s", err, combined)
@@ -274,7 +275,6 @@ func unstrip(binPath, debugPath string) error {
 	// privilege tricks — so setting the final mode must come last.
 	chownLike(out, info)
 	if err := os.Chmod(out, info.Mode()&preservedModeBits); err != nil {
-		os.Remove(out)
 		return fmt.Errorf("chmod merged binary: %w", err)
 	}
 	return move(out, binPath)

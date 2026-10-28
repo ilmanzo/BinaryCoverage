@@ -2370,3 +2370,26 @@ func TestTraceInline_SignalExitCode(t *testing.T) {
 		t.Errorf("exit code = %d, want %d", code, want)
 	}
 }
+
+// eu-unstrip may write its output before failing; the half-written file must
+// not be left next to the binary in SAFE_BIN_DIR.
+func TestUnstrip_FailureLeavesNoTempFile(t *testing.T) {
+	tmp := t.TempDir()
+	bin := filepath.Join(tmp, "bin")
+	if err := os.WriteFile(bin, []byte("x"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	fake := t.TempDir()
+	script := "#!/bin/sh\nfor a; do out=$a; done\necho partial > \"$out\"\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(fake, "eu-unstrip"), []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fake)
+
+	if err := unstrip(bin, bin); err == nil {
+		t.Fatal("unstrip: want an error from the failing eu-unstrip")
+	}
+	if entries, _ := os.ReadDir(tmp); len(entries) != 1 {
+		t.Errorf("temp files left behind: %v", entries)
+	}
+}
