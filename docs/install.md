@@ -23,13 +23,13 @@ ls -lh /sys/kernel/btf/vmlinux
 
 ```bash
 # openSUSE/SUSE
-sudo zypper install go1.27 elfutils make gcc-c++
+sudo zypper install go1.27 make gcc-c++
 
 # Fedora/RHEL
-sudo dnf install golang elfutils make gcc-c++
+sudo dnf install golang make gcc-c++
 
 # Debian/Ubuntu
-sudo apt install golang elfutils make g++
+sudo apt install golang make g++
 ```
 
 ### BPF regeneration (optional)
@@ -51,16 +51,16 @@ sudo apt install clang llvm bpftool libbpf-dev
 
 ```bash
 # openSUSE/SUSE
-sudo zypper install libcap-progs elfutils
+sudo zypper install libcap-progs
 
 # Fedora/RHEL
-sudo dnf install libcap elfutils
+sudo dnf install libcap
 
 # Debian/Ubuntu
-sudo apt install libcap2-bin elfutils
+sudo apt install libcap2-bin
 ```
 
-**libcap-progs** provides `setcap` (file capabilities). **elfutils** provides `eu-unstrip` (merges external debug info).
+**libcap-progs** provides `setcap` (file capabilities).
 
 ### Testing (optional)
 

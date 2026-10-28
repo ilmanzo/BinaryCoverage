@@ -54,7 +54,7 @@ func traceInline(binaryPath string, args []string, libScope LibScope, filter *fu
 		return 1, err
 	}
 
-	funcs, err := enumerateFuncs(realBin, filepath.Base(realBin), logDir, libScope, filter)
+	funcs, err := enumerateFuncs(realBin, realBin, filepath.Base(realBin), logDir, libScope, filter)
 	if err != nil {
 		return 1, err
 	}

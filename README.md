@@ -20,7 +20,6 @@
 - **Clang/LLVM** (only for BPF regeneration with `REGEN_BPF=1`)
 - **bpftool** (only for BPF regeneration with `REGEN_BPF=1`)
 - **libbpf-devel** (only for BPF regeneration with `REGEN_BPF=1`)
-- **elfutils** (provides `eu-unstrip` for debug info merging)
 
 ## 🛠️ Build & Run
 

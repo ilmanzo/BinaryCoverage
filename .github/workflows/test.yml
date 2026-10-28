@@ -20,7 +20,7 @@ jobs:
           go-version: '1.27'
 
       - name: Install required tools
-        run: sudo apt update && sudo apt install -y g++ make python3 elfutils
+        run: sudo apt update && sudo apt install -y g++ make python3
 
       - name: Run unit tests
         run: ./run_unit_tests.sh

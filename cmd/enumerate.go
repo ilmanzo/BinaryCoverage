@@ -78,10 +78,17 @@ const (
 // recomputed by those callers because demangling is the expensive half of
 // enumeration, and it has already happened here.
 func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, map[string][]string, error) {
+	return EnumerateFunctionsAt(binPath, binPath, libScope, filter)
+}
+
+// EnumerateFunctionsAt enumerates binPath while resolving path-relative
+// metadata (.gnu_debuglink, DT_RPATH/DT_RUNPATH $ORIGIN) against origPath —
+// binPath's original location before install moved it into SAFE_BIN_DIR.
+func EnumerateFunctionsAt(binPath, origPath string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, map[string][]string, error) {
 	result := make(map[string]funkutil.ImageFuncs)
 	display := make(map[string][]string)
 
-	funcs, shown, err := enumerateImage(binPath, filter)
+	funcs, shown, err := enumerateImageAt(binPath, origPath, filter)
 	if err != nil {
 		return nil, nil, fmt.Errorf("enumerate %s: %w", binPath, err)
 	}
@@ -94,7 +101,7 @@ func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.Func
 		return result, display, nil
 	}
 
-	libs, err := resolveLibraries(binPath)
+	libs, err := resolveLibrariesAt(binPath, origPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enumerate: dependency resolution failed for %s: %v\n", binPath, err)
 	}
@@ -120,18 +127,23 @@ func EnumerateFunctions(binPath string, libScope LibScope, filter *funkutil.Func
 // that live only in its external debug file and therefore need a pre-computed
 // file offset.
 //
-// The split exists so funkoverage never has to modify a system library. The
-// previous design merged the debug symbols into the library in place with
-// eu-unstrip, which made `rpm -V` dirty, raced between concurrent installs,
-// and left the host permanently altered if the process died before uninstall.
+// The split exists so funkoverage never has to modify a binary or system
+// library. The previous design merged the debug symbols into the binary/library
+// with eu-unstrip, which made `rpm -V` dirty after uninstall, raced between
+// concurrent installs, and left the host permanently altered if the process
+// died before uninstall.
 //
 // Falling back to a name-only result is always safe: it is exactly the
-// coverage a plain, unmerged library gives, so a failure here costs the
+// coverage a plain, unmerged binary gives, so a failure here costs the
 // internal functions, never correctness.
 // It returns the image's functions in demangled form alongside, in the same
 // order ImageFuncs.All() yields them.
 func enumerateImage(path string, filter *funkutil.FuncFilter) (funkutil.ImageFuncs, []string, error) {
-	funcs, debugPath, err := enumerateOne(path, filter)
+	return enumerateImageAt(path, path, filter)
+}
+
+func enumerateImageAt(path, origPath string, filter *funkutil.FuncFilter) (funkutil.ImageFuncs, []string, error) {
+	funcs, debugPath, err := enumerateOneAt(path, origPath, filter)
 	if err != nil || len(funcs) == 0 {
 		return funkutil.ImageFuncs{}, nil, err
 	}
@@ -234,7 +246,11 @@ func canonicalPath(path string) string {
 // It also returns the external debug file it consulted (or ""), so callers
 // don't have to resolve it a second time.
 func enumerateOne(path string, filter *funkutil.FuncFilter) ([]funkutil.Func, string, error) {
-	debugPath := externalDebugPath(path)
+	return enumerateOneAt(path, path, filter)
+}
+
+func enumerateOneAt(path, origPath string, filter *funkutil.FuncFilter) ([]funkutil.Func, string, error) {
+	debugPath, _ := resolveDebugFile(path, origPath)
 	if debugPath != "" {
 		if funcs := symtabFunctions(debugPath, filter); len(funcs) > 0 {
 			return funcs, debugPath, nil
@@ -288,14 +304,8 @@ func hasEmbeddedDebugInfo(f *elf.File) bool {
 }
 
 // externalDebugPath returns the path to an external .debug file, or "".
-// Thin wrapper over resolveDebugFile (cmd/elfutil.go), which also backs the
-// install-time merge path — enumeration wants a candidate even when the
-// binary already carries embedded debug sections, so skipIfEmbedded is
-// false, and any elf.Open error degrades to "" (no candidate) rather than
-// propagating, matching this function's pre-existing (string, no error)
-// signature.
 func externalDebugPath(binPath string) string {
-	path, _ := resolveDebugFile(binPath, binPath, AllowEmbedded)
+	path, _ := resolveDebugFile(binPath, binPath)
 	return path
 }
 
@@ -404,8 +414,8 @@ func writeFunctionsLog(logDir, binaryBasename string, display map[string][]strin
 // (cmd/trace.go, temporary) — both enumerate, then log, the same way; they
 // differ in what happens to the result afterward (install additionally
 // rolls back its move on error).
-func enumerateFuncs(path, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, error) {
-	funcs, display, err := EnumerateFunctions(path, libScope, filter)
+func enumerateFuncs(path, origPath, binaryName, logDir string, libScope LibScope, filter *funkutil.FuncFilter) (map[string]funkutil.ImageFuncs, error) {
+	funcs, display, err := EnumerateFunctionsAt(path, origPath, libScope, filter)
 	if err != nil {
 		return nil, fmt.Errorf("function enumeration: %w", err)
 	}

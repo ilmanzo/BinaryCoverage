@@ -148,9 +148,9 @@ func TestFindDebugFile(t *testing.T) {
 	}
 }
 
-// --- locateExternalDebugForMerge tests ---
+// --- resolveDebugFile tests ---
 
-func TestLocateExternalDebugForMerge(t *testing.T) {
+func TestResolveDebugFile(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("gcc not found")
 	}
@@ -166,7 +166,7 @@ func TestLocateExternalDebugForMerge(t *testing.T) {
 	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	bin := filepath.Join(tmp, "bin_merge")
+	bin := filepath.Join(tmp, "bin_debug")
 	if out, err := exec.Command("gcc", "-g", "-Wl,--build-id", "-o", bin, src).CombinedOutput(); err != nil {
 		t.Fatalf("compile: %v\n%s", err, out)
 	}
@@ -184,8 +184,8 @@ func TestLocateExternalDebugForMerge(t *testing.T) {
 	}
 
 	// No external debug file placed yet: nothing to find.
-	if got, err := locateExternalDebugForMerge(bin, bin); err != nil || got != "" {
-		t.Errorf("locateExternalDebugForMerge before placing debug file = (%q, %v), want (\"\", nil)", got, err)
+	if got, err := resolveDebugFile(bin, bin); err != nil || got != "" {
+		t.Errorf("resolveDebugFile before placing debug file = (%q, %v), want (\"\", nil)", got, err)
 	}
 
 	dir := filepath.Join(tmp, ".build-id", buildID[:2])
@@ -196,21 +196,21 @@ func TestLocateExternalDebugForMerge(t *testing.T) {
 	if err := os.WriteFile(debugFile, []byte("dummy debug info"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	got, err := locateExternalDebugForMerge(bin, bin)
+	got, err := resolveDebugFile(bin, bin)
 	if err != nil {
-		t.Fatalf("locateExternalDebugForMerge: %v", err)
+		t.Fatalf("resolveDebugFile: %v", err)
 	}
 	if got != debugFile {
-		t.Errorf("locateExternalDebugForMerge = %q, want %q", got, debugFile)
+		t.Errorf("resolveDebugFile = %q, want %q", got, debugFile)
 	}
 }
 
-// TestLocateExternalDebugForMerge_DebugLink verifies the .gnu_debuglink
+// TestResolveDebugFile_DebugLink verifies the .gnu_debuglink
 // fallback: when build-id resolution fails (e.g. a missing/stale
 // .build-id symlink), the debug file is still found via the standard
 // <debugRoot>/<canonical-dir-of-binary>/<debuglink-basename> convention
 // used by rpm/dpkg debuginfo packages.
-func TestLocateExternalDebugForMerge_DebugLink(t *testing.T) {
+func TestResolveDebugFile_DebugLink(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("gcc not found")
 	}
@@ -251,12 +251,12 @@ func TestLocateExternalDebugForMerge_DebugLink(t *testing.T) {
 		t.Fatalf("objcopy --add-gnu-debuglink: %v\n%s", err, out)
 	}
 
-	got, err := locateExternalDebugForMerge(bin, bin)
+	got, err := resolveDebugFile(bin, bin)
 	if err != nil {
-		t.Fatalf("locateExternalDebugForMerge: %v", err)
+		t.Fatalf("resolveDebugFile: %v", err)
 	}
 	if got != debugFile {
-		t.Errorf("locateExternalDebugForMerge via .gnu_debuglink = %q, want %q", got, debugFile)
+		t.Errorf("resolveDebugFile via .gnu_debuglink = %q, want %q", got, debugFile)
 	}
 }
 
@@ -299,61 +299,6 @@ func TestExternalDebugPath_IgnoresDwzFile(t *testing.T) {
 
 	if got := externalDebugPath(bin); got != "" {
 		t.Errorf("externalDebugPath picked up a .dwz/ file as a debug source: %q, want \"\"", got)
-	}
-	if got, err := locateExternalDebugForMerge(bin, bin); err != nil || got != "" {
-		t.Errorf("locateExternalDebugForMerge picked up a .dwz/ file as a debug source: (%q, %v), want (\"\", nil)", got, err)
-	}
-}
-
-// TestResolveDebugFile_SkipIfEmbedded verifies the one behavioral
-// difference between the two resolveDebugFile callers: locateExternalDebugForMerge
-// (skipIfEmbedded=true) has nothing useful to merge into a binary that
-// already carries embedded DWARF, so it returns "". externalDebugPath
-// (skipIfEmbedded=false) still returns a matching external candidate
-// regardless — enumeration wants it as a fallback candidate even when
-// static enumeration might succeed via the binary's own DWARF instead.
-func TestResolveDebugFile_SkipIfEmbedded(t *testing.T) {
-	if _, err := exec.LookPath("gcc"); err != nil {
-		t.Skip("gcc not found")
-	}
-	tmp := t.TempDir()
-	orig := globalDebugRoot
-	globalDebugRoot = tmp
-	defer func() { globalDebugRoot = orig }()
-
-	src := filepath.Join(tmp, "main.c")
-	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	// -g and no strip: bin keeps its own embedded DWARF (.debug_info etc.).
-	bin := filepath.Join(tmp, "embedded")
-	if out, err := exec.Command("gcc", "-g", "-Wl,--build-id", "-o", bin, src).CombinedOutput(); err != nil {
-		t.Fatalf("compile: %v\n%s", err, out)
-	}
-	f, err := elf.Open(bin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	buildID, err := funkutil.BuildID(f)
-	f.Close()
-	if err != nil {
-		t.Fatalf("get build id: %v", err)
-	}
-
-	dir := filepath.Join(tmp, ".build-id", buildID[:2])
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	debugFile := filepath.Join(dir, buildID[2:]+".debug")
-	if err := os.WriteFile(debugFile, []byte("dummy debug info"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	if got, err := locateExternalDebugForMerge(bin, bin); err != nil || got != "" {
-		t.Errorf("locateExternalDebugForMerge(embedded DWARF) = (%q, %v), want (\"\", nil)", got, err)
-	}
-	if got := externalDebugPath(bin); got != debugFile {
-		t.Errorf("externalDebugPath(embedded DWARF) = %q, want %q", got, debugFile)
 	}
 }
 
@@ -1123,7 +1068,7 @@ func TestEnumerateFunctions_WithLibraries(t *testing.T) {
 	}
 }
 
-// --- copyFile / unstrip mode+ownership preservation tests ---
+// --- copyFile mode+ownership preservation tests ---
 
 func TestCopyFilePreservesModeAndOwner(t *testing.T) {
 	tmp := t.TempDir()
@@ -1168,59 +1113,6 @@ func TestCopyFilePreservesModeAndOwner(t *testing.T) {
 	dstStat, _ := dstInfo.Sys().(*syscall.Stat_t)
 	if srcStat != nil && dstStat != nil && (srcStat.Uid != dstStat.Uid || srcStat.Gid != dstStat.Gid) {
 		t.Errorf("ownership not preserved: src=%d:%d dst=%d:%d", srcStat.Uid, srcStat.Gid, dstStat.Uid, dstStat.Gid)
-	}
-}
-
-func TestUnstripPreservesMode(t *testing.T) {
-	if _, err := exec.LookPath("gcc"); err != nil {
-		t.Skip("gcc not found")
-	}
-	if _, err := exec.LookPath("strip"); err != nil {
-		t.Skip("strip not found")
-	}
-	if _, err := exec.LookPath("eu-unstrip"); err != nil {
-		t.Skip("eu-unstrip not found")
-	}
-	tmp := t.TempDir()
-	src := filepath.Join(tmp, "main.c")
-	if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	cases := []struct {
-		name string
-		mode os.FileMode
-	}{
-		{"regular", 0755},
-		{"setuid", os.ModeSetuid | 0555},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			bin := filepath.Join(tmp, "bin_"+tc.name)
-			if out, err := exec.Command("gcc", "-g", "-o", bin, src).CombinedOutput(); err != nil {
-				t.Fatalf("compile: %v\n%s", err, out)
-			}
-			debugFile := bin + ".debug"
-			if out, err := exec.Command("objcopy", "--only-keep-debug", bin, debugFile).CombinedOutput(); err != nil {
-				t.Fatalf("objcopy --only-keep-debug: %v\n%s", err, out)
-			}
-			if out, err := exec.Command("strip", "--strip-all", bin).CombinedOutput(); err != nil {
-				t.Fatalf("strip --strip-all: %v\n%s", err, out)
-			}
-			if err := os.Chmod(bin, tc.mode); err != nil {
-				t.Fatal(err)
-			}
-			if err := unstrip(bin, debugFile); err != nil {
-				t.Fatalf("unstrip: %v", err)
-			}
-			fi, err := os.Stat(bin)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if fi.Mode()&preservedModeBits != tc.mode&preservedModeBits {
-				t.Errorf("mode after unstrip = %v, want %v", fi.Mode()&preservedModeBits, tc.mode&preservedModeBits)
-			}
-		})
 	}
 }
 
@@ -1445,6 +1337,125 @@ func TestInstallUninstall_PreservesSetuidMode(t *testing.T) {
 	} else if fi.Mode()&preservedModeBits != wantMode&preservedModeBits {
 		t.Errorf("restored original mode = %v, want %v", fi.Mode()&preservedModeBits, wantMode&preservedModeBits)
 	}
+}
+
+// TestInstallUninstall_PreservesStrippedBinary verifies issue #160: installing
+// and uninstalling a stripped binary whose debug info lives in an external
+// .debug file must leave the relocated copy in SAFE_BIN_DIR untouched (recording
+// its debug-only functions as file offsets in .funcs.json rather than merging
+// debug sections with eu-unstrip), so uninstall restores the exact original
+// bytes and mtime (`rpm -V` clean), and .gnu_debuglink still resolves relative
+// to the binary's original directory.
+func TestInstallUninstall_PreservesStrippedBinary(t *testing.T) {
+	for _, tool := range []string{"gcc", "strip", "objcopy"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s not found", tool)
+		}
+	}
+	tmp := t.TempDir()
+	origDebugRoot := globalDebugRoot
+	globalDebugRoot = filepath.Join(tmp, "debugroot")
+	defer func() { globalDebugRoot = origDebugRoot }()
+
+	safeBinDir := filepath.Join(tmp, "safe")
+	logDir := filepath.Join(tmp, "logs")
+	shimDir := filepath.Join(tmp, "shim")
+	binDir := filepath.Join(tmp, "usr", "bin")
+	for _, d := range []string{shimDir, binDir} {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	shimPath := makeDummyShim(t, shimDir)
+	t.Setenv("FUNKOVERAGE_SHIM", shimPath)
+	t.Setenv("SAFE_BIN_DIR", safeBinDir)
+	t.Setenv("LOG_DIR", logDir)
+
+	src := filepath.Join(tmp, "main.c")
+	code := "static int local_helper(void) { return 42; }\nint main(void) { return local_helper(); }\n"
+	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(binDir, "strippedprog")
+	if out, err := exec.Command("gcc", "-g", "-O0", "-Wl,--build-id", "-o", bin, src).CombinedOutput(); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out)
+	}
+	realBinDir, err := filepath.EvalSymlinks(binDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	debugDir := filepath.Join(globalDebugRoot, realBinDir)
+	if err := os.MkdirAll(debugDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	debugFile := filepath.Join(debugDir, "strippedprog.debug")
+	if out, err := exec.Command("objcopy", "--only-keep-debug", bin, debugFile).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --only-keep-debug: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("strip", "--strip-all", bin).CombinedOutput(); err != nil {
+		t.Fatalf("strip --strip-all: %v\n%s", err, out)
+	}
+	// Rely on .gnu_debuglink (no .build-id file placed) so we also verify that
+	// relocating bin to SAFE_BIN_DIR before enumeration still resolves
+	// .gnu_debuglink against bin's original directory.
+	if out, err := exec.Command("objcopy", "--add-gnu-debuglink="+debugFile, bin).CombinedOutput(); err != nil {
+		t.Fatalf("objcopy --add-gnu-debuglink: %v\n%s", err, out)
+	}
+
+	beforeBytes, err := os.ReadFile(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeStat, err := os.Stat(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := install(bin, MainBinaryOnly, nil); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	safePath := filepath.Join(safeBinDir, "strippedprog")
+	safeBytes, err := os.ReadFile(safePath)
+	if err != nil {
+		t.Fatalf("read safe binary: %v", err)
+	}
+	if !bytes.Equal(beforeBytes, safeBytes) {
+		t.Errorf("relocated binary at %s was modified during install (%d bytes -> %d bytes)", safePath, len(beforeBytes), len(safeBytes))
+	}
+
+	funcsMap := funkutil.ReadFuncList(safePath)
+	imgFuncs, ok := funcsMap[canonicalPath(safePath)]
+	if !ok {
+		t.Fatalf("expected %s in funcs sidecar, got keys %v", canonicalPath(safePath), slices.Sorted(maps.Keys(funcsMap)))
+	}
+	var offsetNames []string
+	for _, fa := range imgFuncs.Offsets {
+		offsetNames = append(offsetNames, fa.Name)
+	}
+	if !slices.Contains(offsetNames, "local_helper") {
+		t.Errorf("Offsets = %v, want local_helper recorded as file offset", imgFuncs.Offsets)
+	}
+
+	if err := uninstall(bin); err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+
+	afterBytes, err := os.ReadFile(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(beforeBytes, afterBytes) {
+		t.Errorf("restored binary differs from original (%d bytes -> %d bytes)", len(beforeBytes), len(afterBytes))
+	}
+	afterStat, err := os.Stat(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !beforeStat.ModTime().Equal(afterStat.ModTime()) {
+		t.Errorf("mtime changed across install/uninstall: before=%v after=%v", beforeStat.ModTime(), afterStat.ModTime())
+	}
+	assertSafeBinDirEmpty(t, safeBinDir)
 }
 
 func TestInstallMany(t *testing.T) {
@@ -2368,29 +2379,6 @@ func TestTraceInline_SignalExitCode(t *testing.T) {
 	}
 	if want := 128 + int(syscall.SIGTERM); code != want {
 		t.Errorf("exit code = %d, want %d", code, want)
-	}
-}
-
-// eu-unstrip may write its output before failing; the half-written file must
-// not be left next to the binary in SAFE_BIN_DIR.
-func TestUnstrip_FailureLeavesNoTempFile(t *testing.T) {
-	tmp := t.TempDir()
-	bin := filepath.Join(tmp, "bin")
-	if err := os.WriteFile(bin, []byte("x"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	fake := t.TempDir()
-	script := "#!/bin/sh\nfor a; do out=$a; done\necho partial > \"$out\"\nexit 1\n"
-	if err := os.WriteFile(filepath.Join(fake, "eu-unstrip"), []byte(script), 0755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", fake)
-
-	if err := unstrip(bin, bin); err == nil {
-		t.Fatal("unstrip: want an error from the failing eu-unstrip")
-	}
-	if entries, _ := os.ReadDir(tmp); len(entries) != 1 {
-		t.Errorf("temp files left behind: %v", entries)
 	}
 }
 
