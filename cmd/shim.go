@@ -443,7 +443,11 @@ func copyFile(src, dst string, info os.FileInfo) error {
 		return err
 	}
 	_, err = io.Copy(out, in)
-	out.Close()
+	// Close can be where a full or network filesystem reports a failed write;
+	// dropping it would install a truncated shim as if it had succeeded.
+	if cerr := out.Close(); err == nil {
+		err = cerr
+	}
 	if err != nil {
 		os.Remove(dst)
 		return err
