@@ -127,7 +127,7 @@ func addFilterFlags(fs *flag.FlagSet) func() (*funkutil.FuncFilter, error) {
 // arguments. Go's flag package stops at the first non-flag argument, so
 // documented forms like `report <in> <out> --formats xml` would otherwise
 // silently drop the flag. Returns the positional arguments in order. A "--"
-// terminator still ends flag parsing as usual.
+// terminator ends flag parsing for good: every later argument is positional.
 func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
 	var positional []string
 	for len(args) > 0 {
@@ -135,6 +135,12 @@ func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
 			return nil, err
 		}
 		rest := fs.Args()
+		// Parse swallows a "--" terminator, so it is the arg just before rest
+		// iff one was seen. (A flag whose value is literally "--" would look
+		// the same; not worth disambiguating.)
+		if n := len(args) - len(rest); n > 0 && args[n-1] == "--" {
+			return append(positional, rest...), nil
+		}
 		if len(rest) == 0 {
 			break
 		}

@@ -74,6 +74,7 @@ func TestParseInterspersed(t *testing.T) {
 		{"flag interleaved", []string{"a", "--formats", "xml", "b"}, []string{"a", "b"}, "xml"},
 		{"flag with = syntax", []string{"a", "--formats=xml", "b"}, []string{"a", "b"}, "xml"},
 		{"-- terminates flag parsing", []string{"a", "--", "--formats", "xml"}, []string{"a", "--formats", "xml"}, "default"},
+		{"-- keeps every later arg positional", []string{"a", "--", "b", "--formats", "xml"}, []string{"a", "b", "--formats", "xml"}, "default"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
