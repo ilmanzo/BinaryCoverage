@@ -1,9 +1,7 @@
 package funkutil
 
 import (
-	"bytes"
 	"debug/elf"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 )
@@ -24,17 +22,13 @@ func BuildID(f *elf.File) (string, error) {
 	if len(data) < 16 {
 		return "", fmt.Errorf("malformed note")
 	}
-	var namesz, descsz, noteType uint32
-	reader := bytes.NewReader(data)
-	for _, p := range []*uint32{&namesz, &descsz, &noteType} {
-		if err := binary.Read(reader, f.ByteOrder, p); err != nil {
-			return "", fmt.Errorf("read note header: %w", err)
-		}
-	}
+	namesz, descsz, noteType := f.ByteOrder.Uint32(data), f.ByteOrder.Uint32(data[4:]), f.ByteOrder.Uint32(data[8:])
 	if namesz != 4 || noteType != 3 {
 		return "", fmt.Errorf("not a gnu build id note")
 	}
-	if int(16+descsz) > len(data) {
+	// descsz is attacker-controlled (any ELF install or a library can carry
+	// one); compare in uint64 so 16+descsz cannot wrap around uint32.
+	if uint64(descsz) > uint64(len(data)-16) {
 		return "", fmt.Errorf("note descsz overflows section")
 	}
 	return hex.EncodeToString(data[16 : 16+descsz]), nil
