@@ -73,11 +73,7 @@ func hasDebugInfo(path string) (bool, error) {
 
 	// externalDebugPath's first step is the same .build-id lookup, so a
 	// separate check here would only ever duplicate it.
-	if debugPath := externalDebugPath(path); debugPath != "" {
-		return true, nil
-	}
-
-	return false, nil
+	return externalDebugPath(path) != "", nil
 }
 
 func buildIDDebugPath(buildID string) string {
