@@ -3,6 +3,7 @@ package main
 import (
 	"debug/elf"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 
 	"github.com/ianlancetaylor/demangle"
+	"golang.org/x/sys/unix"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -type event -cc clang -cflags "-I/usr/include" -target amd64 tracer ./bpf/tracer.bpf.c
@@ -44,6 +46,11 @@ import (
 // it waits for evidence that the memory actually matters.
 const dynFuncHeadroom = 100000
 
+// childPollInterval is how often the watched set is checked for forked
+// children that still need their own probes. Calls a child makes before its
+// probes are attached are not recorded.
+const childPollInterval = 25 * time.Millisecond
+
 // FuncRef identifies a single traced function by image path and (mangled) name.
 type FuncRef struct {
 	Image string
@@ -58,9 +65,24 @@ type Tracer struct {
 	plans   map[string]*attachPlan // image path → what to attach and under which cookies
 	scanned map[string]struct{}    // image paths already considered, so dlopen rescans skip them
 
-	objs           tracerObjects
-	linksMu        sync.Mutex // guards links: Stop (caller goroutine) vs handleDynamicLoad (readLoop goroutine)
-	links          []link.Link
+	objs     tracerObjects
+	linksMu  sync.Mutex // guards links and pidLinks: Stop vs the readLoop and child poll goroutines
+	links    []link.Link
+	pidLinks map[uint32][]link.Link // uprobe links per traced process, closed when it exits
+
+	// Library uprobes are attached per process (UprobeMultiOptions.PID), so
+	// the kernel only plants breakpoints in traced processes. A system-wide
+	// attach also traps every other process that maps the same library,
+	// e.g. PID 1 inside libsystemd-shared (issue #163). The main image is the
+	// exception, see registerProbes.
+	attachMu       sync.Mutex      // serialises Start, handleDynamicLoad and syncChildren
+	probeSets      []probeSet      // every per-process batch attached so far, replayed for each new child
+	known          map[uint32]bool // watched pids already handled: true = has probes, false = skipped
+	rootPID        uint32
+	mainImage      string           // relocated real binary, probed system-wide
+	dlopenEx       *link.Executable // libc/libdl with dlopen, nil if not found
+	pollStop       chan struct{}
+	pollWG         sync.WaitGroup
 	reader         *ringbuf.Reader
 	logFile        *os.File
 	funcsLogPath   string
@@ -135,6 +157,9 @@ func NewTracer(funcs map[string]funkutil.ImageFuncs, logs logPaths, patterns fun
 		funcsLogPath: logs.Functions,
 		seenCapacity: seenCapacity,
 		filter:       filter,
+		pidLinks:     make(map[uint32][]link.Link),
+		known:        make(map[uint32]bool),
+		pollStop:     make(chan struct{}),
 	}, nil
 }
 
@@ -249,8 +274,47 @@ func (p *attachPlan) verify(img string) *attachPlan {
 	return out
 }
 
-// attachProbes attaches one uprobe batch — by name if names is set, by file
-// offset if addrs is — and returns how many probes went live.
+// probeSet is one uprobe batch: by name if names is set, by file offset if
+// addrs is. cookies is parallel to whichever of the two is used.
+type probeSet struct {
+	ex      *link.Executable
+	img     string
+	names   []string
+	addrs   []uint64
+	cookies []uint64
+}
+
+// keep returns the entries of ps whose index is true in ok, preserving
+// which of names/addrs is nil.
+func (ps probeSet) keep(ok []bool) probeSet {
+	out := ps
+	out.cookies = nil
+	if ps.names != nil {
+		out.names = []string{}
+	}
+	if ps.addrs != nil {
+		out.addrs = []uint64{}
+	}
+	for i, k := range ok {
+		if !k {
+			continue
+		}
+		out.cookies = append(out.cookies, ps.cookies[i])
+		if ps.names != nil {
+			out.names = append(out.names, ps.names[i])
+		} else {
+			out.addrs = append(out.addrs, ps.addrs[i])
+		}
+	}
+	return out
+}
+
+// errNoProcess reports that the target process is gone (or is a thread, not a
+// thread group leader), so no probe in the batch can attach.
+var errNoProcess = errors.New("process gone")
+
+// attachProbes attaches ps for pid (0: every process) and returns the subset
+// that went live.
 //
 // UprobeMulti is all-or-nothing: the kernel rejects the whole request over a
 // single bad entry, so a batch that fails is halved and retried until the
@@ -261,29 +325,106 @@ func (p *attachPlan) verify(img string) *attachPlan {
 // uprobe decoder refuses (EOPNOTSUPP), and those two alone cost the other 7165
 // offsets in that image — measured, not hypothetical.
 //
+// ESRCH means pid is not a live thread group leader; bisecting would only
+// repeat it for every probe, so it aborts the whole batch with errNoProcess.
+//
 // ponytail: bisection is ~2k·log2(n) attach syscalls for k bad probes, so an
 // image that is mostly unprobeable degrades to ~2n. Pre-filtering would need an
 // x86 instruction decoder in the shim; revisit only if such an image shows up.
-func (t *Tracer) attachProbes(ex *link.Executable, img string, names []string, addrs, cookies []uint64) int {
-	n := len(cookies)
+// The surviving subset is replayed for children, so they never bisect.
+func (t *Tracer) attachProbes(pid uint32, ps probeSet) (probeSet, error) {
+	n := len(ps.cookies)
 	if n == 0 {
-		return 0
+		return ps, nil
 	}
 
-	return attachBisect(n, func(lo, hi int) error {
-		opts := &link.UprobeMultiOptions{Cookies: cookies[lo:hi]}
-		if names == nil {
-			opts.Addresses = addrs[lo:hi]
+	ok := make([]bool, n)
+	gone := false
+	attachBisect(n, func(lo, hi int) error {
+		if gone {
+			return errNoProcess
 		}
-		l, err := ex.UprobeMulti(subslice(names, lo, hi), t.objs.TraceUprobe, opts)
+		opts := &link.UprobeMultiOptions{Cookies: ps.cookies[lo:hi], PID: pid}
+		if ps.names == nil {
+			opts.Addresses = ps.addrs[lo:hi]
+		}
+		l, err := ps.ex.UprobeMulti(subslice(ps.names, lo, hi), t.objs.TraceUprobe, opts)
+		if errors.Is(err, unix.ESRCH) {
+			gone = true
+			return errNoProcess
+		}
 		if err != nil {
 			return err
 		}
-		t.addLink(l)
+		if pid == 0 {
+			t.addLink(l)
+		} else {
+			t.addPIDLink(pid, l)
+		}
+		for i := lo; i < hi; i++ {
+			ok[i] = true
+		}
 		return nil
 	}, func(i int, err error) {
-		debugLog("funkoverage-shim: %s: dropping probe %s: %v", img, probeLabel(names, addrs, i), err)
+		if !gone {
+			debugLog("funkoverage-shim: %s: dropping probe %s: %v", ps.img, probeLabel(ps.names, ps.addrs, i), err)
+		}
 	})
+	if gone {
+		return ps, errNoProcess
+	}
+	return ps.keep(ok), nil
+}
+
+// registerProbes attaches ps to the root process, then replays the surviving
+// subset for every child that already has probes, and remembers it for
+// children that appear later. Returns how many probes attached for the root.
+// Caller holds attachMu.
+//
+// The main image is attached once for every process instead. Only instances
+// of the shimmed binary map that file (install moved it into SAFE_BIN_DIR),
+// so this costs no foreign traps, and a forked child is traced from its first
+// instruction rather than once the poller gets to it: a daemon's init code
+// runs right after fork(), and squid lost 83 of 568 functions without this.
+//
+// ponytail: N concurrent instances each attach their own link, so every call
+// in any of them runs N BPF programs (one trap); the watched map drops the
+// foreign ones. Same cost as before #163, now limited to the main image.
+func (t *Tracer) registerProbes(ps probeSet) int {
+	if ps.img == t.mainImage {
+		kept, _ := t.attachProbes(0, ps)
+		return len(kept.cookies)
+	}
+	kept, err := t.attachProbes(t.rootPID, ps)
+	if err != nil {
+		// Root is gone: nothing left to trace, so nothing to replay.
+		return 0
+	}
+	if len(kept.cookies) == 0 {
+		return 0
+	}
+	t.probeSets = append(t.probeSets, kept)
+	for pid, hasProbes := range t.known {
+		if hasProbes && pid != t.rootPID {
+			if _, err := t.attachProbes(pid, kept); err != nil {
+				t.forgetChild(pid)
+			}
+		}
+	}
+	return len(kept.cookies)
+}
+
+// attachDlopen attaches the dlopen return probe for pid, if libc was found.
+func (t *Tracer) attachDlopen(pid uint32) {
+	if t.dlopenEx == nil {
+		return
+	}
+	l, err := t.dlopenEx.Uretprobe("dlopen", t.objs.TraceDlopenReturn, &link.UprobeOptions{PID: int(pid)})
+	if err != nil {
+		debugLog("funkoverage-shim: error attaching uretprobe to dlopen for pid %d: %v", pid, err)
+		return
+	}
+	t.addPIDLink(pid, l)
 }
 
 // attachBisect attaches [0,n) via attach, halving and retrying any range that
@@ -330,11 +471,17 @@ func probeLabel(names []string, addrs []uint64, i int) string {
 //
 // Attach is synchronous: when Start returns nil, all probes are live in the
 // kernel.
-func (t *Tracer) Start(rootPID uint32) error {
+func (t *Tracer) Start(rootPID uint32, mainImage string) error {
 	one := uint8(1)
 	if err := t.objs.Watched.Update(&rootPID, &one, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("tracer: seed watched pid %d: %w", rootPID, err)
 	}
+
+	t.attachMu.Lock()
+	defer t.attachMu.Unlock()
+	t.rootPID = rootPID
+	t.mainImage = mainImage
+	t.known[rootPID] = true
 
 	for img, plan := range t.plans {
 		// Marked scanned regardless of what follows: a dlopen rescan
@@ -349,8 +496,8 @@ func (t *Tracer) Start(rootPID uint32) error {
 			continue
 		}
 		plan = plan.verify(img)
-		t.attachProbes(ex, img, plan.names, nil, plan.nameCookies)
-		t.attachProbes(ex, img, nil, plan.addrs, plan.addrCookies)
+		t.registerProbes(probeSet{ex: ex, img: img, names: plan.names, cookies: plan.nameCookies})
+		t.registerProbes(probeSet{ex: ex, img: img, addrs: plan.addrs, cookies: plan.addrCookies})
 	}
 
 	// Non-fatal. The fork tracepoint only widens the watched set to children,
@@ -362,10 +509,12 @@ func (t *Tracer) Start(rootPID uint32) error {
 	// Aborting here failed the whole helper, and runWithTracing turned that
 	// into an exit before the exec — so a shimmed udev callout never ran at
 	// all (issue #158: nfsrahead, and with it NFS readahead tuning).
+	forkTracing := false
 	if fl, err := link.Tracepoint("sched", "sched_process_fork", t.objs.TraceFork, nil); err != nil {
 		debugLog("funkoverage-shim: fork tracepoint unavailable (%v); not tracing child processes", err)
 	} else {
 		t.addLink(fl)
+		forkTracing = true
 	}
 
 	t.attachDlopenProbe(rootPID)
@@ -378,6 +527,11 @@ func (t *Tracer) Start(rootPID uint32) error {
 
 	t.wg.Add(1)
 	go t.readLoop()
+
+	if forkTracing {
+		t.pollWG.Add(1)
+		go t.watchChildren()
+	}
 
 	return nil
 }
@@ -396,12 +550,104 @@ func (t *Tracer) attachDlopenProbe(pid uint32) {
 		debugLog("funkoverage-shim: error opening %s: %v", libcPath, err)
 		return
 	}
-	l, err := ex.Uretprobe("dlopen", t.objs.TraceDlopenReturn, nil)
+	t.dlopenEx = ex
+	t.attachDlopen(pid)
+}
+
+// watchChildren gives every forked child its own probes. A per-process link
+// does not cover a child: fork gives it a new mm, which the kernel filter
+// rejects. The fork tracepoint already adds children to the watched map.
+func (t *Tracer) watchChildren() {
+	defer t.pollWG.Done()
+	tick := time.NewTicker(childPollInterval)
+	defer tick.Stop()
+	for {
+		select {
+		case <-t.pollStop:
+			return
+		case <-tick.C:
+			t.syncChildren()
+		}
+	}
+}
+
+// syncChildren attaches probes for watched pids seen for the first time and
+// releases the probes of children that have exited.
+func (t *Tracer) syncChildren() {
+	pids, err := t.watchedPIDs()
 	if err != nil {
-		debugLog("funkoverage-shim: error attaching uretprobe to dlopen: %v", err)
+		debugLog("funkoverage-shim: error listing watched pids: %v", err)
 		return
 	}
-	t.addLink(l)
+
+	t.attachMu.Lock()
+	defer t.attachMu.Unlock()
+
+	for _, pid := range newPIDs(pids, t.known) {
+		t.known[pid] = isThreadGroupLeader(pid) && t.attachChild(pid)
+	}
+	for pid := range t.known {
+		if pid != t.rootPID && unix.Kill(int(pid), 0) == unix.ESRCH {
+			t.forgetChild(pid)
+		}
+	}
+}
+
+// isThreadGroupLeader reports whether pid is a process rather than a thread.
+// sched_process_fork fires per thread too, so threads land in the watched map;
+// they need no probes of their own, their thread group leader's link covers
+// them, and the kernel would refuse a thread id with ESRCH.
+func isThreadGroupLeader(pid uint32) bool {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	if err != nil {
+		return false
+	}
+	return parseTgid(string(data)) == pid
+}
+
+// parseTgid returns the Tgid field of a /proc/<pid>/status text, 0 if absent.
+func parseTgid(status string) uint32 {
+	for line := range strings.Lines(status) {
+		if v, ok := strings.CutPrefix(line, "Tgid:"); ok {
+			var tgid uint32
+			if _, err := fmt.Sscan(strings.TrimSpace(v), &tgid); err == nil {
+				return tgid
+			}
+		}
+	}
+	return 0
+}
+
+// attachChild replays all probe sets for pid. A failure means the child
+// exited in the meantime.
+func (t *Tracer) attachChild(pid uint32) bool {
+	for _, ps := range t.probeSets {
+		if _, err := t.attachProbes(pid, ps); err != nil {
+			t.closePIDLinks(pid)
+			return false
+		}
+	}
+	t.attachDlopen(pid)
+	return true
+}
+
+// forgetChild releases an exited child's probes and watched entry, so a
+// reused pid starts fresh. Caller holds attachMu.
+func (t *Tracer) forgetChild(pid uint32) {
+	t.closePIDLinks(pid)
+	delete(t.known, pid)
+	_ = t.objs.Watched.Delete(&pid)
+}
+
+// newPIDs returns the entries of pids not yet in known, in input order.
+func newPIDs(pids []uint32, known map[uint32]bool) []uint32 {
+	var out []uint32
+	for _, pid := range pids {
+		if _, ok := known[pid]; !ok {
+			out = append(out, pid)
+		}
+	}
+	return out
 }
 
 // readLoop drains the ringbuf and writes one CALLED line per unique event.
@@ -448,6 +694,24 @@ func (t *Tracer) addLink(l link.Link) {
 	t.linksMu.Unlock()
 }
 
+// addPIDLink records a per-process link so it can be closed when that
+// process exits.
+func (t *Tracer) addPIDLink(pid uint32, l link.Link) {
+	t.linksMu.Lock()
+	t.pidLinks[pid] = append(t.pidLinks[pid], l)
+	t.linksMu.Unlock()
+}
+
+func (t *Tracer) closePIDLinks(pid uint32) {
+	t.linksMu.Lock()
+	links := t.pidLinks[pid]
+	delete(t.pidLinks, pid)
+	t.linksMu.Unlock()
+	for _, l := range links {
+		_ = l.Close()
+	}
+}
+
 // Stop tears down the tracer in this order:
 //
 //  1. Detach all links — stops new events from queuing.
@@ -457,9 +721,16 @@ func (t *Tracer) addLink(l link.Link) {
 //  4. Close log + release BPF objects.
 func (t *Tracer) Stop() {
 	t.stopOnce.Do(func() {
+		close(t.pollStop)
+		t.pollWG.Wait()
+
 		t.linksMu.Lock()
 		links := t.links
 		t.links = nil
+		for _, pl := range t.pidLinks {
+			links = append(links, pl...)
+		}
+		t.pidLinks = make(map[uint32][]link.Link)
 		t.linksMu.Unlock()
 		for _, l := range links {
 			_ = l.Close()
@@ -710,7 +981,9 @@ func (t *Tracer) handleDynamicLoad() {
 			fmt.Fprintf(funcsLog, "FUNC %s %s\n", lib, fn.Demangled)
 		}
 
-		attached := t.attachProbes(ex, lib, names, nil, cookies)
+		t.attachMu.Lock()
+		attached := t.registerProbes(probeSet{ex: ex, img: lib, names: names, cookies: cookies})
+		t.attachMu.Unlock()
 		debugLog("funkoverage-shim: successfully instrumented %d of %d functions in %s", attached, len(syms), lib)
 	}
 }
