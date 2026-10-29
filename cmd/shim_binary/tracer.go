@@ -50,6 +50,7 @@ const dynFuncHeadroom = 100000
 // children that still need their own probes. Calls a child makes before its
 // probes are attached are not recorded.
 const childPollInterval = 25 * time.Millisecond
+const maxLinuxPID = uint32(1<<31 - 1)
 
 // FuncRef identifies a single traced function by image path and (mangled) name.
 type FuncRef struct {
@@ -419,6 +420,10 @@ func (t *Tracer) attachDlopen(pid uint32) {
 	if t.dlopenEx == nil {
 		return
 	}
+	if pid > maxLinuxPID {
+		debugLog("funkoverage-shim: invalid pid %d for dlopen probe", pid)
+		return
+	}
 	l, err := t.dlopenEx.Uretprobe("dlopen", t.objs.TraceDlopenReturn, &link.UprobeOptions{PID: int(pid)})
 	if err != nil {
 		debugLog("funkoverage-shim: error attaching uretprobe to dlopen for pid %d: %v", pid, err)
@@ -587,7 +592,14 @@ func (t *Tracer) syncChildren() {
 		t.known[pid] = isThreadGroupLeader(pid) && t.attachChild(pid)
 	}
 	for pid := range t.known {
-		if pid != t.rootPID && unix.Kill(int(pid), 0) == unix.ESRCH {
+		if pid == t.rootPID {
+			continue
+		}
+		if pid > maxLinuxPID {
+			t.forgetChild(pid)
+			continue
+		}
+		if unix.Kill(int(pid), 0) == unix.ESRCH {
 			t.forgetChild(pid)
 		}
 	}

@@ -186,8 +186,8 @@ func runHelper(readyW *os.File) error {
 	if err != nil {
 		return fmt.Errorf("bad %s: %w", targetPidEnvVar, err)
 	}
-	if targetPIDValue == 0 {
-		return fmt.Errorf("bad %s: pid must be positive", targetPidEnvVar)
+	if targetPIDValue == 0 || targetPIDValue > uint64(maxLinuxPID) {
+		return fmt.Errorf("bad %s: pid is outside the supported range", targetPidEnvVar)
 	}
 	targetPid := int(targetPIDValue)
 

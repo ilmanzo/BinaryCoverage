@@ -126,7 +126,7 @@ func TestWaitForTargetExit_PollFallback(t *testing.T) {
 // TestRunHelper_BadTargetPid covers runHelper's PID validation without
 // touching eBPF: invalid values must fail before any tracer setup is attempted.
 func TestRunHelper_BadTargetPid(t *testing.T) {
-	for _, pid := range []string{"not-a-pid", "-1", "0", "4294967296"} {
+	for _, pid := range []string{"not-a-pid", "-1", "0", "2147483648", "4294967296"} {
 		t.Run(pid, func(t *testing.T) {
 			t.Setenv(targetPidEnvVar, pid)
 			if err := runHelper(nil); err == nil {
