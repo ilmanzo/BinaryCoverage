@@ -70,14 +70,16 @@ type Tracer struct {
 	links    []link.Link
 	pidLinks map[uint32][]link.Link // uprobe links per traced process, closed when it exits
 
-	// Uprobes are attached per process (UprobeMultiOptions.PID), so the
-	// kernel only plants breakpoints in traced processes. A system-wide
+	// Library uprobes are attached per process (UprobeMultiOptions.PID), so
+	// the kernel only plants breakpoints in traced processes. A system-wide
 	// attach also traps every other process that maps the same library,
-	// e.g. PID 1 inside libsystemd-shared (issue #163).
+	// e.g. PID 1 inside libsystemd-shared (issue #163). The main image is the
+	// exception, see registerProbes.
 	attachMu       sync.Mutex      // serialises Start, handleDynamicLoad and syncChildren
-	probeSets      []probeSet      // every batch attached so far, replayed for each new child
+	probeSets      []probeSet      // every per-process batch attached so far, replayed for each new child
 	known          map[uint32]bool // watched pids already handled: true = has probes, false = skipped
 	rootPID        uint32
+	mainImage      string           // relocated real binary, probed system-wide
 	dlopenEx       *link.Executable // libc/libdl with dlopen, nil if not found
 	pollStop       chan struct{}
 	pollWG         sync.WaitGroup
@@ -312,7 +314,8 @@ func (ps probeSet) keep(ok []bool) probeSet {
 // thread group leader), so no probe in the batch can attach.
 var errNoProcess = errors.New("process gone")
 
-// attachProbes attaches ps for pid and returns the subset that went live.
+// attachProbes attaches ps for pid (0: every process) and returns the subset
+// that went live.
 //
 // UprobeMulti is all-or-nothing: the kernel rejects the whole request over a
 // single bad entry, so a batch that fails is halved and retried until the
@@ -354,7 +357,11 @@ func (t *Tracer) attachProbes(pid uint32, ps probeSet) (probeSet, error) {
 		if err != nil {
 			return err
 		}
-		t.addPIDLink(pid, l)
+		if pid == 0 {
+			t.addLink(l)
+		} else {
+			t.addPIDLink(pid, l)
+		}
 		for i := lo; i < hi; i++ {
 			ok[i] = true
 		}
@@ -374,7 +381,21 @@ func (t *Tracer) attachProbes(pid uint32, ps probeSet) (probeSet, error) {
 // subset for every child that already has probes, and remembers it for
 // children that appear later. Returns how many probes attached for the root.
 // Caller holds attachMu.
+//
+// The main image is attached once for every process instead. Only instances
+// of the shimmed binary map that file (install moved it into SAFE_BIN_DIR),
+// so this costs no foreign traps, and a forked child is traced from its first
+// instruction rather than once the poller gets to it: a daemon's init code
+// runs right after fork(), and squid lost 83 of 568 functions without this.
+//
+// ponytail: N concurrent instances each attach their own link, so every call
+// in any of them runs N BPF programs (one trap); the watched map drops the
+// foreign ones. Same cost as before #163, now limited to the main image.
 func (t *Tracer) registerProbes(ps probeSet) int {
+	if ps.img == t.mainImage {
+		kept, _ := t.attachProbes(0, ps)
+		return len(kept.cookies)
+	}
 	kept, err := t.attachProbes(t.rootPID, ps)
 	if err != nil {
 		// Root is gone: nothing left to trace, so nothing to replay.
@@ -451,7 +472,7 @@ func probeLabel(names []string, addrs []uint64, i int) string {
 //
 // Attach is synchronous: when Start returns nil, all probes are live in the
 // kernel.
-func (t *Tracer) Start(rootPID uint32) error {
+func (t *Tracer) Start(rootPID uint32, mainImage string) error {
 	one := uint8(1)
 	if err := t.objs.Watched.Update(&rootPID, &one, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("tracer: seed watched pid %d: %w", rootPID, err)
@@ -460,6 +481,7 @@ func (t *Tracer) Start(rootPID uint32) error {
 	t.attachMu.Lock()
 	defer t.attachMu.Unlock()
 	t.rootPID = rootPID
+	t.mainImage = mainImage
 	t.known[rootPID] = true
 
 	for img, plan := range t.plans {
