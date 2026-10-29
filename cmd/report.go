@@ -80,6 +80,9 @@ func writeBuffered(path string, write func(w io.Writer) error) (err error) {
 	return bw.Flush()
 }
 
+// generatedAt is the timestamp stamped on every report format.
+func generatedAt() string { return time.Now().Format(time.DateTime + " MST") }
+
 // safeImageName returns a filesystem-safe slug from an image path.
 func safeImageName(image string) string {
 	return safeNameRe.ReplaceAllString(filepath.Base(image), "_")
@@ -241,7 +244,7 @@ func scanLog(logFile string, lt logType, coverage map[string]*CoverageData) erro
 	}
 
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(line) == 0 || line[0] == '#' {
@@ -366,25 +369,25 @@ func generateXUnitReport(rep imageReport, outputDir string) error {
 	if len(calledList) > 0 {
 		details.WriteString("CALLED FUNCTIONS:\n")
 		for _, fn := range calledList {
-			details.WriteString(fmt.Sprintf("  ✓ %s\n", fn))
+			fmt.Fprintf(&details, "  ✓ %s\n", fn)
 		}
 		details.WriteString("\n")
 	}
 	if len(uncalledList) > 0 {
 		details.WriteString("UNCALLED FUNCTIONS:\n")
 		for _, fn := range uncalledList {
-			details.WriteString(fmt.Sprintf("  ✗ %s\n", fn))
+			fmt.Fprintf(&details, "  ✗ %s\n", fn)
 		}
 	}
 
 	// Add totals section to details
-	details.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&details,
 		"\nTOTALS:\n  Total Functions: %d\n  Total Called: %d\n  Average Coverage: %.2f%%\n",
 		totalCount, calledCount, pct,
-	))
+	)
 
 	ts := TestSuites{
-		Generated: time.Now().Format("2006-01-02 15:04:05 MST"),
+		Generated: generatedAt(),
 		TestSuite: []TestSuite{
 			{
 				Errors:   0,
@@ -437,7 +440,7 @@ func generateHTMLReport(rep imageReport, outputDir string) error {
 		UncalledCount:      len(uncalled),
 		CoveragePercentage: coveragePct,
 		Functions:          functions,
-		GeneratedAt:        time.Now().Format("2006-01-02 15:04:05 MST"),
+		GeneratedAt:        generatedAt(),
 	}
 	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeImageName(rep.Image)))
 	return writeBuffered(outfile, func(w io.Writer) error {
@@ -456,7 +459,7 @@ func generateAggregateHTMLReport(summary CoverageTotals, outputDir string) error
 	}
 	aggData := AggregateData{
 		CoverageTotals: summary,
-		GeneratedAt:    time.Now().Format("2006-01-02 15:04:05 MST"),
+		GeneratedAt:    generatedAt(),
 	}
 
 	outfile := filepath.Join(outputDir, "aggregate.html")

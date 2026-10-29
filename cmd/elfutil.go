@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"debug/elf"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -71,11 +72,7 @@ func hasDebugInfo(path string) (bool, error) {
 
 	// externalDebugPath's first step is the same .build-id lookup, so a
 	// separate check here would only ever duplicate it.
-	if debugPath := externalDebugPath(path); debugPath != "" {
-		return true, nil
-	}
-
-	return false, nil
+	return externalDebugPath(path) != "", nil
 }
 
 func buildIDDebugPath(buildID string) string {
@@ -209,7 +206,7 @@ func findDebugFile(altPath string) string {
 
 func move(source, destination string) error {
 	err := os.Rename(source, destination)
-	if err != nil && strings.Contains(err.Error(), "invalid cross-device link") {
+	if errors.Is(err, syscall.EXDEV) {
 		return moveCrossDevice(source, destination)
 	}
 	return err

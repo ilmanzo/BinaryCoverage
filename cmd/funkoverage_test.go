@@ -74,6 +74,7 @@ func TestParseInterspersed(t *testing.T) {
 		{"flag interleaved", []string{"a", "--formats", "xml", "b"}, []string{"a", "b"}, "xml"},
 		{"flag with = syntax", []string{"a", "--formats=xml", "b"}, []string{"a", "b"}, "xml"},
 		{"-- terminates flag parsing", []string{"a", "--", "--formats", "xml"}, []string{"a", "--formats", "xml"}, "default"},
+		{"-- keeps every later arg positional", []string{"a", "--", "b", "--formats", "xml"}, []string{"a", "b", "--formats", "xml"}, "default"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2299,5 +2300,153 @@ func TestEnumerateOne_ExternalDebugFallback(t *testing.T) {
 	}
 	if debugPath != debugFile {
 		t.Errorf("enumerateOne debug path = %q, want %q", debugPath, debugFile)
+	}
+}
+
+// --- audit regression tests ---
+
+func requireTool(t *testing.T, name string) {
+	t.Helper()
+	if _, err := exec.LookPath(name); err != nil {
+		t.Skipf("%s not found", name)
+	}
+}
+
+// installedFixture lays out a binary that already has a shim installed: its
+// original sits in SAFE_BIN_DIR with its sidecars, as install leaves it.
+func installedFixture(t *testing.T) (bin, safePath string) {
+	t.Helper()
+	tmp := t.TempDir()
+	safeDir := filepath.Join(tmp, "safe")
+	if err := os.MkdirAll(safeDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SAFE_BIN_DIR", safeDir)
+	t.Setenv("LOG_DIR", filepath.Join(tmp, "logs"))
+	t.Setenv("FUNKOVERAGE_SHIM", makeDummyShim(t, tmp))
+
+	bin = compileDebugBinary(t, tmp, "prog")
+	safePath = filepath.Join(safeDir, "prog")
+	if err := os.WriteFile(safePath, []byte("original"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	funcs := map[string]funkutil.ImageFuncs{"/x": {Names: []string{"f"}}}
+	if err := funkutil.WriteFuncList(safePath, funcs); err != nil {
+		t.Fatal(err)
+	}
+	if err := funkutil.WriteFilterSidecar(safePath, funkutil.FilterSidecar{Include: "^f"}); err != nil {
+		t.Fatal(err)
+	}
+	return bin, safePath
+}
+
+// trace used to treat an installed original as its own scratch entry, then
+// delete the funcs/filter sidecars on exit — leaving the installed shim with
+// nothing to trace.
+func TestTraceInline_LeavesInstalledBinaryAlone(t *testing.T) {
+	requireTool(t, "gcc")
+	bin, safePath := installedFixture(t)
+
+	if _, err := traceInline(bin, nil, MainBinaryOnly, nil); err == nil {
+		t.Error("traceInline of an installed binary: want an error")
+	}
+	if len(funkutil.ReadFuncList(safePath)) != 1 {
+		t.Error("funcs sidecar of the installed shim was clobbered")
+	}
+	if funkutil.ReadFilterSidecar(safePath).Include != "^f" {
+		t.Error("filter sidecar of the installed shim was clobbered")
+	}
+	if data, _ := os.ReadFile(safePath); string(data) != "original" {
+		t.Errorf("installed original modified: %q", data)
+	}
+}
+
+// A traced program killed by a signal has no exit status; the shell convention
+// is 128+signo, not os.Exit(-1) (255).
+func TestTraceInline_SignalExitCode(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("SAFE_BIN_DIR", filepath.Join(tmp, "safe"))
+	t.Setenv("LOG_DIR", filepath.Join(tmp, "logs"))
+	shim := filepath.Join(tmp, "shim.sh")
+	if err := os.WriteFile(shim, []byte("#!/bin/sh\nkill -TERM $$\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FUNKOVERAGE_SHIM", shim)
+
+	code, err := traceInline(makeDummyShim(t, tmp), nil, WithLibraries, nil)
+	if err != nil {
+		t.Fatalf("traceInline: %v", err)
+	}
+	if want := 128 + int(syscall.SIGTERM); code != want {
+		t.Errorf("exit code = %d, want %d", code, want)
+	}
+}
+
+// uninstall removed SAFE_BIN_DIR/<invoked name> unconditionally. When that name
+// is another binary's backed-up original rather than this target's multicall
+// alias, the only copy of that original was deleted.
+func TestUninstall_KeepsUnrelatedBackupSharingAliasName(t *testing.T) {
+	requireTool(t, "gcc")
+	tmp := t.TempDir()
+	t.Setenv("SAFE_BIN_DIR", filepath.Join(tmp, "safe"))
+	t.Setenv("LOG_DIR", filepath.Join(tmp, "logs"))
+	t.Setenv("FUNKOVERAGE_SHIM", makeDummyShim(t, tmp))
+
+	dirA, dirB := filepath.Join(tmp, "a"), filepath.Join(tmp, "b")
+	for _, d := range []string{dirA, dirB} {
+		if err := os.Mkdir(d, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	foo := compileDebugBinary(t, dirA, "foo")
+	want, err := os.ReadFile(foo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compileDebugBinary(t, dirB, "bar")
+	alias := filepath.Join(dirB, "foo") // another name for bar
+	if err := os.Symlink("bar", alias); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, bin := range []string{foo, alias} {
+		if err := install(bin, MainBinaryOnly, nil); err != nil {
+			t.Fatalf("install %s: %v", bin, err)
+		}
+	}
+	if err := uninstall(alias); err != nil {
+		t.Fatalf("uninstall %s: %v", alias, err)
+	}
+
+	if err := uninstall(foo); err != nil {
+		t.Fatalf("uninstall %s after the alias was uninstalled: %v", foo, err)
+	}
+	if got, _ := os.ReadFile(foo); !bytes.Equal(got, want) {
+		t.Error("foo was not restored to its original bytes")
+	}
+}
+
+// A per-image report failure was only logged, so `funkoverage report` exited 0
+// with reports missing. Every image is still attempted, but the failure must
+// reach the caller.
+func TestEmitReport_ReportsPerImageFailures(t *testing.T) {
+	set := buildReportSet(map[string]*CoverageData{
+		"/bin/test": {
+			TotalFunctions:  map[string]struct{}{"a": {}},
+			CalledFunctions: map[string]struct{}{"a": {}},
+		},
+	})
+	for format, squatter := range map[string]string{"html": "test.html", "xml": "coverage_test.xml"} {
+		t.Run(format, func(t *testing.T) {
+			tmp := t.TempDir()
+			// A directory on the output name fails os.Create even for root.
+			if err := os.Mkdir(filepath.Join(tmp, squatter), 0755); err != nil {
+				t.Fatal(err)
+			}
+			err := emitReport(format, set, tmp)
+			if err == nil || !strings.Contains(err.Error(), "/bin/test") {
+				t.Errorf("emitReport error = %v, want one naming the failed image", err)
+			}
+		})
 	}
 }

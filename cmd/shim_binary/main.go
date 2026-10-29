@@ -182,10 +182,14 @@ func helperMain() {
 // (rather than exiting directly) so deferred cleanup — stopping the
 // tracer — always runs, including on error paths partway through setup.
 func runHelper(readyW *os.File) error {
-	targetPid, err := strconv.Atoi(os.Getenv(targetPidEnvVar))
+	targetPIDValue, err := strconv.ParseUint(os.Getenv(targetPidEnvVar), 10, 32)
 	if err != nil {
 		return fmt.Errorf("bad %s: %w", targetPidEnvVar, err)
 	}
+	if targetPIDValue == 0 || targetPIDValue > uint64(maxLinuxPID) {
+		return fmt.Errorf("bad %s: pid is outside the supported range", targetPidEnvVar)
+	}
+	targetPid := int(targetPIDValue)
 
 	// We can't waitpid() our own parent (only a parent can wait on a
 	// child), and polling by pid risks a pid-reuse race on a busy system,
@@ -229,12 +233,12 @@ func runHelper(readyW *os.File) error {
 		return fmt.Errorf("create log dir: %w", err)
 	}
 
-	tracer, err := NewTracer(funcs, newLogPaths(dir, realBin), filter.Include, filter.Exclude)
+	tracer, err := NewTracer(funcs, newLogPaths(dir, realBin), filter)
 	if err != nil {
 		return err
 	}
 
-	if err := tracer.Start(uint32(targetPid), realBin); err != nil {
+	if err := tracer.Start(uint32(targetPIDValue), realBin); err != nil {
 		tracer.Stop()
 		return fmt.Errorf("tracer start: %w", err)
 	}

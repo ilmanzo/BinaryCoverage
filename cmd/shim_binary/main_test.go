@@ -123,14 +123,16 @@ func TestWaitForTargetExit_PollFallback(t *testing.T) {
 	}
 }
 
-// TestRunHelper_BadTargetPid covers runHelper's env-parsing validation
-// without touching eBPF: an unparseable FUNKOVERAGE_TARGET_PID must fail
-// fast, before any tracer setup is attempted.
+// TestRunHelper_BadTargetPid covers runHelper's PID validation without
+// touching eBPF: invalid values must fail before any tracer setup is attempted.
 func TestRunHelper_BadTargetPid(t *testing.T) {
-	t.Setenv(targetPidEnvVar, "not-a-pid")
-
-	if err := runHelper(nil); err == nil {
-		t.Error("runHelper with a non-numeric target pid should return an error")
+	for _, pid := range []string{"not-a-pid", "-1", "0", "2147483648", "4294967296"} {
+		t.Run(pid, func(t *testing.T) {
+			t.Setenv(targetPidEnvVar, pid)
+			if err := runHelper(nil); err == nil {
+				t.Errorf("runHelper with invalid target pid %q should return an error", pid)
+			}
+		})
 	}
 }
 

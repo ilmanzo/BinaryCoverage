@@ -96,6 +96,7 @@ func TestBuildID_MalformedNote(t *testing.T) {
 		{"wrong name size", note(8, 4, 3, 'G', 'N', 'U', 0, 0, 0, 0, 0, 0xde, 0xad, 0xbe, 0xef), ""},
 		{"wrong note type", note(4, 4, 1, append(gnu, 0xde, 0xad, 0xbe, 0xef)...), ""},
 		{"descsz overflows", note(4, 0xffff, 3, append(gnu, 0xde, 0xad, 0xbe, 0xef)...), ""},
+		{"descsz wraps uint32", note(4, 0xfffffff8, 3, append(gnu, 0xde, 0xad, 0xbe, 0xef)...), ""},
 		{"well formed", note(4, 4, 3, append(gnu, 0xde, 0xad, 0xbe, 0xef)...), "deadbeef"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

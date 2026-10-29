@@ -291,7 +291,7 @@ func dwarfFunctions(path string, filter *funkutil.FuncFilter) ([]funkutil.Func, 
 	if err != nil {
 		return nil, fmt.Errorf("dwarf: %w", err)
 	}
-	return enumerateDWARF(dw, filter)
+	return enumerateDWARF(dw, filter), nil
 }
 
 func hasEmbeddedDebugInfo(f *elf.File) bool {
@@ -309,7 +309,7 @@ func externalDebugPath(binPath string) string {
 	return path
 }
 
-func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]funkutil.Func, error) {
+func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) []funkutil.Func {
 	seen := make(map[string]struct{})
 	seenAddr := make(map[uint64]struct{})
 	var funcs []funkutil.Func
@@ -317,7 +317,11 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]funku
 	reader := dwarfData.Reader()
 	for {
 		entry, err := reader.Next()
-		if err != nil || entry == nil {
+		if err != nil {
+			debugLog("dwarf: stopping at read error, keeping %d functions: %v", len(funcs), err)
+			break
+		}
+		if entry == nil {
 			break
 		}
 		if entry.Tag != dwarf.TagSubprogram {
@@ -358,7 +362,7 @@ func enumerateDWARF(dwarfData *dwarf.Data, filter *funkutil.FuncFilter) ([]funku
 			funcs = append(funcs, fn)
 		}
 	}
-	return funcs, nil
+	return funcs
 }
 
 // enumerateSymtab delegates the actual symbol walk (union of .symtab and
