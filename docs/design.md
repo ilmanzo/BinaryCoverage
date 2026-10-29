@@ -99,12 +99,15 @@ Steps:
          │   ├── load embedded BPF program (arch-specific, build-tag
          │   │   selected), for each image: link.UprobeMulti(symbols,
          │   │   cookies, PID=P) (one syscall per image, all symbols at
-         │   │   once; scoped to P so no other process traps, issue #163)
+         │   │   once; scoped to P so no other process traps, issue #163;
+         │   │   the main image, mapped only by shimmed instances, is
+         │   │   attached system-wide so forked children are covered
+         │   │   from their first instruction)
          │   ├── attach sched_process_fork tracepoint
          │   ├── seed `watched` map with P's TGID
          │   ├── start ringbuf reader goroutine
          │   ├── start child poller: every 25ms, give each new forked
-         │   │   process in `watched` its own PID-scoped links
+         │   │   process in `watched` its own PID-scoped library links
          │   └── write "OK" to the pipe
          │
          ├── read "OK" from the pipe (blocks until the helper is attached)
@@ -166,7 +169,7 @@ Reverses install: move `/var/coverage/bin/foo` back to `/usr/bin/foo`, delete si
 │  ───────────────────────────                                   │
 │  if watched[parent]: watched[child] = 1                        │
 │  → tracing follows fork() across process tree; the child poller│
-│    then attaches the child's own PID-scoped uprobes            │
+│    then attaches the child's own PID-scoped library uprobes    │
 └────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────┐
