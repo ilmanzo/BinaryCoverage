@@ -234,7 +234,7 @@ func runHelper(readyW *os.File) error {
 		return err
 	}
 
-	if err := tracer.Start(uint32(targetPid)); err != nil {
+	if err := tracer.Start(uint32(targetPid), realBin); err != nil {
 		tracer.Stop()
 		return fmt.Errorf("tracer start: %w", err)
 	}
