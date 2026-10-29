@@ -444,3 +444,58 @@ func TestAttachPlanVerify_PassesThroughUnreadable(t *testing.T) {
 		t.Errorf("verify on an unreadable image = %+v, want the plan unchanged", got)
 	}
 }
+
+func TestProbeSetKeep(t *testing.T) {
+	names := probeSet{names: []string{"a", "b", "c"}, cookies: []uint64{10, 11, 12}}
+	got := names.keep([]bool{true, false, true})
+	if !reflect.DeepEqual(got.names, []string{"a", "c"}) || !reflect.DeepEqual(got.cookies, []uint64{10, 12}) {
+		t.Errorf("name set: got names %v cookies %v", got.names, got.cookies)
+	}
+	if got.addrs != nil {
+		t.Errorf("name set gained addrs %v", got.addrs)
+	}
+
+	addrs := probeSet{addrs: []uint64{0x10, 0x20}, cookies: []uint64{1, 2}}
+	got = addrs.keep([]bool{false, true})
+	if !reflect.DeepEqual(got.addrs, []uint64{0x20}) || !reflect.DeepEqual(got.cookies, []uint64{2}) {
+		t.Errorf("addr set: got addrs %v cookies %v", got.addrs, got.cookies)
+	}
+	// attachProbes picks name mode by names != nil, so an address set must
+	// not come back with an empty, non-nil names slice.
+	if got.names != nil {
+		t.Errorf("addr set gained names %v", got.names)
+	}
+
+	if got = names.keep([]bool{false, false, false}); got.names == nil || len(got.names) != 0 {
+		t.Errorf("all dropped: names = %#v, want empty non-nil", got.names)
+	}
+}
+
+func TestNewPIDs(t *testing.T) {
+	known := map[uint32]bool{1: true, 2: false}
+	if got := newPIDs([]uint32{3, 1, 2, 4}, known); !reflect.DeepEqual(got, []uint32{3, 4}) {
+		t.Errorf("newPIDs = %v, want [3 4]", got)
+	}
+	if got := newPIDs([]uint32{1, 2}, known); got != nil {
+		t.Errorf("newPIDs = %v, want nil", got)
+	}
+}
+
+func TestParseTgid(t *testing.T) {
+	status := "Name:\tbash\nUmask:\t0022\nState:\tS (sleeping)\nTgid:\t4242\nNgid:\t0\nPid:\t4243\n"
+	if got := parseTgid(status); got != 4242 {
+		t.Errorf("parseTgid = %d, want 4242", got)
+	}
+	if got := parseTgid("Name:\tx\n"); got != 0 {
+		t.Errorf("parseTgid without Tgid = %d, want 0", got)
+	}
+}
+
+func TestIsThreadGroupLeader(t *testing.T) {
+	if !isThreadGroupLeader(uint32(os.Getpid())) {
+		t.Error("own pid not reported as thread group leader")
+	}
+	if isThreadGroupLeader(0) {
+		t.Error("pid 0 reported as thread group leader")
+	}
+}
