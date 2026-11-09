@@ -13,15 +13,20 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 func main() {
+	if len(os.Args) >= 2 && os.Args[1] == "-reaper" {
+		runReaper()
+		return
+	}
 	if len(os.Args) >= 3 && os.Args[1] == "-notify-listener" {
 		runNotifyListener(os.Args[2])
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: notifydaemon <port> | notifydaemon -notify-listener <socket-path>")
+		fmt.Fprintln(os.Stderr, "usage: notifydaemon <port> | notifydaemon -notify-listener <socket-path> | notifydaemon -reaper")
 		os.Exit(1)
 	}
 
@@ -46,6 +51,27 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 	<-sigCh
 	fmt.Println("EXITING")
+}
+
+// runReaper stands in for a daemon that reaps every child with
+// waitpid(-1) (e.g. vsftpd). It reports any child it collects, so a shim
+// whose helper is still in the traced program's process tree fails the
+// issue #167 regression test.
+func runReaper() {
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		var ws syscall.WaitStatus
+		pid, err := syscall.Wait4(-1, &ws, syscall.WNOHANG, nil)
+		if pid > 0 {
+			fmt.Printf("COLLECTED_CHILD pid=%d status=%d\n", pid, ws)
+			os.Exit(3)
+		}
+		if err != nil && err != syscall.ECHILD {
+			fmt.Fprintln(os.Stderr, "wait4:", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	fmt.Println("NO_CHILD")
 }
 
 // runNotifyListener stands in for systemd's own NOTIFY_SOCKET: reads one

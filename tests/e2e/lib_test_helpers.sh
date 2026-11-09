@@ -86,6 +86,22 @@ remove_report_dir() {
     [[ -n "${1:-}" && -d "$1" ]] && find "$1" -delete 2>/dev/null || true
 }
 
+# Find the coverage helper process tracing a given pid, by scanning
+# /proc/*/environ (requires root). Prints the helper pid, or returns 1.
+# Usage: find_coverage_helper PID
+find_coverage_helper() {
+    local target_pid="$1" d env
+    for d in /proc/[0-9]*; do
+        [[ -r "$d/environ" ]] || continue
+        env=$(tr '\0' '\n' < "$d/environ" 2>/dev/null) || continue
+        grep -qx 'FUNKOVERAGE_HELPER=1' <<<"$env" || continue
+        grep -qx "FUNKOVERAGE_TARGET_PID=$target_pid" <<<"$env" || continue
+        echo "${d#/proc/}"
+        return 0
+    done
+    return 1
+}
+
 # Count unique called functions matching a pattern in the called logs.
 # Usage: count_called "*bzip2*"
 count_called() {

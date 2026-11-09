@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"funkoverage/internal/funkutil"
+	"golang.org/x/sys/unix"
 )
 
 func TestEnvSafeName(t *testing.T) {
@@ -81,45 +82,45 @@ func TestDropEnv(t *testing.T) {
 	}
 }
 
-func TestWaitForTargetExit_SignalPath(t *testing.T) {
-	sigCh := make(chan os.Signal, 1)
-	sigCh <- os.Interrupt // stand-in for the real SIGUSR1 PDEATHSIG delivery
+// TestWaitForTargetExit_Pidfd guards issue #167: the helper learns about the
+// target's death through a pidfd, which survives the target's exec() and
+// cannot fire for a live process. The call must block while the target runs
+// and return once it exits.
+func TestWaitForTargetExit_Pidfd(t *testing.T) {
+	cmd := exec.Command("sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start stand-in target: %v", err)
+	}
+	defer func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}()
+
+	pidfd, err := unix.PidfdOpen(cmd.Process.Pid, 0)
+	if err != nil {
+		t.Fatalf("pidfd_open: %v", err)
+	}
+	defer unix.Close(pidfd)
 
 	done := make(chan struct{})
 	go func() {
-		waitForTargetExit(sigCh, os.Getpid(), time.Hour) // poll interval irrelevant: signal wins
+		waitForTargetExit(pidfd)
 		close(done)
 	}()
 
 	select {
 	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("waitForTargetExit did not return promptly on signal")
+		t.Fatal("waitForTargetExit returned while the target was still running")
+	case <-time.After(200 * time.Millisecond):
 	}
-}
 
-// TestWaitForTargetExit_PollFallback guards the issue #152 fix for
-// sshd.service (KillMode=process): if PDEATHSIG never fires, the poll must
-// still notice the target is gone and return, instead of leaking forever.
-func TestWaitForTargetExit_PollFallback(t *testing.T) {
-	cmd := exec.Command("true")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("run stand-in target: %v", err)
+	if err := cmd.Process.Kill(); err != nil {
+		t.Fatalf("kill target: %v", err)
 	}
-	deadPid := cmd.Process.Pid // guaranteed exited by the time Run() returns
-
-	sigCh := make(chan os.Signal, 1) // never sent to: signal path must not be relied on
-
-	done := make(chan struct{})
-	go func() {
-		waitForTargetExit(sigCh, deadPid, 20*time.Millisecond)
-		close(done)
-	}()
-
 	select {
 	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("waitForTargetExit did not fall back to polling for a dead target")
+	case <-time.After(5 * time.Second):
+		t.Fatal("waitForTargetExit did not return after the target exited")
 	}
 }
 
@@ -129,37 +130,129 @@ func TestRunHelper_BadTargetPid(t *testing.T) {
 	for _, pid := range []string{"not-a-pid", "-1", "0", "2147483648", "4294967296"} {
 		t.Run(pid, func(t *testing.T) {
 			t.Setenv(targetPidEnvVar, pid)
-			if err := runHelper(nil); err == nil {
+			if err := runHelper(nil, nil); err == nil {
 				t.Errorf("runHelper with invalid target pid %q should return an error", pid)
 			}
 		})
 	}
 }
 
-// TestRunHelper_ParentAlreadyGone covers the race guard: if our parent (by
-// pid) no longer matches os.Getppid() by the time we check, it must return
-// immediately (nil, no tracer attach attempted) rather than trace a pid
-// that's no longer ours to trace.
-func TestRunHelper_ParentAlreadyGone(t *testing.T) {
-	// Getppid() is a real, currently-running process (the test harness'
-	// parent); using it as the fake pid guarantees it never equals our own.
-	t.Setenv(targetPidEnvVar, strconv.Itoa(os.Getppid()+1))
+// pidfdOnSelf returns an *os.File for a pidfd referring to the test process,
+// standing in for the one the shim opens and passes down.
+func pidfdOnSelf(t *testing.T) *os.File {
+	t.Helper()
+	fd, err := unix.PidfdOpen(os.Getpid(), 0)
+	if err != nil {
+		t.Fatalf("pidfd_open(self): %v", err)
+	}
+	f := os.NewFile(uintptr(fd), "test-pidfd")
+	t.Cleanup(func() { _ = f.Close() })
+	return f
+}
 
-	if err := runHelper(nil); err != nil {
-		t.Errorf("runHelper with a mismatched parent pid should return nil, got %v", err)
+// TestRunHelper_MissingPidfd covers the required pidfd argument: without it
+// there is no way to learn when the target exits.
+func TestRunHelper_MissingPidfd(t *testing.T) {
+	t.Setenv(targetPidEnvVar, strconv.Itoa(os.Getpid()))
+	if err := runHelper(nil, nil); err == nil || !strings.Contains(err.Error(), "pidfd") {
+		t.Errorf("runHelper without a pidfd should report it missing, got %v", err)
 	}
 }
 
 // TestRunHelper_MissingRealBin covers the FUNKOVERAGE_REAL_BIN validation,
-// which runs before any sidecar/tracer setup — reachable without eBPF by
-// passing the parent-pid check first.
+// which runs before any sidecar/tracer setup — reachable without eBPF.
 func TestRunHelper_MissingRealBin(t *testing.T) {
-	t.Setenv(targetPidEnvVar, strconv.Itoa(os.Getppid()))
+	t.Setenv(targetPidEnvVar, strconv.Itoa(os.Getpid()))
 	os.Unsetenv(realBinEnvVar)
 
-	err := runHelper(nil)
+	err := runHelper(nil, pidfdOnSelf(t))
 	if err == nil || !strings.Contains(err.Error(), realBinEnvVar) {
 		t.Errorf("runHelper with no %s should report it missing, got %v", realBinEnvVar, err)
+	}
+}
+
+// TestFailedHelperDoesNotLeakToTracedProgram covers the fail-open path of
+// issue #167 without eBPF: the helper fails before it reports ready (a
+// LOG_DIR under a regular file makes EnsureLogDir fail), and the shim must
+// not leave it as a child when it execs the real binary. The traced program
+// is a fake daemon that reaps any child with waitpid(-1); it must not collect
+// the helper. This does not cover the normal reparenting (a helper that is
+// still running when the shim execs); the e2e PPid check does that.
+func TestFailedHelperDoesNotLeakToTracedProgram(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go not in PATH, cannot build the shim")
+	}
+	tmp := t.TempDir()
+	binDir := filepath.Join(tmp, "bin")
+	safeDir := filepath.Join(tmp, "safe")
+	for _, d := range []string{binDir, safeDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", d, err)
+		}
+	}
+
+	// The shim resolves the real binary to SAFE_BIN_DIR/basename(itself), so
+	// both are named fakedaemon.
+	shim := filepath.Join(binDir, "fakedaemon")
+	build := exec.Command("go", "build", "-o", shim, ".")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build shim: %v\n%s", err, out)
+	}
+	// The fake real binary reaps any child with waitpid(-1), like vsftpd.
+	reaper := filepath.Join(safeDir, "fakedaemon")
+	build = exec.Command("go", "build", "-o", reaper, "funkoverage/tests/sample/notifydaemon")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build reaper: %v\n%s", err, out)
+	}
+
+	// A regular file where EnsureLogDir needs a directory: the helper reports
+	// the failure and exits at once, reproducing an early helper exit.
+	blocker := filepath.Join(tmp, "not-a-dir")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write blocker: %v", err)
+	}
+
+	run := exec.Command(shim, "-reaper")
+	run.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"SAFE_BIN_DIR=" + safeDir,
+		"LOG_DIR=" + filepath.Join(blocker, "logs"),
+	}
+	out, err := run.CombinedOutput()
+	if strings.Contains(string(out), "COLLECTED_CHILD") {
+		t.Fatalf("fake daemon collected a child: the helper was in the traced program's process tree (issue #167)\n%s", out)
+	}
+	if err != nil {
+		t.Fatalf("run shim: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "NO_CHILD") {
+		t.Fatalf("fake daemon did not report its result:\n%s", out)
+	}
+}
+
+// TestStartHelper_StartFailure covers the intermediate's failure path: if
+// the shim binary cannot be executed, it must report the error on the ready
+// pipe and return it (the shim then runs untraced).
+func TestStartHelper_StartFailure(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	defer r.Close()
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatalf("open %s: %v", os.DevNull, err)
+	}
+	defer devnull.Close()
+
+	if err := startHelper(filepath.Join(t.TempDir(), "no-such-shim"), w, devnull); err == nil {
+		t.Fatal("startHelper should fail for a non-existent shim binary")
+	}
+
+	buf := make([]byte, 256)
+	n, _ := r.Read(buf)
+	if !strings.Contains(string(buf[:n]), "ERR:") {
+		t.Errorf("failure was not reported on the ready pipe, got %q", buf[:n])
 	}
 }
 

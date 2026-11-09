@@ -1,6 +1,6 @@
 #!/bin/bash
 # E2E test: funkoverage shim signal forwarding + sd_notify passthrough
-# (issues #143, #152)
+# (issues #143, #152) + helper process-tree isolation (issue #167)
 #
 # The shim execs the real daemon in place of the original invocation,
 # preserving its pid rather than running it as a separately-forked child.
@@ -19,6 +19,10 @@
 #     issue #152 bug class (a supervisor checking process identity — systemd's
 #     LISTEN_PID, pg_ctl's postmaster.pid pid field — sees a mismatch and
 #     silently ignores/times out the real daemon).
+#   - Process tree: the coverage helper is not a child of the daemon, so a
+#     daemon that reaps every child with waitpid(-1) (e.g. vsftpd) cannot
+#     reap it and account for a PID it never forked; and the helper exits
+#     once the daemon dies (issue #167).
 #
 # Run as root on openSUSE with funkoverage in PATH. Needs `go` in PATH to
 # build the fixture.
@@ -81,6 +85,16 @@ DAEMON_PID=$(grep -o 'PID=[0-9]*' "$WORKDIR/daemon_output.txt" | head -1 | cut -
     || fail "shim pid ($SHIM_PID) != daemon's self-reported pid ($DAEMON_PID) — the shim is running the real binary in a different process than the one the caller started"
 pass "Daemon runs under the exact pid the caller started (no separate forked child)"
 
+# The coverage helper must not be a child of the daemon: a traced program
+# that reaps every child with waitpid(-1) (e.g. vsftpd) would otherwise
+# reap it and account for a PID it never forked (issue #167).
+info "Checking the coverage helper is not a child of the daemon (issue #167)"
+HELPER_PID=$(find_coverage_helper "$DAEMON_PID") || fail "coverage helper process not found"
+HELPER_PPID=$(awk '/^PPid:/{print $2}' "/proc/$HELPER_PID/status")
+[[ "$HELPER_PPID" != "$DAEMON_PID" ]] \
+    || fail "coverage helper (pid $HELPER_PID) is a child of the traced daemon — waitpid(-1) would reap it (issue #167)"
+pass "Coverage helper (pid $HELPER_PID) is not a child of the daemon (PPid=$HELPER_PPID)"
+
 # Signal only the pid the caller started, mirroring systemd signalling just
 # the tracked MainPID (not the whole cgroup) on `systemctl restart`.
 kill -TERM "$SHIM_PID"
@@ -95,6 +109,17 @@ pass "Port released"
 grep -q "EXITING" "$WORKDIR/daemon_output.txt" \
     || fail "daemon never ran its own SIGTERM handling — means it wasn't sent a real, catchable signal"
 pass "Daemon received a real signal and shut down on its own (not SIGKILLed)"
+
+# The helper must notice the daemon's death through the pidfd and exit
+# instead of leaking with its tracer attached (issue #167).
+info "Checking the coverage helper exits after the daemon (issue #167)"
+for _ in $(seq 1 50); do
+    kill -0 "$HELPER_PID" 2>/dev/null || break
+    sleep 0.1
+done
+kill -0 "$HELPER_PID" 2>/dev/null \
+    && fail "coverage helper (pid $HELPER_PID) is still running after the daemon exited"
+pass "Coverage helper exited after the daemon"
 
 SHIM_PID=""
 

@@ -63,11 +63,11 @@ All commands that enumerate functions (`install`, `trace`, `enumerate`) accept `
 **2. `funkoverage-shim` (`./cmd/shim_binary/`)**
 Installed transparently in place of the real binary. When invoked:
 1. Detects recursion via a per-binary `FUNKOVERAGE_ACTIVE_<NAME>` env var (if set, exec real binary directly — already covered by an existing tracer).
-2. Forks a background helper process, then blocks on a pipe waiting for it to signal "attached".
+2. Forks a short-lived intermediate that forks the background helper and exits, and then blocks on a pipe waiting for the helper to signal "attached". The intermediate's exit reparents the helper to init/systemd, so it is not a child of the traced program unless that program is itself a `subreaper`, e.g. PID 1 in a container (issue #167: daemons that `waitpid(-1)` would otherwise reap it).
 3. The helper loads the embedded BPF program (`tracer_x86_bpfel.go`), reads `<safePath>.funcs.json`, attaches all uprobes against the main image + libraries via `link.UprobeMulti` (single syscall per image; library probes are scoped to the original process with `PID` so other processes mapping the same libraries do not trap, issue #163; the main image in `SAFE_BIN_DIR` is mapped only by shimmed instances, so it is probed system-wide and forked children are traced from their first instruction), seeds the watched-pid set with the *original* process's TGID (fork tracepoint propagates to children; a poller attaches PID-scoped library links for each new child), starts the ringbuf reader goroutine, then signals ready.
 4. The original process `syscall.Exec()`s the real binary **in itself** — same pid throughout, so supervisors that check process identity (systemd's `LISTEN_PID`/`NotifyAccess=main`, pg_ctl's `postmaster.pid`) see the real daemon exactly where they expect it (issue #152).
 5. Ringbuf reader goroutine (in the helper) drains kernel events → demangle → `_called.log`.
-6. When the traced process exits, the helper (notified via `PR_SET_PDEATHSIG` — since it can't `waitpid()` its own parent — backed up by a 5s `kill(pid, 0)` liveness poll, since PDEATHSIG is scoped to a specific OS thread and can miss) detaches links, flushes, and closes the log.
+6. When the traced process exits, the helper (watching a `pidfd` that the shim opened on itself before the exec and passed down) detaches links, flushes, and closes the log.
 
 See docs/design.md's "Process identity, signal handling, and sd_notify" section for why this replaced an earlier fork-a-child-and-relay design.
 
