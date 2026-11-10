@@ -1,0 +1,22 @@
+# Test fixtures and e2e drivers under tests/ are exercised by shell/python
+# scripts and openQA, not by `go test`, so they would only ever report 0%.
+ignore:
+  - "tests/**"
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        # Adding process-lifecycle code can shave a fraction of a point off
+        # the project total; allow that without hiding real drops.
+        threshold: 2%
+    patch:
+      default:
+        # cmd/shim_binary/main.go contains exec/fork paths (main,
+        # runWithTracing, execReal, intermediateMain, helperMain) that
+        # replace the process or run in fresh processes; syscall.Exec also
+        # discards the coverage counters. In-process unit tests cannot cover
+        # them; the e2e suite and the openQA coverage jobs do.
+        target: auto
+        threshold: 30%
