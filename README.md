@@ -97,7 +97,7 @@ Pre-captured coverage logs are available in `tests/sample_data/` to develop or t
 
 Want to help? Start by getting confidence with the project: build it (`./build.sh`), run the tests (`./run_unit_tests.sh`), try it on a sample binary (`./funkoverage enumerate tests/sample/sample`), see what works and what doesn't, and suggest improvements. Check the [good first issue](https://github.com/ilmanzo/BinaryCoverage/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label if you want a place to start.
 
-Since this traces live binaries via eBPF, install a spare, clean Tumbleweed VM as your test bed rather than running it on your main machine.
+Since this traces live binaries via eBPF, install a spare, clean Tumbleweed VM as your test bed rather than running it on your main machine (see [tests/README.md](tests/README.md#5-vm-based-e2e-testing) for the automated VM test runner and setup runbook).
 
 Remember: fun is the first thing (fun - coverage).
 
