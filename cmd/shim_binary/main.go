@@ -1,13 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -18,11 +17,12 @@ import (
 )
 
 const (
-	activeEnvPrefix = "FUNKOVERAGE_ACTIVE_"
-	helperEnvVar    = "FUNKOVERAGE_HELPER"
-	targetPidEnvVar = "FUNKOVERAGE_TARGET_PID"
-	realBinEnvVar   = "FUNKOVERAGE_REAL_BIN"
-	arg0EnvVar      = "FUNKOVERAGE_ARG0"
+	activeEnvPrefix    = "FUNKOVERAGE_ACTIVE_"
+	helperEnvVar       = "FUNKOVERAGE_HELPER"
+	intermediateEnvVar = "FUNKOVERAGE_INTERMEDIATE"
+	targetPidEnvVar    = "FUNKOVERAGE_TARGET_PID"
+	realBinEnvVar      = "FUNKOVERAGE_REAL_BIN"
+	arg0EnvVar         = "FUNKOVERAGE_ARG0"
 )
 
 func realBinaryPath() string {
@@ -40,6 +40,13 @@ func realBinaryPath() string {
 func main() {
 	if os.Getenv(helperEnvVar) == "1" {
 		helperMain()
+		return
+	}
+	if os.Getenv(intermediateEnvVar) == "1" {
+		if err := intermediateMain(); err != nil {
+			fmt.Fprintf(os.Stderr, "funkoverage-shim: start coverage helper: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -100,29 +107,47 @@ func runWithTracing(realBin string) error {
 	if shimExe == "" {
 		shimExe, _ = os.Executable()
 	}
-	helperCmd := exec.Command(shimExe)
-	helperCmd.Stdout, helperCmd.Stderr = os.Stderr, os.Stderr
-	helperCmd.ExtraFiles = []*os.File{readyW}
-	helperCmd.Env = append(os.Environ(),
-		helperEnvVar+"=1",
+	// Open a pidfd on ourselves before forking. The helper learns about the
+	// traced program's death by polling it. Opening it here, while we are
+	// still this PID, means it can never refer to a reused PID, and the fd
+	// stays tied to the process across our exec() below.
+	pidfd, err := unix.PidfdOpen(os.Getpid(), 0)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "funkoverage-shim: pidfd_open: %v; running untraced\n", err)
+		return execReal(realBin)
+	}
+	pidfdFile := os.NewFile(uintptr(pidfd), "target-pidfd")
+
+	// Start an intermediate rather than the helper directly, so the helper
+	// is a grandchild: once the intermediate exits, the helper is
+	// reparented to init/systemd and, unless the traced program is itself a
+	// subreaper (e.g. PID 1 in a container), stops being its child. A direct
+	// child would be reaped by any daemon that waitpid()s unknown children
+	// (e.g. vsftpd), which then tries to account for a non-client PID
+	// (issue #167).
+	interCmd := exec.Command(shimExe)
+	interCmd.Stdout, interCmd.Stderr = os.Stderr, os.Stderr
+	interCmd.ExtraFiles = []*os.File{readyW, pidfdFile}
+	interCmd.Env = append(os.Environ(),
+		intermediateEnvVar+"=1",
 		targetPidEnvVar+"="+strconv.Itoa(os.Getpid()),
-		// The helper can't derive realBin from realBinaryPath() itself:
-		// that relies on os.Executable(), which for the helper resolves to
-		// shimExe (the stable path above), not the target's installed
-		// path. Pass the already-resolved value through explicitly.
+		// Neither the intermediate nor the helper can derive realBin from
+		// realBinaryPath(): that relies on os.Executable(), which resolves
+		// to shimExe, not the target's installed path. Pass it through.
 		realBinEnvVar+"="+realBin,
 	)
 
-	if err := helperCmd.Start(); err != nil {
-		readyW.Close()
-		return fmt.Errorf("start helper: %w", err)
-	}
+	startErr := interCmd.Start()
 	readyW.Close()
-	// We can never Wait() on the helper — we're about to exec away for
-	// good — so don't have Go track it for reaping. Once we exec, the
-	// helper is reparented to the nearest subreaper (init/systemd) on our
-	// eventual exit, which reaps it.
-	helperCmd.Process.Release()
+	pidfdFile.Close() // the intermediate/helper hold their own copies
+	if startErr != nil {
+		fmt.Fprintf(os.Stderr, "funkoverage-shim: start coverage helper: %v; running untraced\n", startErr)
+		return execReal(realBin)
+	}
+	// Reap the intermediate before exec: it exits as soon as it has started
+	// the helper, so it is never left as a zombie child of the traced
+	// program.
+	_ = interCmd.Wait()
 
 	// Fail open, never closed. Both of these used to return an error, which
 	// main() turns into os.Exit(1) — and that happens *before* the exec
@@ -143,25 +168,65 @@ func runWithTracing(realBin string) error {
 			strings.TrimPrefix(msg, "ERR:"))
 	}
 
+	return execReal(realBin)
+}
+
+// execReal replaces this process with the real binary, keeping the recursion
+// guard and the caller's argv[0]. `funkoverage trace` invokes the shim via
+// exec.Command(shimBinary, args...), which sets argv[0] to the shim's own
+// path — FUNKOVERAGE_ARG0 carries the user's original path so the real
+// binary sees the argv[0] it would have gotten unshimmed (some programs use
+// it for usage or multicall dispatch). Regular installed invocations don't
+// set it: os.Args[0] already is what the caller used.
+func execReal(realBin string) error {
 	activeEnvVar := activeEnvPrefix + envSafeName(filepath.Base(realBin))
 	env := dropEnv(setEnv(os.Environ(), activeEnvVar, "1"), arg0EnvVar)
-
-	// `funkoverage trace` invokes the shim via exec.Command(shimBinary,
-	// args...), which sets argv[0] to the shim binary's own path — pass the
-	// user's original invocation path through FUNKOVERAGE_ARG0 so the real
-	// binary sees the argv[0] it would have gotten unshimmed (some programs
-	// use it for usage messages or multicall dispatch). Regular installed
-	// invocations don't set this: os.Args[0] here already IS what the
-	// caller originally used, since this process itself was exec'd directly.
 	argv := os.Args
 	if arg0 := os.Getenv(arg0EnvVar); arg0 != "" {
 		argv = append([]string{arg0}, os.Args[1:]...)
 	}
-
 	if err := syscall.Exec(realBin, argv, env); err != nil {
 		return fmt.Errorf("exec %s: %w", realBin, err)
 	}
 	return nil
+}
+
+// intermediateMain starts the coverage helper from a short-lived
+// intermediate and returns, so main exits at once. Its exit reparents the
+// helper to init/systemd, outside the traced program's process tree
+// (issue #167).
+func intermediateMain() error {
+	readyW := os.NewFile(3, "ready-pipe")
+	pidfdFile := os.NewFile(4, "target-pidfd")
+	shimExe, err := os.Executable()
+	if err != nil {
+		return reportHelperStartFailure(readyW, err)
+	}
+	return startHelper(shimExe, readyW, pidfdFile)
+}
+
+// startHelper forks the coverage helper and returns without waiting for it,
+// so the caller's exit reparents the helper to init/systemd. The helper runs
+// in its own session so a terminal signal to the traced program (Ctrl-C)
+// does not kill it before it flushes its coverage log.
+func startHelper(shimExe string, readyW, pidfdFile *os.File) error {
+	cmd := exec.Command(shimExe)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	cmd.ExtraFiles = []*os.File{readyW, pidfdFile}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.Env = append(dropEnv(os.Environ(), intermediateEnvVar), helperEnvVar+"=1")
+	if err := cmd.Start(); err != nil {
+		return reportHelperStartFailure(readyW, err)
+	}
+	// Do not Wait: returning (and exiting) is what reparents the helper away
+	// from the traced program.
+	return nil
+}
+
+func reportHelperStartFailure(readyW *os.File, err error) error {
+	fmt.Fprintf(readyW, "ERR:%v", err)
+	readyW.Close()
+	return err
 }
 
 // helperMain runs as a detached background process: it attaches the eBPF
@@ -171,7 +236,8 @@ func runWithTracing(realBin string) error {
 // exits.
 func helperMain() {
 	readyW := os.NewFile(3, "ready-pipe")
-	if err := runHelper(readyW); err != nil {
+	pidfdFile := os.NewFile(4, "target-pidfd")
+	if err := runHelper(readyW, pidfdFile); err != nil {
 		fmt.Fprintf(readyW, "ERR:%v", err)
 		readyW.Close()
 		os.Exit(1)
@@ -181,7 +247,12 @@ func helperMain() {
 // runHelper does the actual attach/wait work. Structured to return errors
 // (rather than exiting directly) so deferred cleanup — stopping the
 // tracer — always runs, including on error paths partway through setup.
-func runHelper(readyW *os.File) error {
+//
+// pidfdFile is the target's pidfd, opened by the shim on itself before this
+// process tree was forked and passed down. It refers to the process itself,
+// survives the target's exec(), cannot be confused by PID reuse, and
+// becomes readable as soon as the process dies.
+func runHelper(readyW *os.File, pidfdFile *os.File) error {
 	targetPIDValue, err := strconv.ParseUint(os.Getenv(targetPidEnvVar), 10, 32)
 	if err != nil {
 		return fmt.Errorf("bad %s: %w", targetPidEnvVar, err)
@@ -189,37 +260,14 @@ func runHelper(readyW *os.File) error {
 	if targetPIDValue == 0 || targetPIDValue > uint64(maxLinuxPID) {
 		return fmt.Errorf("bad %s: pid is outside the supported range", targetPidEnvVar)
 	}
-	targetPid := int(targetPIDValue)
-
-	// We can't waitpid() our own parent (only a parent can wait on a
-	// child), and polling by pid risks a pid-reuse race on a busy system,
-	// so ask the kernel to signal us when it dies — whether that's the
-	// original shim process exiting/crashing before it execs, or (far more
-	// commonly) the real daemon it became eventually shutting down.
-	//
-	// PR_SET_PDEATHSIG is scoped to the calling OS thread, not the process:
-	// if the goroutine that registers it later migrates to a different
-	// thread (routine under Go's scheduler — e.g. after any blocking call),
-	// the registration silently stops applying and the signal never
-	// arrives, leaking this process forever (observed as systemd "left-over
-	// process ... in control group" warnings across service restarts).
-	// LockOSThread pins us to this thread for the rest of the process's
-	// life so that can't happen; never unlocked, matching the standard
-	// idiom for a goroutine that owns a thread-scoped kernel registration
-	// for its whole lifetime.
-	runtime.LockOSThread()
-
-	// Install the catching handler before anything else so there's no
-	// window where an early parent death would hit SIGUSR1's default
-	// (terminate) disposition and skip our cleanup below.
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, unix.SIGUSR1)
-	_ = unix.Prctl(unix.PR_SET_PDEATHSIG, uintptr(unix.SIGUSR1), 0, 0, 0)
-	if os.Getppid() != targetPid {
-		// Parent already gone in the window between fork and prctl above;
-		// no signal will ever arrive for it. Nothing to trace.
-		return nil
+	if pidfdFile == nil {
+		return errors.New("missing target pidfd")
 	}
+	// Keep pidfdFile reachable for the whole wait: os.File installs a
+	// finalizer that would close the fd once only the raw int remains
+	// reachable, letting Poll watch a descriptor the tracer could reuse.
+	defer pidfdFile.Close()
+	pidfd := int(pidfdFile.Fd())
 
 	realBin := os.Getenv(realBinEnvVar)
 	if realBin == "" {
@@ -246,7 +294,7 @@ func runHelper(readyW *os.File) error {
 	fmt.Fprint(readyW, "OK")
 	readyW.Close()
 
-	waitForTargetExit(sigCh, targetPid, 5*time.Second)
+	waitForTargetExit(pidfd)
 
 	// Hold the drain lock across Stop()'s flush/close so a `funkoverage
 	// report`/`uninstall` run immediately after the (now exited) traced
@@ -262,28 +310,26 @@ func runHelper(readyW *os.File) error {
 	return nil
 }
 
-// waitForTargetExit blocks until the target process exits. PDEATHSIG
-// (delivered via sigCh) is the fast path, but per PR_SET_PDEATHSIG(2const)'s
-// CAVEATS it's scoped to the specific OS thread that created this process,
-// not "the parent process" in general — observed in practice as systemd
-// logging "left-over process ... in control group" for Type=notify units
-// using KillMode=process (e.g. sshd.service). Units using the default
-// KillMode=control-group mask a missed signal by killing the whole cgroup
-// (including us) on stop regardless; KillMode=process units have no such
-// backup, so we poll the target's liveness as a fallback. A worst-case
-// false negative here just stops tracing a few seconds later than ideal,
-// versus leaking the helper (and its attached tracer) forever.
-func waitForTargetExit(sigCh <-chan os.Signal, targetPid int, pollInterval time.Duration) {
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
+// waitForTargetExit blocks until the process behind pidfd exits. A pidfd
+// becomes readable on process death and refers to the process itself, so
+// this is race-free and immediate, with no polling interval and no PID-reuse
+// hazard.
+func waitForTargetExit(pidfd int) {
+	pfd := []unix.PollFd{{Fd: int32(pidfd), Events: unix.POLLIN}}
 	for {
-		select {
-		case <-sigCh:
+		_, err := unix.Poll(pfd, -1)
+		if err != nil && !errors.Is(err, unix.EINTR) {
+			fmt.Fprintf(os.Stderr, "funkoverage-shim: poll target pidfd: %v; giving up\n", err)
 			return
-		case <-ticker.C:
-			if unix.Kill(targetPid, 0) != nil {
-				return
+		}
+		if rev := pfd[0].Revents; rev != 0 {
+			// POLLIN means the target died. Anything else (POLLERR,
+			// POLLNVAL, ...) is unexpected; log it rather than silently
+			// stopping coverage, since a closed or reused fd shows up here.
+			if rev&unix.POLLIN == 0 {
+				fmt.Fprintf(os.Stderr, "funkoverage-shim: unexpected pidfd poll event %#x\n", rev)
 			}
+			return
 		}
 	}
 }

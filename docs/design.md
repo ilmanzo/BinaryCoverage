@@ -83,16 +83,26 @@ Steps:
          │   NOT os.Executable() — that would resolve to /usr/bin/foo itself,
          │   and the helper holding it open as its own running text would
          │   make a later `funkoverage uninstall foo` fail with ETXTBSY)
-         │   as a background helper (paused on a pipe, fd 3)
-         │   ├── set FUNKOVERAGE_HELPER=1, FUNKOVERAGE_TARGET_PID=P,
+         │   as a short-lived intermediate (paused on a pipe, fd 3),
+         │   passing a pidfd the shim opened on itself as fd 4
+         │   ├── set FUNKOVERAGE_INTERMEDIATE=1, FUNKOVERAGE_TARGET_PID=P,
          │   │   FUNKOVERAGE_REAL_BIN=/var/coverage/bin/foo
-         │   └── release it immediately (Process.Release) — we can never
-         │       Wait() on it, we're about to exec away for good
+         │   └── the intermediate forks the real helper (FUNKOVERAGE_HELPER=1)
+         │       and exits at once; we Wait() the intermediate before exec.
+         │       The helper is therefore a grandchild: on the intermediate's
+         │       exit it is reparented to init/systemd, not to P, so it is
+         │       not a child of P unless P is itself a subreaper, e.g. PID 1
+         │       in a container (issue #167 — a daemon that waitpid()s
+         │       unknown children would otherwise reap it and mis-handle an
+         │       unknown PID)
          │
-         │   [in the helper, a separate process:]
-         │   ├── PR_SET_PDEATHSIG so it's notified when P eventually dies
-         │   │   (exec doesn't trigger this — only P's actual termination,
-         │   │   which by then means the real daemon has exited)
+         │   [in the helper, a separate, reparented process:]
+         │   ├── wait on the pidfd the shim opened on itself before the
+         │   │   exec (passed down fd 4). A pidfd refers to the process,
+         │   │   survives P's exec(), cannot be fooled by PID reuse, and is
+         │   │   readable only when P really dies (PR_SET_PDEATHSIG is
+         │   │   unusable here: it is tied to the parent thread, which
+         │   │   exec() destroys)
          │   ├── read foo.funcs.json (mangled names per image) — via
          │   │   FUNKOVERAGE_REAL_BIN, since the helper isn't running from
          │   │   /usr/bin/foo and can't derive this from os.Executable()
@@ -125,7 +135,7 @@ Steps:
              demangle → write to $LOG_DIR/foo_<ts>_called.log
                             │
                             ▼
-             P (the real daemon) exits → helper's PDEATHSIG fires →
+             P (the real daemon) exits → helper's pidfd becomes readable →
              tracer.Stop() (detach links, drain, close log)
 ```
 
@@ -268,12 +278,12 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  background helper process (fork of the shim)       │
+│  background helper process (reparented to init)     │
 │                                                     │
 │  main goroutine:                                    │
-│    attach probes to target pid, start reader,       │
-│    signal ready, waitForTargetExit (PDEATHSIG,      │
-│    with a 5s liveness-poll backup)                  │
+│    attach probes, start reader, signal ready,       │
+│    waitForTargetExit (poll the inherited pidfd;     │
+│    returns when the target dies)                    │
 │                                                     │
 │  reader goroutine (started by Tracer.Start):        │
 │    loop:                                            │
@@ -286,8 +296,7 @@ Library discovery: `ldd` output, minus glibc/runtime libs (libc, libm, libpthrea
         │    (same pid throughout) →
         │    kernel fires uprobes → ringbuf → helper's reader
         │
-        └──► real daemon exits → PR_SET_PDEATHSIG fires (or, on a
-             miss, the 5s liveness poll notices) →
+        └──► real daemon exits → the pidfd becomes readable →
              tracer.Stop():
              1. detach links (no new events)
              2. sleep 100ms (drain in-flight)
@@ -329,23 +338,24 @@ Consequences:
 - **No LISTEN_FDS/LISTEN_PID handling.** `syscall.Exec` in the same process
   preserves the fd table and pid exactly as systemd set them up — nothing
   to preserve or rewrite.
-- **The helper can't `waitpid()` its own parent** (only a parent can wait on
-  a child), so it uses `PR_SET_PDEATHSIG` to learn when the original process
-  (now the real daemon) exits, whether normally or via crash.
-- **PDEATHSIG alone isn't fully reliable, so it needs a backup.** Per
-  `PR_SET_PDEATHSIG(2const)`'s CAVEATS, "the parent" is scoped to the
-  specific *thread* that created the child, not the process in general —
-  `runtime.LockOSThread()` (pinning the helper's goroutine to one OS thread
-  for its whole life) closes the most common way Go code gets this wrong,
-  but a real, direct leak was still observed on real hardware (a helper
-  blocked on the signal channel for 50+ minutes after its target had
-  genuinely exited). Units with the default `KillMode=control-group` mask a
-  missed signal — systemd kills the whole cgroup, including the helper, on
-  stop regardless — but `KillMode=process` units (sshd.service is the one
-  exception among this project's tested targets) have no such backup.
-  `waitForTargetExit` polls `kill(targetPid, 0)` every 5s alongside the
-  signal channel, so a missed PDEATHSIG costs a few seconds of delayed
-  cleanup instead of leaking the helper (and its attached tracer) forever.
+- **The helper is not a child of the real daemon.** It is forked by a
+  short-lived intermediate (itself reaped by the shim before the exec), so
+  it is reparented to init/systemd when that intermediate exits. This
+  matters for daemons that reap *any* child with `waitpid(-1)` and assume
+  it is theirs: a direct child helper that exits early made `vsftpd` reap
+  an unknown PID and crash (issue #167). Caveat: a daemon that is itself a
+  `PR_SET_CHILD_SUBREAPER` (PID 1 in a container, container inits, some
+  service managers) will adopt the orphaned helper, so the guarantee holds
+  only for ordinary daemons like vsftpd.
+- **Target liveness is tracked with a pidfd, not `PR_SET_PDEATHSIG`.** A
+  pidfd refers to the process itself: it survives the target's `exec()`,
+  cannot be confused by PID reuse, and becomes readable exactly when the
+  process dies. `PR_SET_PDEATHSIG` is tied to the parent *thread*, which
+  `exec()` tears down even though the process keeps running, so it may fire
+  when the forking thread is destroyed. Issue #167 treats that as the likely
+  cause of the early helper exits, but does not prove it; the pidfd fixes
+  the behaviour either way. With the helper reparented away from the target,
+  `PR_SET_PDEATHSIG` could not be used regardless.
 
 ### JIT Dynamic Library Tracing (dlopen)
 
