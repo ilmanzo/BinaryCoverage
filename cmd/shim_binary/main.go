@@ -157,9 +157,12 @@ func runWithTracing(realBin string) error {
 	// program is not (issue #158).
 	//
 	// Both failure shapes have been seen in the wild and neither is
-	// distinguishable here, so both merely warn: a seccomp *allow*-list
-	// (udev) lets the helper run and report its own error, while a
-	// *deny*-list kills it with SIGSYS and leaves an empty reply.
+	// distinguishable here, so both merely warn: a seccomp filter whose
+	// action is an errno (udev: SystemCallErrorNumber=EPERM) lets the helper
+	// run and report its own error, while the default kill action (uuidd:
+	// issue #173) ends it with SIGSYS and leaves an empty reply. A filter
+	// can only be survived by the helper: the shim process itself must
+	// never issue a syscall the unit might filter, bpf(2) included.
 	reply, err := io.ReadAll(readyR)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "funkoverage-shim: read helper status: %v; running untraced\n", err)
@@ -235,6 +238,11 @@ func reportHelperStartFailure(readyW *os.File, err error) error {
 // then keeps running — draining tracer events — until the target process
 // exits.
 func helperMain() {
+	// Under a seccomp filter that kills on bpf(2) (issue #173) the helper
+	// dies with SIGSYS by design, and the shim runs the program untraced.
+	// Non-dumpable keeps systemd-coredump from logging that as a crash of the
+	// service on every start.
+	_ = unix.Prctl(unix.PR_SET_DUMPABLE, 0, 0, 0, 0)
 	readyW := os.NewFile(3, "ready-pipe")
 	pidfdFile := os.NewFile(4, "target-pidfd")
 	if err := runHelper(readyW, pidfdFile); err != nil {

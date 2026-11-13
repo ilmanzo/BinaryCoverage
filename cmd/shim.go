@@ -229,8 +229,8 @@ func finishInstall(shimBinary, realTarget string, origInfo os.FileInfo) error {
 	// it needs the SAME capabilities on that file too. Otherwise a target
 	// whose systemd unit sets User= at the unit level (e.g. postgresql.service)
 	// forks its helper as that unprivileged user from the start, and the
-	// helper's tracer setup fails outright (e.g. RemoveMemlock: operation
-	// not permitted) even though the per-target copy is correctly capable.
+	// helper's tracer setup fails outright (bpf(2): operation not permitted)
+	// even though the per-target copy is correctly capable.
 	if err := setShimCaps(shimBinary); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: %v\n", err)
 	}
@@ -241,13 +241,12 @@ func finishInstall(shimBinary, realTarget string, origInfo os.FileInfo) error {
 // File capabilities are an xattr and are NOT preserved by io.Copy, so they
 // must be (re)applied to each installed shim copy after the copy completes.
 //
-// cap_sys_resource covers cilium/ebpf's rlimit.RemoveMemlock(): normally a
-// no-op on kernels with memcg-based BPF memory accounting (all supported
-// kernels here), but its own accounting-support probe can misfire under BPF
-// memory pressure and fall back to raising RLIMIT_MEMLOCK, which requires
-// this capability. Without it that fallback hard-fails the whole tracer.
+// No cap_sys_resource: BPF memory is charged to the memory cgroup, not to
+// RLIMIT_MEMLOCK, on every supported kernel (>= 6.6), so nothing here raises
+// that limit. The shim must also never link cilium/ebpf's rlimit package: its
+// init() calls bpf(2) in every shim process, before main() (issue #173).
 func setShimCaps(shimPath string) error {
-	caps := "cap_bpf,cap_perfmon,cap_dac_read_search,cap_sys_resource+ep"
+	caps := "cap_bpf,cap_perfmon,cap_dac_read_search+ep"
 	out, err := exec.Command("setcap", caps, shimPath).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("setcap %s %s: %w\n%s\nPATH=%s", caps, shimPath, err, out, os.Getenv("PATH"))
