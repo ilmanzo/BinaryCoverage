@@ -51,14 +51,12 @@ const dynFuncHeadroom = 100000
 const childPollInterval = 25 * time.Millisecond
 const maxLinuxPID = uint32(1<<31 - 1)
 
-// loadFailure words a BPF load error. cilium/ebpf appends "MEMLOCK may be too
-// low, consider rlimit.RemoveMemlock" to every EPERM, but BPF memory is charged
-// to the memory cgroup on supported kernels, so here EPERM means a missing
-// privilege. Following that hint would mean re-importing the rlimit package,
-// whose init() calls bpf(2) in every shim process (issue #173).
+// loadFailure keeps cilium/ebpf's error but overrides its MEMLOCK hint: on
+// kernels >= 5.11 EPERM means missing privilege, and its fix (the rlimit
+// package) calls bpf(2) from init() in every shim process (#173).
 func loadFailure(err error) error {
 	if errors.Is(err, unix.EPERM) {
-		return fmt.Errorf("tracer: load BPF objects: %w (needs CAP_BPF and CAP_PERFMON: check the shim's file capabilities, NoNewPrivileges, PrivateUsers and LSM policy)", unix.EPERM)
+		return fmt.Errorf("tracer: load BPF objects: %w (not MEMLOCK: missing CAP_BPF/CAP_PERFMON; check setcap, NoNewPrivileges, PrivateUsers)", err)
 	}
 	return fmt.Errorf("tracer: load BPF objects: %w", err)
 }

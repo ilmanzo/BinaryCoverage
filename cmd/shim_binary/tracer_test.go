@@ -18,15 +18,15 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// cilium/ebpf blames RLIMIT_MEMLOCK for every EPERM; the shim must not repeat
-// that hint, since it sends the reader to a package that breaks the shim.
+// EPERM must keep cilium/ebpf's detail (which object failed) and point at
+// capabilities rather than memlock.
 func TestLoadFailure(t *testing.T) {
 	cilium := fmt.Errorf("map create: %w (MEMLOCK may be too low, consider rlimit.RemoveMemlock)", unix.EPERM)
 	err := loadFailure(cilium)
-	if !errors.Is(err, unix.EPERM) {
-		t.Errorf("EPERM must stay matchable: %v", err)
+	if !errors.Is(err, unix.EPERM) || !strings.Contains(err.Error(), "map create") {
+		t.Errorf("EPERM must stay matchable with its detail: %v", err)
 	}
-	if strings.Contains(err.Error(), "RemoveMemlock") || !strings.Contains(err.Error(), "CAP_BPF") {
+	if !strings.Contains(err.Error(), "not MEMLOCK") || !strings.Contains(err.Error(), "CAP_BPF") {
 		t.Errorf("EPERM should point at capabilities, not memlock: %v", err)
 	}
 
