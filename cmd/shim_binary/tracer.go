@@ -17,7 +17,6 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
-	"github.com/cilium/ebpf/rlimit"
 
 	"github.com/ianlancetaylor/demangle"
 	"golang.org/x/sys/unix"
@@ -51,6 +50,16 @@ const dynFuncHeadroom = 100000
 // probes are attached are not recorded.
 const childPollInterval = 25 * time.Millisecond
 const maxLinuxPID = uint32(1<<31 - 1)
+
+// loadFailure keeps cilium/ebpf's error but overrides its MEMLOCK hint: on
+// kernels >= 5.11 EPERM means missing privilege, and its fix (the rlimit
+// package) calls bpf(2) from init() in every shim process (#173).
+func loadFailure(err error) error {
+	if errors.Is(err, unix.EPERM) {
+		return fmt.Errorf("tracer: load BPF objects: %w (not MEMLOCK: missing CAP_BPF/CAP_PERFMON; check setcap, NoNewPrivileges, PrivateUsers)", err)
+	}
+	return fmt.Errorf("tracer: load BPF objects: %w", err)
+}
 
 // FuncRef identifies a single traced function by image path and (mangled) name.
 type FuncRef struct {
@@ -112,10 +121,6 @@ type Tracer struct {
 // instrumentation, matching the filtering already applied at enumeration
 // time to statically discovered functions.
 func NewTracer(funcs map[string]funkutil.ImageFuncs, logs logPaths, patterns funkutil.FilterSidecar) (*Tracer, error) {
-	if err := rlimit.RemoveMemlock(); err != nil {
-		return nil, fmt.Errorf("tracer: remove memlock: %w", err)
-	}
-
 	filter := funkutil.FilterFromSidecar(patterns)
 	if patterns.Include != "" && filter.Include == nil {
 		debugLog("funkoverage-shim: bad --include pattern %q", patterns.Include)
@@ -137,7 +142,7 @@ func NewTracer(funcs map[string]funkutil.ImageFuncs, logs logPaths, patterns fun
 
 	var objs tracerObjects
 	if err := spec.LoadAndAssign(&objs, nil); err != nil {
-		return nil, fmt.Errorf("tracer: load BPF objects: %w", err)
+		return nil, loadFailure(err)
 	}
 
 	logFile, err := os.Create(logs.Called)

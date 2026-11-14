@@ -15,10 +15,9 @@
 # and reported 0% coverage for a binary it never let execute.
 #
 # systemd-run with a SystemCallFilter deny-list reproduces the same attach
-# failure as udev without needing an NFS mount or a udev event. Note the two
-# differ in shape -- a deny-list kills the helper with SIGSYS (empty reply),
-# udev's allow-list returns EPERM (helper reports its own error) -- and the
-# shim must survive both.
+# failure as udev without needing an NFS mount or a udev event. The kill
+# action ends the helper with SIGSYS, udev's errno action makes the call fail;
+# the shim must survive both, and a filtered bpf(2) too (#173).
 #
 # Run as root on openSUSE with funkoverage in PATH.
 set -euo pipefail
@@ -89,6 +88,18 @@ set -e -o pipefail
 [[ -n "$GOT" ]] || fail "shim produced no output -- it exited instead of exec'ing the real binary"
 [[ "$GOT" == "$EXPECTED" ]] || fail "output corrupted under seccomp: got '$GOT'"
 pass "Binary still ran and produced correct output with tracing blocked"
+
+# --- Issue #173: bpf(2) denied outright ---
+header "bpf denied (the shim itself must survive)"
+set +e +o pipefail
+GOT=$(printf 'funkoverage 173' \
+    | systemd-run --quiet --pipe --wait -p SystemCallFilter=~bpf "$BINARY" -c 2>/dev/null \
+    | "$BINARY" -dc 2>/dev/null)
+set -e -o pipefail
+
+[[ -n "$GOT" ]] || fail "shim produced no output -- it died before exec'ing the real binary"
+[[ "$GOT" == "funkoverage 173" ]] || fail "output corrupted under seccomp: got '$GOT'"
+pass "Binary still ran and produced correct output with bpf(2) denied"
 
 # --- Uninstall ---
 header "Uninstall"

@@ -197,6 +197,30 @@ sudo ./funkoverage trace /usr/bin/curl -- --version
 
 `funkoverage install` always requires root (modifies `/usr/bin`, runs `setcap`).
 
+### Hardened systemd service shows 0% coverage
+
+The service starts, but untraced: the shim fails open. The journal shows
+`funkoverage-shim: coverage helper died before attaching` or
+`tracing unavailable (...)`, and `funkoverage install` warns about the unit.
+Any one of these unit settings is enough:
+
+- `SystemCallFilter=` without `bpf`, e.g. `@system-service` (`bpf` is in
+  `@privileged`): the helper is killed with SIGSYS, or gets `EPERM`.
+- `PrivateUsers=` other than `no`: the shim's capabilities apply only inside
+  the unit's user namespace.
+- `ProtectSystem=strict`: `LOG_DIR` is read-only unless in `ReadWritePaths=`.
+- `NoNewPrivileges=yes` with a non-root `User=`: file capabilities are ignored.
+
+On a test system, lift them with a drop-in (`systemctl edit <unit>`), then
+`systemctl restart <unit>`:
+
+```ini
+[Service]
+SystemCallFilter=
+PrivateUsers=no
+ReadWritePaths=/var/coverage/data
+```
+
 ## Next Steps
 
 See [docs/design.md](design.md) for architecture details and [README.md](../README.md) for usage examples.

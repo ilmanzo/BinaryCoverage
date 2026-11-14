@@ -1,13 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 
 	"funkoverage/internal/funkutil"
 	"golang.org/x/sys/unix"
@@ -179,31 +183,7 @@ func TestRunHelper_MissingRealBin(t *testing.T) {
 // the helper. This does not cover the normal reparenting (a helper that is
 // still running when the shim execs); the e2e PPid check does that.
 func TestFailedHelperDoesNotLeakToTracedProgram(t *testing.T) {
-	if _, err := exec.LookPath("go"); err != nil {
-		t.Skip("go not in PATH, cannot build the shim")
-	}
-	tmp := t.TempDir()
-	binDir := filepath.Join(tmp, "bin")
-	safeDir := filepath.Join(tmp, "safe")
-	for _, d := range []string{binDir, safeDir} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", d, err)
-		}
-	}
-
-	// The shim resolves the real binary to SAFE_BIN_DIR/basename(itself), so
-	// both are named fakedaemon.
-	shim := filepath.Join(binDir, "fakedaemon")
-	build := exec.Command("go", "build", "-o", shim, ".")
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build shim: %v\n%s", err, out)
-	}
-	// The fake real binary reaps any child with waitpid(-1), like vsftpd.
-	reaper := filepath.Join(safeDir, "fakedaemon")
-	build = exec.Command("go", "build", "-o", reaper, "funkoverage/tests/sample/notifydaemon")
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build reaper: %v\n%s", err, out)
-	}
+	shim, safeDir, tmp := buildFakeDaemon(t)
 
 	// A regular file where EnsureLogDir needs a directory: the helper reports
 	// the failure and exits at once, reproducing an early helper exit.
@@ -227,6 +207,103 @@ func TestFailedHelperDoesNotLeakToTracedProgram(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "NO_CHILD") {
 		t.Fatalf("fake daemon did not report its result:\n%s", out)
+	}
+}
+
+// buildFakeDaemon builds the shim and a fake "real binary" (the notifydaemon
+// fixture, which reaps children with waitpid(-1) like vsftpd) side by side.
+// The shim resolves the real binary to SAFE_BIN_DIR/basename(itself), so both
+// are named fakedaemon.
+func buildFakeDaemon(t *testing.T) (shim, safeDir, tmp string) {
+	t.Helper()
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go not in PATH, cannot build the shim")
+	}
+	tmp = t.TempDir()
+	binDir := filepath.Join(tmp, "bin")
+	safeDir = filepath.Join(tmp, "safe")
+	for _, d := range []string{binDir, safeDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", d, err)
+		}
+	}
+
+	shim = filepath.Join(binDir, "fakedaemon")
+	build := exec.Command("go", "build", "-o", shim, ".")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build shim: %v\n%s", err, out)
+	}
+	build = exec.Command("go", "build", "-o", filepath.Join(safeDir, "fakedaemon"), "funkoverage/tests/sample/notifydaemon")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build reaper: %v\n%s", err, out)
+	}
+	return shim, safeDir, tmp
+}
+
+// denyBPFEnv makes this test binary act as a launcher (see TestMain) instead
+// of running tests.
+const denyBPFEnv = "FUNKOVERAGE_TEST_DENY_BPF"
+
+func TestMain(m *testing.M) {
+	if os.Getenv(denyBPFEnv) != "" {
+		denyBPFAndExec(os.Args[1:])
+	}
+	os.Exit(m.Run())
+}
+
+// denyBPFAndExec does what a systemd unit's SystemCallFilter= without bpf
+// does before it execs the service: installs a seccomp filter that kills the
+// whole process on bpf(2) (SCMP_ACT_KILL_PROCESS), then execs argv in place.
+// It only returns by exiting.
+func denyBPFAndExec(argv []string) {
+	die := func(err error) {
+		fmt.Fprintf(os.Stderr, "deny-bpf launcher: %v\n", err)
+		os.Exit(127)
+	}
+	// Filters are per-thread and survive only on the thread that execs.
+	runtime.LockOSThread()
+	filter := []unix.SockFilter{
+		{Code: unix.BPF_LD | unix.BPF_W | unix.BPF_ABS},                          // A = seccomp_data.nr
+		{Code: unix.BPF_JMP | unix.BPF_JEQ | unix.BPF_K, Jf: 1, K: unix.SYS_BPF}, // bpf: fall into the kill
+		{Code: unix.BPF_RET | unix.BPF_K, K: unix.SECCOMP_RET_KILL_PROCESS},
+		{Code: unix.BPF_RET | unix.BPF_K, K: unix.SECCOMP_RET_ALLOW},
+	}
+	prog := unix.SockFprog{Len: uint16(len(filter)), Filter: &filter[0]}
+	// No core file per killed process (systemd-coredump still logs it).
+	if err := unix.Setrlimit(unix.RLIMIT_CORE, &unix.Rlimit{}); err != nil {
+		die(fmt.Errorf("rlimit core: %w", err))
+	}
+	if err := unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0); err != nil {
+		die(fmt.Errorf("no_new_privs: %w", err))
+	}
+	if err := unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, uintptr(unsafe.Pointer(&prog)), 0, 0); err != nil {
+		die(fmt.Errorf("seccomp: %w", err))
+	}
+	runtime.KeepAlive(&prog)
+	die(syscall.Exec(argv[0], argv, os.Environ()))
+}
+
+// #173: under a seccomp kill on bpf(2) only the helper may die; the shim must
+// still exec the real binary. Catches any bpf(2) issued before main().
+func TestShimFailsOpenWhenBPFIsDenied(t *testing.T) {
+	shim, safeDir, tmp := buildFakeDaemon(t)
+
+	run := exec.Command(os.Args[0], shim, "-reaper")
+	run.Env = []string{
+		denyBPFEnv + "=1",
+		"PATH=" + os.Getenv("PATH"),
+		"SAFE_BIN_DIR=" + safeDir,
+		"LOG_DIR=" + filepath.Join(tmp, "logs"),
+	}
+	out, err := run.CombinedOutput()
+	if err != nil {
+		t.Fatalf("shim did not exec the real binary under a bpf(2) seccomp kill: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "NO_CHILD") {
+		t.Fatalf("real binary did not run:\n%s", out)
+	}
+	if !strings.Contains(string(out), "helper died before attaching") {
+		t.Errorf("killed helper not reported:\n%s", out)
 	}
 }
 

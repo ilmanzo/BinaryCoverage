@@ -3,6 +3,7 @@ package main
 import (
 	"debug/elf"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,7 +15,26 @@ import (
 
 	"funkoverage/internal/funkutil"
 	"funkoverage/internal/testutil"
+	"golang.org/x/sys/unix"
 )
+
+// EPERM must keep cilium/ebpf's detail (which object failed) and point at
+// capabilities rather than memlock.
+func TestLoadFailure(t *testing.T) {
+	cilium := fmt.Errorf("map create: %w (MEMLOCK may be too low, consider rlimit.RemoveMemlock)", unix.EPERM)
+	err := loadFailure(cilium)
+	if !errors.Is(err, unix.EPERM) || !strings.Contains(err.Error(), "map create") {
+		t.Errorf("EPERM must stay matchable with its detail: %v", err)
+	}
+	if !strings.Contains(err.Error(), "not MEMLOCK") || !strings.Contains(err.Error(), "CAP_BPF") {
+		t.Errorf("EPERM should point at capabilities, not memlock: %v", err)
+	}
+
+	other := fmt.Errorf("map create: %w", unix.EINVAL)
+	if got := loadFailure(other); !errors.Is(got, unix.EINVAL) || !strings.Contains(got.Error(), "map create") {
+		t.Errorf("other errors must pass through with their detail: %v", got)
+	}
+}
 
 func TestFlattenFuncs_StableOrderAndCookies(t *testing.T) {
 	funcs := map[string]funkutil.ImageFuncs{

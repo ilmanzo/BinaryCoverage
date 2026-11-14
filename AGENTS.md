@@ -55,7 +55,7 @@ Two binaries work together:
 Commands: `setup`, `install`, `uninstall`, `trace`, `enumerate`, `report`, `version`.
 All commands that enumerate functions (`install`, `trace`, `enumerate`) accept `--include RE` and `--exclude RE` to filter functions by demangled name regex.
 - `setup`: validates the eBPF environment (kernel ≥6.6, BTF available, log/bin dirs writable). Capabilities are applied per-shim at install time, NOT here.
-- `install <binary>`: moves real binary to `$SAFE_BIN_DIR/<basename>`, enumerates functions → `_functions.log` and `<basename>.funcs.json` sidecar, copies shim to original path, runs `setcap cap_bpf,cap_perfmon,cap_dac_read_search+ep` on the copy.
+- `install <binary>`: moves real binary to `$SAFE_BIN_DIR/<basename>`, enumerates functions → `_functions.log` and `<basename>.funcs.json` sidecar, copies shim to original path, runs `setcap cap_bpf,cap_perfmon,cap_dac_read_search+ep` on the copy, warns about systemd units that run it under a sandbox the tracer cannot work in (`cmd/sandbox.go`).
 - `uninstall <binary>`: reverses install (removes sidecars, restores original).
 - `enumerate <binary>`: lists discovered functions to stdout (debug aid).
 - `report <logdir> <outdir>`: reads `_functions.log` + `_called.log` files, writes coverage reports.

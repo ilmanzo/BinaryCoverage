@@ -65,7 +65,7 @@ These tests instrument real system utilities on the host to verify deep features
 | `test_openssl.sh` | `/usr/bin/openssl` | Multi-library tracing (`libssl.so`, `libcrypto.so`) | `openssl`, debug packages |
 | `test_pam_dlopen.sh` | `/usr/sbin/pam` | PAM modules loaded via `dlopen()` tracing | `pam`, `pam-debuginfo` |
 | `test_rust_ripgrep.sh` | `/usr/bin/rg` | Rust symbol demangling (v0 and legacy schemes) on stripped system binaries | `ripgrep`, `ripgrep-debuginfo` |
-| `test_shim_fail_open.sh` | `/usr/bin/bzip2` | Shim still execs the real binary when the tracer can't attach (seccomp blocks `perf_event_open`); needs a running systemd, self-skips otherwise | `bzip2`, `bzip2-debuginfo` |
+| `test_shim_fail_open.sh` | `/usr/bin/bzip2` | Shim still execs the real binary when the tracer can't attach (seccomp blocks `perf_event_open`, or kills on any `bpf(2)` call: issue #173); needs a running systemd, self-skips otherwise | `bzip2`, `bzip2-debuginfo` |
 | `test_sigchld_reaper.sh` | Custom C daemon (`reaper.c`) | Coverage helper isolation from traced process tree (issue #167): helper is never a child, never reaped by SIGCHLD handler (vsftpd crash), traced until exit, and no zombie on fail-open | `gcc`, running `systemd` (optional, for seccomp subtest) |
 | `test_signal_and_notify_relay.sh` | Custom C daemon | Signal forwarding (SIGHUP, SIGTERM, etc.) from shim to child and systemd `sd_notify` socket relay (issue #143) | `gcc` |
 | `test_squid.sh` | `/usr/sbin/squid` | C++ demangling, long-running daemon attachment, fork-tracking | `squid`, `squid-debuginfo`, `curl` |
