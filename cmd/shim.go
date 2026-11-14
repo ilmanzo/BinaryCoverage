@@ -78,6 +78,7 @@ func install(targetBinary string, libScope LibScope, filter *funkutil.FuncFilter
 	}
 
 	fmt.Printf("Installed shim for %s (original at %s)\n", targetBinary, safePath)
+	warnSandboxedUnits(target.realTarget)
 	return nil
 }
 
