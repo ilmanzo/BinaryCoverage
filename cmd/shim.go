@@ -241,10 +241,8 @@ func finishInstall(shimBinary, realTarget string, origInfo os.FileInfo) error {
 // File capabilities are an xattr and are NOT preserved by io.Copy, so they
 // must be (re)applied to each installed shim copy after the copy completes.
 //
-// No cap_sys_resource: BPF memory is charged to the memory cgroup, not to
-// RLIMIT_MEMLOCK, on every supported kernel (>= 6.6), so nothing here raises
-// that limit. The shim must also never link cilium/ebpf's rlimit package: its
-// init() calls bpf(2) in every shim process, before main() (issue #173).
+// No cap_sys_resource: kernels >= 5.11 charge BPF memory to memcg, not
+// RLIMIT_MEMLOCK.
 func setShimCaps(shimPath string) error {
 	caps := "cap_bpf,cap_perfmon,cap_dac_read_search+ep"
 	out, err := exec.Command("setcap", caps, shimPath).CombinedOutput()

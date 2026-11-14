@@ -269,7 +269,7 @@ func denyBPFAndExec(argv []string) {
 		{Code: unix.BPF_RET | unix.BPF_K, K: unix.SECCOMP_RET_ALLOW},
 	}
 	prog := unix.SockFprog{Len: uint16(len(filter)), Filter: &filter[0]}
-	// The killed process would otherwise leave a core dump per run.
+	// No core file per killed process (systemd-coredump still logs it).
 	if err := unix.Setrlimit(unix.RLIMIT_CORE, &unix.Rlimit{}); err != nil {
 		die(fmt.Errorf("rlimit core: %w", err))
 	}
@@ -283,12 +283,8 @@ func denyBPFAndExec(argv []string) {
 	die(syscall.Exec(argv[0], argv, os.Environ()))
 }
 
-// issue #173: uuidd.service's SystemCallFilter= does not allow bpf(2), so
-// systemd kills with SIGSYS any process that calls it. cilium/ebpf's rlimit
-// package issues a BPF_MAP_CREATE from an init(), which ran in every shim
-// process before main(): the shim died before it could fail open and the
-// daemon never started. A dead helper is fine (issue #158); a dead shim is
-// not.
+// #173: under a seccomp kill on bpf(2) only the helper may die; the shim must
+// still exec the real binary. Catches any bpf(2) issued before main().
 func TestShimFailsOpenWhenBPFIsDenied(t *testing.T) {
 	shim, safeDir, tmp := buildFakeDaemon(t)
 
