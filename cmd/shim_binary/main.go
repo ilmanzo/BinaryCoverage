@@ -156,16 +156,14 @@ func runWithTracing(realBin string) error {
 	// acceptable cost of instrumenting a system; breaking the instrumented
 	// program is not (issue #158).
 	//
-	// Both failure shapes have been seen in the wild and neither is
-	// distinguishable here, so both merely warn: a seccomp filter whose
-	// action is an errno (udev: SystemCallErrorNumber=EPERM) lets the helper
-	// run and report its own error, while the default kill action (uuidd:
-	// issue #173) ends it with SIGSYS and leaves an empty reply. A filter
-	// can only be survived by the helper: the shim process itself must
-	// never issue a syscall the unit might filter, bpf(2) included.
+	// Seccomp errno action (udev) -> helper replies "ERR:..."; kill action
+	// (uuidd, #173) -> helper dies with SIGSYS, empty reply. Only the helper
+	// may risk a filtered syscall: this process must never issue one.
 	reply, err := io.ReadAll(readyR)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "funkoverage-shim: read helper status: %v; running untraced\n", err)
+	} else if len(reply) == 0 {
+		fmt.Fprintln(os.Stderr, "funkoverage-shim: coverage helper died before attaching (seccomp filter without bpf?); running untraced")
 	} else if msg := string(reply); msg != "OK" {
 		fmt.Fprintf(os.Stderr, "funkoverage-shim: tracing unavailable (%s); running untraced\n",
 			strings.TrimPrefix(msg, "ERR:"))
@@ -238,10 +236,8 @@ func reportHelperStartFailure(readyW *os.File, err error) error {
 // then keeps running — draining tracer events — until the target process
 // exits.
 func helperMain() {
-	// Under a seccomp filter that kills on bpf(2) (issue #173) the helper
-	// dies with SIGSYS by design, and the shim runs the program untraced.
-	// Non-dumpable keeps systemd-coredump from logging that as a crash of the
-	// service on every start.
+	// A seccomp kill on bpf(2) (#173) is expected here; non-dumpable keeps
+	// systemd-coredump from logging it as a service crash on every start.
 	_ = unix.Prctl(unix.PR_SET_DUMPABLE, 0, 0, 0, 0)
 	readyW := os.NewFile(3, "ready-pipe")
 	pidfdFile := os.NewFile(4, "target-pidfd")

@@ -306,6 +306,9 @@ func TestShimFailsOpenWhenBPFIsDenied(t *testing.T) {
 	if !strings.Contains(string(out), "NO_CHILD") {
 		t.Fatalf("real binary did not run:\n%s", out)
 	}
+	if !strings.Contains(string(out), "helper died before attaching") {
+		t.Errorf("killed helper not reported:\n%s", out)
+	}
 }
 
 // TestStartHelper_StartFailure covers the intermediate's failure path: if
