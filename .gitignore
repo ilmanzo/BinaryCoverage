@@ -12,3 +12,4 @@ example/cov_sample
 example/dlopen_test
 *.so
 coverage.out
+tests/bench/work/
