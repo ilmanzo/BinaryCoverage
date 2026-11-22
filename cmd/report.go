@@ -26,6 +26,7 @@ type CoverageData struct {
 
 type FunctionEntry struct {
 	Name   string
+	Short  string // Name without its group prefix, shown inside the group
 	Status string // "called" or "uncalled"
 }
 
@@ -35,7 +36,7 @@ type HTMLReportData struct {
 	CalledCount        int
 	UncalledCount      int
 	CoveragePercentage float64
-	Functions          []FunctionEntry
+	Groups             []FunctionGroup
 	GeneratedAt        string
 }
 
@@ -426,20 +427,13 @@ func generateHTMLReport(rep imageReport, outputDir string) error {
 	called, uncalled := rep.Called, rep.Uncalled
 	totalCount := len(called) + len(uncalled)
 	coveragePct := pctOf(len(called), totalCount)
-	functions := make([]FunctionEntry, 0, totalCount)
-	for _, fn := range called {
-		functions = append(functions, FunctionEntry{Name: fn, Status: "called"})
-	}
-	for _, fn := range uncalled {
-		functions = append(functions, FunctionEntry{Name: fn, Status: "uncalled"})
-	}
 	reportData := HTMLReportData{
 		ImageName:          filepath.Base(rep.Image),
 		TotalCount:         totalCount,
 		CalledCount:        len(called),
 		UncalledCount:      len(uncalled),
 		CoveragePercentage: coveragePct,
-		Functions:          functions,
+		Groups:             buildGroups(called, uncalled),
 		GeneratedAt:        generatedAt(),
 	}
 	outfile := filepath.Join(outputDir, fmt.Sprintf("%s.html", safeImageName(rep.Image)))

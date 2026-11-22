@@ -13,7 +13,7 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1400px;
             margin: auto;
             background: #fff;
             padding: 2em;
@@ -62,25 +62,52 @@
             color: #0c322c;
         }
 
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75em;
+            margin: 1em 0;
+        }
+
+        .toolbar input[type="search"] {
+            flex: 1;
+            min-width: 16em;
+            padding: 0.4em 0.6em;
+            font-family: monospace;
+        }
+
+        .toolbar input.bad {
+            outline: 2px solid #ff5a2b;
+        }
+
+        details.group {
+            margin: 0.25em 0;
+        }
+
+        details.group>summary {
+            font-family: monospace;
+            font-weight: bold;
+            overflow-wrap: anywhere;
+        }
+
+        .gcount {
+            margin-left: 0.75em;
+            font-weight: normal;
+            white-space: nowrap;
+            opacity: 0.7;
+        }
+
         .function-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 1em;
             list-style-type: none;
-            padding: 0;
+            padding: 0 0 0 1.5em;
+            margin: 0.25em 0;
         }
 
         .function-list li {
             font-family: monospace;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: transform 0.2s;
-        }
-
-        .function-list li:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            overflow-wrap: anywhere;
+            margin-bottom: 2px;
         }
 
         .called,
@@ -104,7 +131,7 @@
 
         .function-list li.called,
         .function-list li.uncalled {
-            padding: 0.6em;
+            padding: 0.3em 0.6em;
             margin-right: 0;
         }
 
@@ -190,19 +217,70 @@
                 </div>
             </div>
         </div>
-        <details>
+        <details open>
             <summary>
                 <h2>Function Details</h2>
             </summary>
             <p><strong>Legend: </strong><span class="called"> Called Function </span><span class="uncalled"> Uncalled
                     Function </span></p>
-            <ul class="function-list">
-                {{range .Functions}}
-                <li class="{{.Status}}" title="{{.Name}}">{{.Name}}</li>
-                {{end}}
-            </ul>
+            <div class="toolbar">
+                <input type="search" id="q" placeholder="Filter functions (substring, case-insensitive)">
+                <label><input type="checkbox" id="rx"> regex</label>
+                <select id="st">
+                    <option value="">All</option>
+                    <option value="called">Called</option>
+                    <option value="uncalled">Uncalled</option>
+                </select>
+                <span id="count"></span>
+            </div>
+            {{- range .Groups}}
+            <details class="group"{{if eq (len $.Groups) 1}} open{{end}}>
+                <summary><span>{{.Name}}</span><span class="gcount">{{.Called}}/{{.Total}}</span></summary>
+                <ul class="function-list">
+                    {{- range .Functions}}
+                    <li class="{{.Status}}" data-name="{{.Name}}">{{.Short}}</li>
+                    {{- end}}
+                </ul>
+            </details>
+            {{- end}}
         </details>
     </div>
+    <script>
+        (function () {
+            var q = document.getElementById('q'), rx = document.getElementById('rx'),
+                st = document.getElementById('st'), count = document.getElementById('count'),
+                groups = document.querySelectorAll('details.group'), timer;
+
+            function apply() {
+                var needle = q.value, status = st.value, re = null, bad = false, shown = 0;
+                if (needle && rx.checked) {
+                    try { re = new RegExp(needle, 'i'); } catch (e) { bad = true; }
+                } else {
+                    needle = needle.toLowerCase();
+                }
+                q.classList.toggle('bad', bad);
+                var filtering = (needle && !bad) || status;
+                groups.forEach(function (g) {
+                    var n = 0;
+                    g.querySelectorAll('li').forEach(function (li) {
+                        var ok = (!status || li.classList.contains(status)) &&
+                            (!needle || bad || (re ? re.test(li.dataset.name) : li.dataset.name.toLowerCase().indexOf(needle) >= 0));
+                        li.hidden = !ok;
+                        if (ok) n++;
+                    });
+                    g.hidden = n === 0;
+                    g.open = !!filtering && n > 0;
+                    shown += n;
+                });
+                count.textContent = filtering ? shown + ' matching' : '';
+            }
+
+            function later() { clearTimeout(timer); timer = setTimeout(apply, 150); }
+            q.addEventListener('input', later);
+            rx.addEventListener('change', apply);
+            st.addEventListener('change', apply);
+        })();
+    </script>
 </body>
 
 </html>
