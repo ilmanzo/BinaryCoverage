@@ -25,6 +25,13 @@ func TestSplitSymbol(t *testing.T) {
 		{"Foo::operator<(Foo const&)", "Foo", "operator<(Foo const&)"},
 		{"(anonymous namespace)::helper(int)", "(anonymous namespace)", "helper(int)"},
 		{"ns::(anonymous namespace)::helper(int)", "ns::(anonymous namespace)", "helper(int)"},
+		{"bool std::chrono::operator<=<long, std::ratio<1l, 1000l>, long, std::ratio<1l, 1l> >(int const&)", "std::chrono", "bool operator<=<long, std::ratio<1l, 1000l>, long, std::ratio<1l, 1l> >(int const&)"},
+		{"void std::vector<int, std::allocator<int> >::_M_realloc_insert<int const&>(int const&)", "std::vector<int, std::allocator<int> >", "void _M_realloc_insert<int const&>(int const&)"},
+		{"std::common_type<int, long>::type std::foo<int>(int)", "std", "std::common_type<int, long>::type foo<int>(int)"},
+		{"std::basic_ostream<char>& std::operator<< <char>(std::basic_ostream<char>&, char const*)", "std", "std::basic_ostream<char>& operator<< <char>(std::basic_ostream<char>&, char const*)"},
+		{"Foo::operator new(unsigned long)", "Foo", "operator new(unsigned long)"},
+		{"Foo::operator", "Foo", "operator"},
+		{"non-virtual thunk to Foo::bar()", "Foo", "non-virtual thunk to bar()"},
 		{"ns::free_fn(std::map<int, ns::X>)", "ns", "free_fn(std::map<int, ns::X>)"},
 		// C and the rest
 		{"main", globalGroup, "main"},
@@ -85,5 +92,25 @@ func TestGenerateHTMLReportGroups(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Errorf("HTML missing %q", want)
 		}
+	}
+}
+
+func TestGenerateHTMLReportSingleGroupOpen(t *testing.T) {
+	render := func(called ...string) string {
+		tmp := t.TempDir()
+		if err := generateHTMLReport(imageReport{Image: "/usr/bin/app", Called: called}, tmp); err != nil {
+			t.Fatalf("generateHTMLReport: %v", err)
+		}
+		b, err := os.ReadFile(filepath.Join(tmp, "app.html"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	if html := render("main", "helper"); !strings.Contains(html, `<details class="group" open>`) {
+		t.Error("single group should be rendered open")
+	}
+	if html := render("main", "a/b.F"); strings.Contains(html, `<details class="group" open>`) || !strings.Contains(html, `<details class="group">`) {
+		t.Error("multiple groups should be rendered collapsed")
 	}
 }

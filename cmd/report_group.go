@@ -53,8 +53,9 @@ func buildGroups(called, uncalled []string) []FunctionGroup {
 // C++ namespace/class) and the remaining short name. Symbols with no
 // recognizable scope land in globalGroup with the full name kept as is.
 func splitSymbol(name string) (group, short string) {
-	if i := cppScopeEnd(name); i > 0 {
-		return name[:i], name[i+2:]
+	if start, end := cppScope(name); end > start {
+		// A leading return type ("void std::vector<int>::f<T>()") stays with the short name.
+		return name[start:end], name[:start] + name[end+2:]
 	}
 	if i := goPackageEnd(name); i > 0 {
 		return name[:i], name[i+1:]
@@ -64,25 +65,40 @@ func splitSymbol(name string) (group, short string) {
 
 const anonNamespace = "(anonymous namespace)"
 
-// cppScopeEnd returns the index of the last top-level "::" before the
-// parameter list, or -1. Template arguments and "operator" tokens are
-// skipped so their "<", ">" and "()" do not end the scope early.
+// operatorTokens lists C++ operator names, longest first so "<=" wins over "<".
+var operatorTokens = []string{
+	"<=>", "<<=", ">>=", "->*", "()", "[]", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||",
+	"++", "--", "+=", "-=", "*=", "/=", "%=", "^=", "&=", "|=", "->",
+	"<", ">", "=", "!", "+", "-", "*", "/", "%", "^", "&", "|", "~", ",",
+}
+
+// cppScope locates the scope of a demangled C++ name: name[start:end] is the
+// qualifier before the last top-level "::" of the function name, and end is
+// -1 when there is none. start skips a leading return type, which template
+// instantiations carry. Template arguments and operator tokens are skipped so
+// their "<", ">" and "()" do not end the scope early.
 //
 // shortcut: conversion operators ("operator std::string()") put a scope
 // separator after "operator" and get split there; revisit if they matter.
-func cppScopeEnd(name string) int {
-	last, depth := -1, 0
+func cppScope(name string) (start, end int) {
+	end, depth := -1, 0
 	for i := 0; i < len(name); i++ {
 		switch {
 		case strings.HasPrefix(name[i:], anonNamespace):
 			i += len(anonNamespace) - 1
 		case strings.HasPrefix(name[i:], "operator") && (i == 0 || name[i-1] == ':' || name[i-1] == ' '):
 			i += len("operator")
-			if strings.HasPrefix(name[i:], "()") {
-				i += 2
-			}
-			for i < len(name) && strings.IndexByte("<>=!+-*/%^&|~[],", name[i]) >= 0 {
+			if strings.HasPrefix(name[i:], " ") { // "operator new", "operator< <T>"
 				i++
+			}
+			for _, tok := range operatorTokens {
+				if strings.HasPrefix(name[i:], tok) {
+					i += len(tok)
+					if strings.HasPrefix(name[i:], " <") { // "operator<< <char>"
+						i++
+					}
+					break
+				}
 			}
 			i--
 		case name[i] == '<':
@@ -90,13 +106,15 @@ func cppScopeEnd(name string) int {
 		case name[i] == '>' && depth > 0:
 			depth--
 		case name[i] == '(' && depth == 0:
-			return last
+			return start, end
+		case depth == 0 && name[i] == ' ':
+			start, end = i+1, -1
 		case depth == 0 && strings.HasPrefix(name[i:], "::"):
-			last = i
+			end = i
 			i++
 		}
 	}
-	return last
+	return start, end
 }
 
 // compilerClone matches the suffixes GCC appends to C function clones

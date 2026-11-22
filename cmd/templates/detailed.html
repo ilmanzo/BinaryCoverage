@@ -234,7 +234,7 @@
                 <span id="count"></span>
             </div>
             {{- range .Groups}}
-            <details class="group">
+            <details class="group"{{if eq (len $.Groups) 1}} open{{end}}>
                 <summary><span>{{.Name}}</span><span class="gcount">{{.Called}}/{{.Total}}</span></summary>
                 <ul class="function-list">
                     {{- range .Functions}}
